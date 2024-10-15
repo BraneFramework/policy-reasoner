@@ -4,7 +4,7 @@
 //  Created:
 //    30 Nov 2023, 10:38:50
 //  Last edited:
-//    12 Jun 2024, 17:49:13
+//    11 Oct 2024, 16:10:25
 //  Auto updated?
 //    Yes
 //
@@ -16,6 +16,7 @@
 
 // Declare modules
 pub mod download;
+mod log;
 
 use std::borrow::Cow;
 use std::collections::HashSet;
@@ -28,17 +29,27 @@ use std::process::{Child, ChildStdin, ChildStdout, Command, ExitStatus, Stdio};
 
 use console::Style;
 use log::{debug, info};
+#[cfg(feature = "async-tokio")]
 use tokio::fs::{self as tfs, File as TFile};
+#[cfg(feature = "async-tokio")]
 use tokio::io::{AsyncBufReadExt as _, AsyncReadExt, AsyncWriteExt as _, BufReader as TBufReader};
+#[cfg(feature = "async-tokio")]
 use tokio::process::{Child as TChild, ChildStdin as TChildStdin, ChildStdout as TChildStdout, Command as TCommand};
 
-use crate::download::{DownloadSecurity, download_file, download_file_async};
+#[cfg(feature = "async-tokio")]
+use crate::download::download_file_async;
+use crate::download::{DownloadSecurity, download_file};
+
 
 /***** CONSTANTS *****/
 /// Compiler download URL.
 const COMPILER_URL: &str = "https://github.com/Olaf-Erkemeij/eflint-server/raw/bd3997df89441f13cbc82bd114223646df41540d/eflint-to-json";
 /// Compiler download checksum.
 const COMPILER_CHECKSUM: [u8; 32] = hex_literal::hex!("4e4e59b158ca31e532ec0a22079951788696ffa5d020b36790b4461dbadec83d");
+
+
+
+
 
 /***** ERRORS *****/
 /// Defines a wrapper around multiple streams.
@@ -84,6 +95,7 @@ impl ChildStream {
     ///
     /// # Returns
     /// A new ChildStream that either has the stream's contents, or some message saying the contents couldn't be retrieved.
+    #[cfg(feature = "async-tokio")]
     async fn new_async(what: &'static str, mut stream: impl AsyncReadExt + Unpin) -> Self {
         // Attempt to read it all
         let mut buf: String = String::new();
@@ -104,6 +116,8 @@ impl Display for ChildStream {
     }
 }
 impl error::Error for ChildStream {}
+
+
 
 /// Defines toplevel errors.
 #[derive(Debug)]
@@ -186,6 +200,10 @@ impl error::Error for Error {
     }
 }
 
+
+
+
+
 /***** HELPER FUNCTIONS *****/
 /// Analyses a potential `#input(...)` or `#require(...)` line from eFLINT.
 ///
@@ -257,6 +275,7 @@ fn potentially_include(imported: &mut HashSet<PathBuf>, path: &Path, line: &str)
 ///
 /// # Errors
 /// This function can error if we failed to open the included file.
+#[cfg(feature = "async-tokio")]
 async fn potentially_include_async(imported: &mut HashSet<PathBuf>, path: &Path, line: &str) -> Result<Option<Option<(PathBuf, TFile)>>, Error> {
     // Strip whitespace
     let line: &str = line.trim();
@@ -356,6 +375,7 @@ fn load_input(imported: &mut HashSet<PathBuf>, path: &Path, handle: BufReader<Fi
 ///
 /// # Errors
 /// This function may error if we at any point failed to open/read a file, found `#include`s or `#require`s pointing to non-existant files or if we could not write to the `child`.
+#[cfg(feature = "async-tokio")]
 #[async_recursion::async_recursion]
 async fn load_input_async(imported: &mut HashSet<PathBuf>, path: &Path, handle: TBufReader<TFile>, child: &mut TChildStdin) -> Result<(), Error> {
     debug!("Importing file '{}'", path.display());
@@ -390,6 +410,10 @@ async fn load_input_async(imported: &mut HashSet<PathBuf>, path: &Path, handle: 
     // Done!
     Ok(())
 }
+
+
+
+
 
 /***** LIBRARY *****/
 /// Compiles a (tree of) `.eflint` files using Olaf's `eflint-to-json` compiler.
@@ -524,6 +548,7 @@ pub fn compile(input_path: &Path, mut output: impl Write, compiler_path: Option<
 ///
 /// # Errors
 /// This function may error for a plethora of reasons.
+#[cfg(feature = "async-tokio")]
 pub async fn compile_async(input_path: &Path, mut output: impl Write, compiler_path: Option<&Path>) -> Result<(), Error> {
     info!("Compiling input at '{}'", input_path.display());
 
@@ -553,6 +578,7 @@ pub async fn compile_async(input_path: &Path, mut output: impl Write, compiler_p
                     use std::os::unix::fs::PermissionsExt as _;
 
                     // ...and make it executable
+                    debug!("Making compiler '{}' executable...", compiler_path.display());
                     let mut perms: Permissions = match tfs::metadata(&compiler_path).await {
                         Ok(mdata) => mdata.permissions(),
                         Err(err) => return Err(Error::FileMetadata { path: compiler_path, err }),

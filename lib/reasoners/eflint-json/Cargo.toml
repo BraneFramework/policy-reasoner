@@ -1,0 +1,24 @@
+[package]
+name = "eflint-json-reasoner"
+description = "Implements eFLINT as a backend reasoner for the policy reasoner."
+edition = "2021"
+authors = [ "Bas Kloosterman", "Tim Müller" ]
+version = "0.2.0"
+repository.workspace = true
+license.workspace = true
+
+
+[dependencies]
+reqwest = { version = "0.12.0", features = ["json"] }
+serde_json = "1.0.120"
+tracing = "0.1.40"
+
+eflint-json = { git = "https://gitlab.com/eflint/json-spec-rs", branch = "incorrect-is-invariant" }
+error-trace = { git = "https://github.com/Lut99/error-trace-rs", tag = "v3.1.0" }
+
+# workflow = { path = "../../../reasoner-workflow", package = "policy-reasoner-workflow" }
+spec = { path = "../../spec", package = "specifications" }
+
+
+[features]
+default = []

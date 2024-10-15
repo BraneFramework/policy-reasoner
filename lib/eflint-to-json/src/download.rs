@@ -4,7 +4,7 @@
 //  Created:
 //    29 Nov 2023, 15:11:58
 //  Last edited:
-//    12 Jun 2024, 17:45:43
+//    11 Oct 2024, 16:08:06
 //  Auto updated?
 //    Yes
 //
@@ -19,13 +19,20 @@ use std::str::FromStr as _;
 use std::{error, fs};
 
 use console::Style;
+#[cfg(feature = "async-tokio")]
 use futures_util::StreamExt as _;
 use indicatif::{ProgressBar, ProgressStyle};
-use log::debug;
-use reqwest::{Client, Request, Response, StatusCode, Url, blocking};
+#[cfg(feature = "async-tokio")]
+use reqwest::{Client, Request, Response};
+use reqwest::{StatusCode, Url, blocking};
 use sha2::{Digest as _, Sha256};
+#[cfg(feature = "async-tokio")]
 use tokio::fs as tfs;
+#[cfg(feature = "async-tokio")]
 use tokio::io::AsyncWriteExt as _;
+
+use crate::log::debug;
+
 
 /***** ERRORS *****/
 /// Wraps the contents of an error body.
@@ -36,7 +43,9 @@ impl Display for ResponseBodyError {
 }
 impl error::Error for ResponseBodyError {}
 
-/// Defines errors occurring with [`download_file_async()`].
+
+
+/// Defines errors occurring with [`download_file()`].
 #[derive(Debug)]
 pub enum Error {
     /// Failed to create a file.
@@ -102,6 +111,10 @@ impl std::error::Error for Error {
         }
     }
 }
+
+
+
+
 
 /***** AUXILLARY *****/
 /// Defines things to do to assert a downloaded file is secure and what we expect.
@@ -175,6 +188,10 @@ impl Display for DownloadSecurity<'_> {
         }
     }
 }
+
+
+
+
 
 /***** LIBRARY *****/
 /// Downloads some file from the interwebs to the given location.
@@ -361,6 +378,7 @@ pub fn download_file(source: impl AsRef<str>, target: impl AsRef<Path>, security
 ///
 /// # Errors
 /// This function may error if we failed to download the file or write it (which may happen if the parent directory of `local` does not exist, among other things).
+#[cfg(feature = "async-tokio")]
 pub async fn download_file_async(
     source: impl AsRef<str>,
     target: impl AsRef<Path>,

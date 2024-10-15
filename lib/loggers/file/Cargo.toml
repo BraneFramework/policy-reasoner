@@ -1,0 +1,23 @@
+[package]
+name = "file-logger"
+description = "Implements an audit logger that writes everything to a file."
+edition = "2021"
+authors = [ "Bas Kloosterman", "Tim Müller" ]
+version = "0.2.0"
+repository.workspace = true
+license.workspace = true
+
+
+[dependencies]
+chrono = "0.4.38"
+enum-debug = { git = "https://github.com/Lut99/enum-debug", tag = "v1.1.0", features = ["derive"] }
+serde = { version = "1.0.204", features = ["derive"] }
+serde_json = "1.0.120"
+tokio = { version = "1.40.0", default-features = false, features = ["fs", "io-util"] }
+tracing = "0.1.40"
+
+spec = { path = "../../spec", package = "specifications" }
+
+
+[features]
+default = []
