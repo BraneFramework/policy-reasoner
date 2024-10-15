@@ -4,7 +4,7 @@
 //  Created:
 //    08 Oct 2024, 16:13:30
 //  Last edited:
-//    11 Oct 2024, 16:23:03
+//    15 Oct 2024, 17:00:42
 //  Auto updated?
 //    Yes
 //
@@ -19,6 +19,8 @@ pub mod reasoners {
     pub use eflint_json_reasoner as eflint_json;
     #[cfg(feature = "no-op-reasoner")]
     pub use no_op_reasoner as no_op;
+    #[cfg(feature = "posix-reasoner")]
+    pub use posix_reasoner as posix;
 }
 /// Contains the backend loggers.
 pub mod loggers {
@@ -35,3 +37,5 @@ pub mod resolvers {
 #[cfg(feature = "eflint-to-json")]
 pub use eflint_to_json;
 pub use spec;
+#[cfg(feature = "workflow")]
+pub use workflow;

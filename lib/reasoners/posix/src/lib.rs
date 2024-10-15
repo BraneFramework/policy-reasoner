@@ -4,7 +4,7 @@
 //  Created:
 //    11 Oct 2024, 16:35:23
 //  Last edited:
-//    11 Oct 2024, 16:54:39
+//    15 Oct 2024, 14:18:42
 //  Auto updated?
 //    Yes
 //
@@ -141,6 +141,7 @@
 //
 
 // Declare the modules
+pub mod config;
 mod reasonerconn;
 mod workflow;
 

@@ -4,7 +4,7 @@
 //  Created:
 //    08 Oct 2024, 16:16:26
 //  Last edited:
-//    08 Oct 2024, 19:19:27
+//    15 Oct 2024, 16:40:22
 //  Auto updated?
 //    Yes
 //
@@ -76,6 +76,7 @@ pub struct Workflow {
 /// Defines an element in the graph. This is either a _Node_, which defines a task execution, or an _Edge_, which defines how next tasks may be reached.
 #[derive(Clone, Debug, EnumDebug)]
 #[cfg_attr(feature = "serde", derive(Deserialize, Serialize))]
+#[cfg_attr(feature = "serde", serde(tag = "kind", rename_all = "snake_case"))]
 pub enum Elem {
     // Nodes
     /// Defines a task that is executed, accessing and potentially producing data.

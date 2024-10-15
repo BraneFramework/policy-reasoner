@@ -4,7 +4,7 @@
 //  Created:
 //    11 Oct 2024, 16:54:04
 //  Last edited:
-//    14 Oct 2024, 11:58:50
+//    15 Oct 2024, 17:42:33
 //  Auto updated?
 //    Yes
 //
@@ -15,7 +15,7 @@
 use std::convert::Infallible;
 use std::sync::LazyLock;
 
-use tracing::{debug, span, Level};
+use tracing::{Level, debug, span};
 use workflow::visitor::Visitor;
 use workflow::{Dataset, ElemCall, Entity, Workflow};
 
@@ -23,6 +23,20 @@ use workflow::{Dataset, ElemCall, Entity, Workflow};
 /***** CONSTANTS *****/
 /// Special location that indicates to the policy that a task was unplanned.
 pub static UNSPECIFIED_LOCATION: LazyLock<Entity> = LazyLock::new(|| Entity { id: "<unspecified>".into() });
+
+
+
+
+
+/***** HELPERS *****/
+/// Special trait that will throw a compile error if [`DatasetCollector`] does not have an
+/// [`Infallible`] error type.
+///
+/// This is important because of the unsafe block in [`WorkflowDatasets::from()`].
+trait _InfallibleAssertion<'w>: Visitor<'w, Error = Infallible> {}
+// Note: this cannot be implemented anymore if the error is not Infallible
+// If that ever occurs, re-consider the `unwrap_unchecked()` in the from below
+impl<'w> _InfallibleAssertion<'w> for DatasetCollector<'w> {}
 
 
 
@@ -82,7 +96,9 @@ impl<'w> Visitor<'w> for DatasetCollector<'w> {
         let location: &'w Entity = elem.at.as_ref().unwrap_or_else(|| LazyLock::force(&UNSPECIFIED_LOCATION));
         self.read_sets.extend(elem.input.iter().map(|d| (location, d)));
         self.write_sets.extend(elem.output.iter().map(|d| (location, d)));
-        Ok(())
+
+        // Also visit the next one before returning, lol
+        self.visit(&elem.next)
     }
 }
 
@@ -93,6 +109,7 @@ impl<'w> Visitor<'w> for DatasetCollector<'w> {
 /***** LIBRARY *****/
 /// The datasets accessed and/or modified in a workflow. These are grouped by file permission type. For creating this
 /// struct see: [`find_datasets_in_workflow`].
+#[derive(Clone, Debug)]
 pub struct WorkflowDatasets<'w> {
     pub read_sets:    Vec<(&'w Entity, &'w Dataset)>,
     pub write_sets:   Vec<(&'w Entity, &'w Dataset)>,
@@ -105,7 +122,10 @@ impl<'w> From<&'w Workflow> for WorkflowDatasets<'w> {
         debug!("Walking the workflow in order to find datasets. Starting with {:?}", &value.start);
 
         let mut visitor = DatasetCollector::default();
-        value.visit(&mut visitor);
+        // SAFETY: We can do this because `DatasetCollector` cannot physically error (its error is `Infallible`)
+        unsafe {
+            value.visit(&mut visitor).unwrap_unchecked();
+        }
 
         WorkflowDatasets { read_sets: visitor.read_sets, write_sets: visitor.write_sets, execute_sets: visitor.execute_sets }
     }
