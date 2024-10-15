@@ -1,0 +1,18 @@
+{
+    "id": "coruscant",
+    "data": {
+        "jedis": {
+            "path": "../../../tests/posix/files/jedis.csv",
+            "user_map": {
+                "tatooine": {
+                    "uid": 1000,
+                    "gids": [1000]
+                },
+                "moraband": {
+                    "uid": 1001,
+                    "gids": [1001]
+                }
+            }
+        }
+    }
+}

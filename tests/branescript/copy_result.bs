@@ -1,5 +1,0 @@
-import copy_result;
-
-let data := new Data { name := "Test" };
-let res := copy_result(data);
-return commit_result("result", res);

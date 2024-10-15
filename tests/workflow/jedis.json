@@ -1,0 +1,26 @@
+{
+    "id": "test-jedis",
+    "start": {
+        "kind": "call",
+        "id": "call-1",
+        "task": "color-obi-wan-lightsaber",
+        "input": [{ "id": "jedis" }],
+        "output": [{ "id": "jedis" }],
+        "at": { "id": "tatooine" },
+        "metadata": [],
+        "next": {
+            "kind": "call",
+            "id": "call-2",
+            "task": "promote-anakin-to-master",
+            "input": [{ "id": "jedis" }],
+            "output": [{ "id": "jedis" }],
+            "at": { "id": "moraband" },
+            "metadata": [],
+            "next": { "kind": "stop" }
+        }
+    },
+
+    "user": { "id": "Darth Sidious" },
+    "metadata": [],
+    "signature": null
+}

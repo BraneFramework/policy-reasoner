@@ -1,4 +1,0 @@
-// Test scripts that runs the hello_world package.
-import hello_world;
-
-println(hello_world());
