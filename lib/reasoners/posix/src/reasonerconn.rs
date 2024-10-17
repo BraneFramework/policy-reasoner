@@ -4,7 +4,7 @@
 //  Created:
 //    11 Oct 2024, 16:54:51
 //  Last edited:
-//    15 Oct 2024, 17:20:44
+//    17 Oct 2024, 12:10:18
 //  Auto updated?
 //    Yes
 //
@@ -20,9 +20,11 @@ use std::ops::BitOr;
 use std::os::unix::fs::{MetadataExt as _, PermissionsExt as _};
 use std::path::{Path, PathBuf};
 
+use error_trace::{ErrorTrace as _, Trace};
 use serde::Deserialize;
 use spec::auditlogger::{AuditLogger, SessionedAuditLogger};
 use spec::reasonerconn::{ReasonerConnector, ReasonerResponse};
+use spec::reasons::NoReason;
 use thiserror::Error;
 use tokio::fs;
 use tracing::{Level, debug, info, span};
@@ -42,6 +44,20 @@ pub enum Error {
         path: PathBuf,
         #[source]
         err:  std::io::Error,
+    },
+    /// Failed to log the context of the reasoner.
+    #[error("Failed to log the reasoner's context to {to}")]
+    LogContext {
+        to:  &'static str,
+        #[source]
+        err: Trace,
+    },
+    /// Failed to log the reasoner's response to the given logger.
+    #[error("Failed to log the reasoner's response to {to}")]
+    LogResponse {
+        to:  &'static str,
+        #[source]
+        err: Trace,
     },
     /// The dataset was unknown to us.
     #[error("Unknown dataset {data:?}")]
@@ -197,13 +213,27 @@ pub struct State {
 /// The POSIX reasoner connector. This connector is used to validate workflows based on POSIX file permissions.
 pub struct PosixReasonerConnector;
 impl PosixReasonerConnector {
+    /// Constructor for the PosixReasonerConnector.
+    ///
+    /// This constructor logs asynchronously.
+    ///
+    /// # Arguments
+    /// - `logger`: A logger to write this reasoner's context to.
+    ///
+    /// # Errors
+    /// This function may error if it failed to log to the given `logger`.
     #[inline]
-    pub const fn new() -> Self { PosixReasonerConnector }
+    pub fn new_async<'l, L: AuditLogger>(logger: &'l mut L) -> impl 'l + Future<Output = Result<Self, Error>> {
+        async move {
+            logger.log_context("posix").await.map_err(|err| Error::LogContext { to: std::any::type_name::<L>(), err: err.freeze() })?;
+            Ok(Self)
+        }
+    }
 }
 impl ReasonerConnector for PosixReasonerConnector {
     type Error = Error;
     type Question = ();
-    type Reason = ();
+    type Reason = NoReason;
     type State = State;
 
     #[inline]
@@ -211,7 +241,7 @@ impl ReasonerConnector for PosixReasonerConnector {
         &self,
         state: Self::State,
         _question: Self::Question,
-        logger: &SessionedAuditLogger<L>,
+        logger: &mut SessionedAuditLogger<L>,
     ) -> impl Future<Output = Result<ReasonerResponse<Self::Reason>, Self::Error>>
     where
         L: AuditLogger,
@@ -239,11 +269,19 @@ impl ReasonerConnector for PosixReasonerConnector {
 
                 // Now check the policy!
                 if !satisfies_posix_permissions(&policy.path, policy.user_map.get(&location.id), permission).await? {
-                    return Ok(ReasonerResponse::Violated(()));
+                    logger
+                        .log_response(&ReasonerResponse::Violated(NoReason), Some("false"))
+                        .await
+                        .map_err(|err| Error::LogResponse { to: std::any::type_name::<SessionedAuditLogger<L>>(), err: err.freeze() })?;
+                    return Ok(ReasonerResponse::Violated(NoReason));
                 }
             }
 
             // If none of them failed prematurely, then we're done
+            logger
+                .log_response(&ReasonerResponse::<NoReason>::Success, Some("true"))
+                .await
+                .map_err(|err| Error::LogResponse { to: std::any::type_name::<SessionedAuditLogger<L>>(), err: err.freeze() })?;
             Ok(ReasonerResponse::Success)
         }
     }

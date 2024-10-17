@@ -4,7 +4,7 @@
 //  Created:
 //    10 Oct 2024, 14:46:33
 //  Last edited:
-//    10 Oct 2024, 14:47:56
+//    17 Oct 2024, 11:23:08
 //  Auto updated?
 //    Yes
 //
@@ -17,6 +17,7 @@ use std::fmt::Display;
 use std::future::Future;
 
 use spec::auditlogger::AuditLogger;
+use spec::context::Context;
 use spec::reasonerconn::ReasonerResponse;
 
 
@@ -39,8 +40,19 @@ impl AuditLogger for MockLogger {
     type Error = Infallible;
 
     #[inline]
+    fn log_context<'a, C>(&'a mut self, _context: &'a C) -> impl 'a + Future<Output = Result<(), Self::Error>>
+    where
+        C: ?Sized + Context,
+    {
+        async move {
+            println!("AUDIT LOG: log_context");
+            Ok(())
+        }
+    }
+
+    #[inline]
     fn log_response<'a, R>(
-        &'a self,
+        &'a mut self,
         _reference: &'a str,
         _response: &'a ReasonerResponse<R>,
         _raw: Option<&'a str>,

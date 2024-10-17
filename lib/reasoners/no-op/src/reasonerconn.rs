@@ -4,7 +4,7 @@
 //  Created:
 //    10 Oct 2024, 16:21:09
 //  Last edited:
-//    11 Oct 2024, 16:56:18
+//    17 Oct 2024, 09:50:23
 //  Auto updated?
 //    Yes
 //
@@ -83,7 +83,7 @@ impl<Q> ReasonerConnector for NoOpReasonerConnector<Q> {
         &self,
         _state: Self::State,
         _question: Self::Question,
-        logger: &SessionedAuditLogger<L>,
+        logger: &mut SessionedAuditLogger<L>,
     ) -> impl Future<Output = Result<ReasonerResponse<Self::Reason>, Self::Error>>
     where
         L: AuditLogger,

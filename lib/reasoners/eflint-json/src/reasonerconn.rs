@@ -4,7 +4,7 @@
 //  Created:
 //    09 Oct 2024, 15:52:06
 //  Last edited:
-//    11 Oct 2024, 16:56:24
+//    17 Oct 2024, 12:12:54
 //  Auto updated?
 //    Yes
 //
@@ -13,16 +13,17 @@
 //
 
 use std::collections::HashMap;
-use std::error;
-use std::fmt::{Display, Formatter, Result as FResult};
+use std::fmt::Display;
 use std::future::Future;
 use std::marker::PhantomData;
 
 use eflint_json::spec::auxillary::Version;
 use eflint_json::spec::{Phrase, PhraseResult, Request, RequestCommon, RequestPhrases, ResponsePhrases};
 use error_trace::{ErrorTrace as _, Trace};
+use serde::{Deserialize, Serialize};
 use spec::auditlogger::{AuditLogger, SessionedAuditLogger};
 use spec::reasonerconn::{ReasonerConnector, ReasonerResponse};
+use thiserror::Error;
 use tracing::{Level, debug, span};
 
 use crate::reasons::ReasonHandler;
@@ -31,77 +32,79 @@ use crate::spec::EFlintable;
 
 /***** ERRORS *****/
 /// Defines the errors returned by the [`EFlintJsonReasonerConnectorector`].
-#[derive(Debug)]
+#[derive(Debug, Error)]
 pub enum Error<R, S, Q> {
+    /// Failed to log the context of the reasoner.
+    #[error("Failed to log the reasoner's context to {to}")]
+    LogContext {
+        to:  &'static str,
+        #[source]
+        err: Trace,
+    },
     /// Failed to log the reasoner's response to the given logger.
-    LogResponse { to: &'static str, err: Trace },
+    #[error("Failed to log the reasoner's response to {to}")]
+    LogResponse {
+        to:  &'static str,
+        #[source]
+        err: Trace,
+    },
     /// Failed to receive a [`ResponsePhrases`] to the remote reasoner (as raw).
-    ReasonerResponse { addr: String, err: reqwest::Error },
+    #[error("Failed to fetch reply from remote reasoner at {addr:?}")]
+    ReasonerResponse {
+        addr: String,
+        #[source]
+        err:  reqwest::Error,
+    },
     /// Failed to send a [`RequestPhrases`] to the remote reasoner.
-    ReasonerRequest { addr: String, err: reqwest::Error },
+    #[error("Failed to set PhrasesRequest to reasoner at {addr:?}")]
+    ReasonerRequest {
+        addr: String,
+        #[source]
+        err:  reqwest::Error,
+    },
     /// Failed to extract the reasons for failure (i.e., violations) from a parsed [`ResponsePhrases`] object.
-    ResponseExtractReasons { addr: String, raw: String, err: R },
+    #[error("Failed to extract reasons (i.e., violations) from the response of reasoner at {:?}\n\nParsed response:\n{}\n{}\n{}\n\n",
+        addr,
+        (0..80).map(|_| '-').collect::<String>(),
+        raw,
+        (0..80).map(|_| '-').collect::<String>())]
+    ResponseExtractReasons {
+        addr: String,
+        raw:  String,
+        #[source]
+        err:  R,
+    },
     /// The query returned in the response was of an illegal ending type.
+    #[error("Reasoner at {:?} returned result of instance query as last state change; this is unsupported!\n\nParsed response:\n{}\n{}\n{}\n\n",
+                addr,
+                (0..80).map(|_| '-').collect::<String>(),
+                raw,
+                (0..80).map(|_| '-').collect::<String>())]
     ResponseIllegalQuery { addr: String, raw: String },
     /// Failed to parse the response of the reasoner as a valid [`ResponsePhrases`] object.
-    ResponseParse { addr: String, raw: String, err: serde_json::Error },
+    #[error("Failed to parse response from reasoner at {:?}\n\nRaw response:\n{}\n{}\n{}\n\n",
+                addr,
+                (0..80).map(|_| '-').collect::<String>(),
+                raw,
+                (0..80).map(|_| '-').collect::<String>())]
+    ResponseParse {
+        addr: String,
+        raw:  String,
+        #[source]
+        err:  serde_json::Error,
+    },
     /// Failed to serialize the state to eFLINT.
-    StateToEFlint { err: S },
+    #[error("Failed to serialize given state to eFLINT")]
+    StateToEFlint {
+        #[source]
+        err: S,
+    },
     /// Failed ot serialize the question to eFLINT.
-    QuestionToEFlint { err: Q },
-}
-impl<R, S, Q> Display for Error<R, S, Q> {
-    #[inline]
-    fn fmt(&self, f: &mut Formatter<'_>) -> FResult {
-        use Error::*;
-        match self {
-            LogResponse { to, .. } => write!(f, "Failed to log the reasoner's response to {to}"),
-            ReasonerResponse { addr, .. } => write!(f, "Failed to fetch reply from remote reasoner at {addr:?}"),
-            ReasonerRequest { addr, .. } => write!(f, "Failed to set PhrasesRequest to reasoner at {addr:?}"),
-            ResponseExtractReasons { addr, raw, .. } => write!(
-                f,
-                "Failed to extract reasons (i.e., violations) from the response of reasoner at {:?}\n\nParsed response:\n{}\n{}\n{}\n\n",
-                addr,
-                (0..80).map(|_| '-').collect::<String>(),
-                raw,
-                (0..80).map(|_| '-').collect::<String>()
-            ),
-            ResponseIllegalQuery { addr, raw } => write!(
-                f,
-                "Reasoner at {:?} returned result of instance query as last state change; this is unsupported!\n\nParsed response:\n{}\n{}\n{}\n\n",
-                addr,
-                (0..80).map(|_| '-').collect::<String>(),
-                raw,
-                (0..80).map(|_| '-').collect::<String>()
-            ),
-            ResponseParse { addr, raw, .. } => write!(
-                f,
-                "Failed to parse response from reasoner at {:?}\n\nRaw response:\n{}\n{}\n{}\n\n",
-                addr,
-                (0..80).map(|_| '-').collect::<String>(),
-                raw,
-                (0..80).map(|_| '-').collect::<String>()
-            ),
-            StateToEFlint { .. } => write!(f, "Failed to serialize given state to eFLINT"),
-            QuestionToEFlint { .. } => write!(f, "Failed to serialize given question to eFLINT"),
-        }
-    }
-}
-impl<R: 'static + error::Error, S: 'static + error::Error, Q: 'static + error::Error> error::Error for Error<R, S, Q> {
-    #[inline]
-    fn source(&self) -> Option<&(dyn error::Error + 'static)> {
-        use Error::*;
-        match self {
-            LogResponse { err, .. } => Some(err),
-            ReasonerResponse { err, .. } => Some(err),
-            ReasonerRequest { err, .. } => Some(err),
-            ResponseExtractReasons { err, .. } => Some(err),
-            ResponseIllegalQuery { .. } => None,
-            ResponseParse { err, .. } => Some(err),
-            StateToEFlint { err } => Some(err),
-            QuestionToEFlint { err } => Some(err),
-        }
-    }
+    #[error("Failed to serialize given question to eFLINT")]
+    QuestionToEFlint {
+        #[source]
+        err: Q,
+    },
 }
 
 
@@ -109,6 +112,17 @@ impl<R: 'static + error::Error, S: 'static + error::Error, Q: 'static + error::E
 
 
 /***** AUXILLARY *****/
+/// Defines the context for the eFLINT reasoner.
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct Context {
+    /// The address of the context.
+    addr: String,
+}
+impl spec::context::Context for Context {
+    #[inline]
+    fn kind(&self) -> &str { "eflint-json" }
+}
+
 /// Defines the eFLINT reasoner state to submit to it.
 #[derive(Clone, Debug)]
 pub struct State<S> {
@@ -139,15 +153,37 @@ pub struct EFlintJsonReasonerConnector<R, S, Q> {
 impl<R, S, Q> EFlintJsonReasonerConnector<R, S, Q> {
     /// Constructor for the EFlintJsonReasonerConnector.
     ///
+    /// This constructor logs asynchronously.
+    ///
     /// # Arguments
     /// - `addr`: The address of the remote reasoner that we will connect to.
     /// - `handler`: The [`ReasonHandler`] that determines how errors from the reasoners are propagated to the user.
+    /// - `logger`: A logger to write this reasoner's context to.
     ///
     /// # Returns
     /// A new instance of Self, ready for reasoning.
+    ///
+    /// # Errors
+    /// This function may error if it failed to log to the given `logger`.
     #[inline]
-    pub fn new(addr: impl Into<String>, handler: R) -> Self {
-        Self { addr: addr.into(), reason_handler: handler, _state: PhantomData, _question: PhantomData }
+    pub fn new_async<'l, L: AuditLogger>(
+        addr: impl 'l + Into<String>,
+        handler: R,
+        logger: &'l mut L,
+    ) -> impl 'l + Future<Output = Result<Self, Error<R::Error, S::Error, Q::Error>>>
+    where
+        R: 'l + ReasonHandler,
+        R::Reason: Display,
+        R::Error: 'static,
+        S: EFlintable,
+        S::Error: 'static,
+        Q: EFlintable,
+        Q::Error: 'static,
+    {
+        async move {
+            logger.log_context("").await.map_err(|err| Error::LogContext { to: std::any::type_name::<L>(), err: err.freeze() })?;
+            Ok(Self { addr: addr.into(), reason_handler: handler, _state: PhantomData, _question: PhantomData })
+        }
     }
 }
 impl<R, S, Q> ReasonerConnector for EFlintJsonReasonerConnector<R, S, Q>
@@ -169,7 +205,7 @@ where
         &self,
         state: Self::State,
         question: Self::Question,
-        logger: &SessionedAuditLogger<L>,
+        logger: &mut SessionedAuditLogger<L>,
     ) -> impl Future<Output = Result<ReasonerResponse<Self::Reason>, Self::Error>>
     where
         L: AuditLogger,

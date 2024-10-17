@@ -4,7 +4,7 @@
 //  Created:
 //    08 Oct 2024, 16:13:30
 //  Last edited:
-//    15 Oct 2024, 17:00:42
+//    17 Oct 2024, 12:02:50
 //  Auto updated?
 //    Yes
 //
@@ -26,8 +26,8 @@ pub mod reasoners {
 pub mod loggers {
     #[cfg(feature = "file-logger")]
     pub use file_logger as file;
-    #[cfg(feature = "mock-logger")]
-    pub use mock_logger as mock;
+    #[cfg(feature = "no-op-logger")]
+    pub use no_op_logger as no_op;
 }
 /// Contains any state resolvers.
 pub mod resolvers {

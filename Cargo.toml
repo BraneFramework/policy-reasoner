@@ -6,7 +6,7 @@ members = [
     "lib/reasoners/no-op",
     "lib/reasoners/posix",
     "lib/loggers/file",
-    "lib/loggers/mock",
+    "lib/loggers/no-op",
     "lib/resolvers/file",
 
     # Library
@@ -33,8 +33,8 @@ description = "A library for using several different reasoning backends to deter
 
 
 [[example]]
-name = "eflint"
-path = "./examples/eflint.rs"
+name = "eflint-json"
+path = "./examples/eflint_json.rs"
 required-features = ["eflint-json-reasoner", "eflint-to-json", "file-logger"]
 
 [[example]]
@@ -53,7 +53,7 @@ eflint-json-reasoner = { path = "./lib/reasoners/eflint-json", optional = true }
 no-op-reasoner = { path = "./lib/reasoners/no-op", optional = true }
 posix-reasoner = { path = "./lib/reasoners/posix", optional = true }
 file-logger    = { path = "./lib/loggers/file", optional = true }
-mock-logger    = { path = "./lib/loggers/mock", optional = true }
+no-op-logger   = { path = "./lib/loggers/no-op", optional = true }
 file-resolver  = { path = "./lib/resolvers/file", optional = true }
 eflint-to-json = { path = "./lib/eflint-to-json", features = ["async-tokio", "tracing"], optional = true }
 spec           = { path = "./lib/spec", package = "specifications" }
@@ -81,9 +81,9 @@ eflint-json-reasoner = ["dep:eflint-json-reasoner"]
 no-op-reasoner = ["dep:no-op-reasoner"]
 posix-reasoner = ["dep:posix-reasoner"]
 
-loggers = ["file-logger", "mock-logger"]
+loggers = ["file-logger", "no-op-logger"]
 file-logger = ["dep:file-logger"]
-mock-logger = ["dep:mock-logger"]
+no-op-logger = ["dep:no-op-logger"]
 
 resolvers = ["file-resolver"]
 file-resolver = ["dep:file-resolver"]

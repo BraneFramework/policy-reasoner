@@ -1,10 +1,10 @@
-//  EFLINT.rs
+//  EFLINT JSON.rs
 //    by Lut99
 //
 //  Created:
 //    10 Oct 2024, 13:54:17
 //  Last edited:
-//    11 Oct 2024, 16:31:54
+//    17 Oct 2024, 12:07:02
 //  Auto updated?
 //    Yes
 //
@@ -18,14 +18,14 @@ use std::path::PathBuf;
 
 use clap::Parser;
 use console::style;
-use eflint_json_reasoner::json::spec::RequestPhrases;
-use eflint_json_reasoner::reasons::NoReason;
 use error_trace::trace;
 use policy_reasoner::loggers::file::FileLogger;
+use policy_reasoner::reasoners::eflint_json::json::spec::RequestPhrases;
 use policy_reasoner::reasoners::eflint_json::reasons::EFlintSilentReasonHandler;
 use policy_reasoner::reasoners::eflint_json::{EFlintJsonReasonerConnector, State};
 use policy_reasoner::spec::auditlogger::SessionedAuditLogger;
 use policy_reasoner::spec::reasonerconn::ReasonerConnector as _;
+use policy_reasoner::spec::reasons::NoReason;
 use spec::reasonerconn::ReasonerResponse;
 use tracing::{Level, error, info};
 
@@ -92,7 +92,7 @@ async fn main() {
     info!("{} - v{}", env!("CARGO_BIN_NAME"), env!("CARGO_PKG_VERSION"));
 
     // Create the logger
-    let logger: SessionedAuditLogger<FileLogger> =
+    let mut logger: SessionedAuditLogger<FileLogger> =
         SessionedAuditLogger::new("test", FileLogger::new(format!("{} - v{}", env!("CARGO_BIN_NAME"), env!("CARGO_PKG_VERSION")), "./test.log"));
 
     // Decide which eflint to run
@@ -181,8 +181,20 @@ async fn main() {
     };
 
     // Create the reasoner
-    let conn = EFlintJsonReasonerConnector::<EFlintSilentReasonHandler, (), ()>::new(&args.address, EFlintSilentReasonHandler);
-    let verdict: ReasonerResponse<NoReason> = match conn.consult(State { policy: policy.phrases, state: () }, (), &logger).await {
+    let conn = match EFlintJsonReasonerConnector::<EFlintSilentReasonHandler, (), ()>::new_async(
+        &args.address,
+        EFlintSilentReasonHandler,
+        &mut logger,
+    )
+    .await
+    {
+        Ok(conn) => conn,
+        Err(err) => {
+            error!("{}", trace!(("Failed to create eFLINT reasoner"), err));
+            std::process::exit(1);
+        },
+    };
+    let verdict: ReasonerResponse<NoReason> = match conn.consult(State { policy: policy.phrases, state: () }, (), &mut logger).await {
         Ok(res) => res,
         Err(err) => {
             error!("{}", trace!(("Failed to send message to reasoner at {:?}", args.address), err));

@@ -4,7 +4,7 @@
 //  Created:
 //    11 Oct 2024, 16:32:29
 //  Last edited:
-//    15 Oct 2024, 17:05:12
+//    17 Oct 2024, 12:00:53
 //  Auto updated?
 //    Yes
 //
@@ -25,6 +25,7 @@ use policy_reasoner::spec::auditlogger::SessionedAuditLogger;
 use policy_reasoner::workflow::Workflow;
 use posix_reasoner::config::Config;
 use spec::reasonerconn::ReasonerResponse;
+use spec::reasons::NoReason;
 use tokio::fs;
 use tokio::io::{self, AsyncReadExt as _};
 use tracing::{Level, debug, error, info};
@@ -179,12 +180,18 @@ async fn main() {
     let config: Config = load_config(args.config).await;
 
     // Create the logger
-    let logger: SessionedAuditLogger<FileLogger> =
+    let mut logger: SessionedAuditLogger<FileLogger> =
         SessionedAuditLogger::new("test", FileLogger::new(format!("{} - v{}", env!("CARGO_BIN_NAME"), env!("CARGO_PKG_VERSION")), "./test.log"));
 
     // Run the reasoner
-    let conn: PosixReasonerConnector = PosixReasonerConnector::new();
-    let verdict: ReasonerResponse<()> = match conn.consult(State { workflow, config }, (), &logger).await {
+    let conn: PosixReasonerConnector = match PosixReasonerConnector::new_async(&mut logger).await {
+        Ok(conn) => conn,
+        Err(err) => {
+            error!("{}", trace!(("Failed to create the POSIX reasoner"), err));
+            std::process::exit(1);
+        },
+    };
+    let verdict: ReasonerResponse<NoReason> = match conn.consult(State { workflow, config }, (), &mut logger).await {
         Ok(res) => res,
         Err(err) => {
             error!("{}", trace!(("Failed to consult the POSIX reasoner"), err));

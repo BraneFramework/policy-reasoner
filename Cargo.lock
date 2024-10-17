@@ -322,8 +322,10 @@ dependencies = [
  "eflint-json",
  "error-trace 3.1.0",
  "reqwest",
+ "serde",
  "serde_json",
  "specifications",
+ "thiserror",
  "tracing",
 ]
 
@@ -1005,14 +1007,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "mock-logger"
-version = "0.2.0"
-dependencies = [
- "specifications",
- "tracing",
-]
-
-[[package]]
 name = "native-tls"
 version = "0.2.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1027,6 +1021,15 @@ dependencies = [
  "security-framework",
  "security-framework-sys",
  "tempfile",
+]
+
+[[package]]
+name = "no-op-logger"
+version = "0.2.0"
+dependencies = [
+ "serde",
+ "specifications",
+ "tracing",
 ]
 
 [[package]]
@@ -1169,7 +1172,7 @@ dependencies = [
  "error-trace 3.0.0",
  "file-logger",
  "file-resolver",
- "mock-logger",
+ "no-op-logger",
  "no-op-reasoner",
  "posix-reasoner",
  "serde_json",

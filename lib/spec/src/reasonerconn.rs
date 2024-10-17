@@ -4,7 +4,7 @@
 //  Created:
 //    09 Oct 2024, 13:35:41
 //  Last edited:
-//    10 Oct 2024, 16:07:17
+//    17 Oct 2024, 09:50:17
 //  Auto updated?
 //    Yes
 //
@@ -66,7 +66,7 @@ pub trait ReasonerConnector {
         &self,
         state: Self::State,
         question: Self::Question,
-        logger: &SessionedAuditLogger<L>,
+        logger: &mut SessionedAuditLogger<L>,
     ) -> impl Future<Output = Result<ReasonerResponse<Self::Reason>, Self::Error>>
     where
         L: AuditLogger;

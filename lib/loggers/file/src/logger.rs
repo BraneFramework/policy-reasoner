@@ -4,7 +4,7 @@
 //  Created:
 //    10 Oct 2024, 14:16:24
 //  Last edited:
-//    10 Oct 2024, 14:40:18
+//    17 Oct 2024, 11:26:13
 //  Auto updated?
 //    Yes
 //
@@ -21,6 +21,7 @@ use std::path::PathBuf;
 use enum_debug::EnumDebug as _;
 use serde::Serialize;
 use spec::auditlogger::AuditLogger;
+use spec::context::Context;
 use spec::reasonerconn::ReasonerResponse;
 use tokio::fs::{File, OpenOptions};
 use tokio::io::AsyncWriteExt as _;
@@ -117,9 +118,12 @@ impl error::Error for Error {
 #[derive(Clone, Debug)]
 pub struct FileLogger {
     /// The identifier of who/what is writing.
-    id:   String,
+    id: String,
     /// The path we log to.
     path: PathBuf,
+    /// Whether the user has already printed the context or not.
+    #[cfg(debug_assertions)]
+    logged_context: bool,
 }
 impl FileLogger {
     /// Constructor for the FileLogger that initializes it pointing to the given file.
@@ -131,7 +135,14 @@ impl FileLogger {
     /// # Returns
     /// A new instance of self, ready for action.
     #[inline]
-    pub fn new(id: impl Into<String>, path: impl Into<PathBuf>) -> Self { Self { id: id.into(), path: path.into() } }
+    pub fn new(id: impl Into<String>, path: impl Into<PathBuf>) -> Self {
+        Self {
+            id: id.into(),
+            path: path.into(),
+            #[cfg(debug_assertions)]
+            logged_context: false,
+        }
+    }
 
     /// Writes a log statement to the logging file.
     ///
@@ -190,8 +201,27 @@ impl AuditLogger for FileLogger {
     type Error = Error;
 
     #[inline]
+    fn log_context<'a, C>(&'a mut self, context: &'a C) -> impl 'a + Future<Output = Result<(), Self::Error>>
+    where
+        C: ?Sized + Context,
+    {
+        async move {
+            // Serialize the context first
+            let ctx: String = match serde_json::to_string_pretty(context) {
+                Ok(ctx) => ctx,
+                Err(err) => return Err(Error::LogStatementSerialize { kind: "LogStatement::Context".into(), err }),
+            };
+
+            // Log it
+            self.log::<()>(LogStatement::Context { context: Cow::Owned(ctx) }).await?;
+            self.logged_context = true;
+            Ok(())
+        }
+    }
+
+    #[inline]
     fn log_response<'a, R>(
-        &'a self,
+        &'a mut self,
         reference: &'a str,
         response: &'a ReasonerResponse<R>,
         raw: Option<&'a str>,
@@ -200,6 +230,11 @@ impl AuditLogger for FileLogger {
         R: Display,
     {
         async move {
+            #[cfg(debug_assertions)]
+            if !self.logged_context {
+                tracing::warn!("Logging reasoner response without having logged the reasoner context; please call FileLogger::log_context() first.");
+            }
+
             // Serialize the response first
             let res: ReasonerResponse<String> = match response {
                 ReasonerResponse::Success => ReasonerResponse::Success,

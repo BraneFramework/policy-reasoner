@@ -4,7 +4,7 @@
 //  Created:
 //    09 Oct 2024, 13:38:41
 //  Last edited:
-//    10 Oct 2024, 14:39:33
+//    17 Oct 2024, 11:22:53
 //  Auto updated?
 //    Yes
 //
@@ -17,6 +17,7 @@ use std::error::Error;
 use std::fmt::Display;
 use std::future::Future;
 
+use crate::context::Context;
 use crate::reasonerconn::ReasonerResponse;
 
 
@@ -54,21 +55,28 @@ impl<L: AuditLogger> SessionedAuditLogger<L> {
     /// - `response`: The [`ReasonerResponse`] that we're logging.
     /// - `raw`: The raw response produced by the reasoner, if applicable.
     pub fn log_response<'a, R>(
-        &'a self,
+        &'a mut self,
         response: &'a ReasonerResponse<R>,
         raw: Option<&'a str>,
     ) -> impl 'a + Future<Output = Result<(), <Self as AuditLogger>::Error>>
     where
         R: Display,
     {
-        L::log_response(&self.logger, &self.reference, response, raw)
+        L::log_response(&mut self.logger, &self.reference, response, raw)
     }
 }
 impl<L: AuditLogger> AuditLogger for SessionedAuditLogger<L> {
     type Error = L::Error;
 
+    fn log_context<'a, C>(&'a mut self, context: &'a C) -> impl 'a + Future<Output = Result<(), Self::Error>>
+    where
+        C: ?Sized + Context,
+    {
+        L::log_context(&mut self.logger, context)
+    }
+
     fn log_response<'a, R>(
-        &'a self,
+        &'a mut self,
         reference: &'a str,
         response: &'a ReasonerResponse<R>,
         raw: Option<&'a str>,
@@ -76,7 +84,7 @@ impl<L: AuditLogger> AuditLogger for SessionedAuditLogger<L> {
     where
         R: Display,
     {
-        L::log_response(&self.logger, reference, response, raw)
+        L::log_response(&mut self.logger, reference, response, raw)
     }
 }
 
@@ -91,6 +99,14 @@ pub trait AuditLogger {
     type Error: Error;
 
 
+    /// Logs the context of a reasoner at startup.
+    ///
+    /// # Arguments
+    /// - `context`: Something [`Serialize`]able that we want to write at startup.
+    fn log_context<'a, C>(&'a mut self, context: &'a C) -> impl 'a + Future<Output = Result<(), Self::Error>>
+    where
+        C: ?Sized + Context;
+
     /// Log the response of a reasoner.
     ///
     /// # Arguments
@@ -98,7 +114,7 @@ pub trait AuditLogger {
     /// - `response`: The [`ReasonerResponse`] that we're logging.
     /// - `raw`: The raw response produced by the reasoner, if applicable.
     fn log_response<'a, R>(
-        &'a self,
+        &'a mut self,
         reference: &'a str,
         response: &'a ReasonerResponse<R>,
         raw: Option<&'a str>,
