@@ -4,7 +4,7 @@
 //  Created:
 //    10 Oct 2024, 14:46:33
 //  Last edited:
-//    17 Oct 2024, 11:23:08
+//    17 Oct 2024, 13:14:34
 //  Auto updated?
 //    Yes
 //
@@ -16,6 +16,7 @@ use std::convert::Infallible;
 use std::fmt::Display;
 use std::future::Future;
 
+use serde::Serialize;
 use spec::auditlogger::AuditLogger;
 use spec::context::Context;
 use spec::reasonerconn::ReasonerResponse;
@@ -62,6 +63,23 @@ impl AuditLogger for MockLogger {
     {
         async move {
             println!("AUDIT LOG: log_response");
+            Ok(())
+        }
+    }
+
+    #[inline]
+    fn log_question<'a, S, Q>(
+        &'a mut self,
+        _reference: &'a str,
+        _state: &'a S,
+        _question: &'a Q,
+    ) -> impl 'a + Future<Output = Result<(), Self::Error>>
+    where
+        S: Serialize,
+        Q: Serialize,
+    {
+        async move {
+            println!("AUDIT LOG: log_question");
             Ok(())
         }
     }

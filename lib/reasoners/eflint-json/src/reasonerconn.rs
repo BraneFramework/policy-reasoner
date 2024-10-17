@@ -4,7 +4,7 @@
 //  Created:
 //    09 Oct 2024, 15:52:06
 //  Last edited:
-//    17 Oct 2024, 12:12:54
+//    17 Oct 2024, 13:59:28
 //  Auto updated?
 //    Yes
 //
@@ -44,6 +44,13 @@ pub enum Error<R, S, Q> {
     /// Failed to log the reasoner's response to the given logger.
     #[error("Failed to log the reasoner's response to {to}")]
     LogResponse {
+        to:  &'static str,
+        #[source]
+        err: Trace,
+    },
+    /// Failed to log the question to the given logger.
+    #[error("Failed to log the question to {to}")]
+    LogQuestion {
         to:  &'static str,
         #[source]
         err: Trace,
@@ -124,7 +131,7 @@ impl spec::context::Context for Context {
 }
 
 /// Defines the eFLINT reasoner state to submit to it.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct State<S> {
     /// The policy used.
     pub policy: Vec<Phrase>,
@@ -181,8 +188,12 @@ impl<R, S, Q> EFlintJsonReasonerConnector<R, S, Q> {
         Q::Error: 'static,
     {
         async move {
-            logger.log_context("").await.map_err(|err| Error::LogContext { to: std::any::type_name::<L>(), err: err.freeze() })?;
-            Ok(Self { addr: addr.into(), reason_handler: handler, _state: PhantomData, _question: PhantomData })
+            let addr: String = addr.into();
+            logger
+                .log_context(&Context { addr: addr.clone() })
+                .await
+                .map_err(|err| Error::LogContext { to: std::any::type_name::<L>(), err: err.freeze() })?;
+            Ok(Self { addr, reason_handler: handler, _state: PhantomData, _question: PhantomData })
         }
     }
 }
@@ -191,9 +202,9 @@ where
     R: ReasonHandler,
     R::Reason: Display,
     R::Error: 'static,
-    S: EFlintable,
+    S: EFlintable + Serialize,
     S::Error: 'static,
-    Q: EFlintable,
+    Q: EFlintable + Serialize,
     Q::Error: 'static,
 {
     type Error = Error<R::Error, S::Error, Q::Error>;
@@ -213,6 +224,10 @@ where
         async move {
             // NOTE: Using `#[instrument]` adds some unnecessary trait bounds on `S` and such.
             let _span = span!(Level::INFO, "EFlintJsonReasonerConnector::consult", reference = logger.reference()).entered();
+            logger
+                .log_question(&state, &question)
+                .await
+                .map_err(|err| Error::LogQuestion { to: std::any::type_name::<SessionedAuditLogger<L>>(), err: err.freeze() })?;
 
             // Build the full policy
             debug!("Building full policy...");

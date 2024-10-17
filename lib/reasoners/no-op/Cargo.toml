@@ -15,6 +15,8 @@ license.workspace = true
 
 
 [dependencies]
+serde = "1.0.204"
+thiserror = "1.0.61"
 tracing = "0.1.40"
 
 error-trace = { git = "https://github.com/Lut99/error-trace-rs", tag = "v3.1.0" }

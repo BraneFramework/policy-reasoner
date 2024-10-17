@@ -1037,7 +1037,9 @@ name = "no-op-reasoner"
 version = "0.2.0"
 dependencies = [
  "error-trace 3.1.0",
+ "serde",
  "specifications",
+ "thiserror",
  "tracing",
 ]
 

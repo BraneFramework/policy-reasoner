@@ -4,7 +4,7 @@
 //  Created:
 //    11 Oct 2024, 16:54:51
 //  Last edited:
-//    17 Oct 2024, 12:10:18
+//    17 Oct 2024, 13:57:53
 //  Auto updated?
 //    Yes
 //
@@ -21,7 +21,7 @@ use std::os::unix::fs::{MetadataExt as _, PermissionsExt as _};
 use std::path::{Path, PathBuf};
 
 use error_trace::{ErrorTrace as _, Trace};
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use spec::auditlogger::{AuditLogger, SessionedAuditLogger};
 use spec::reasonerconn::{ReasonerConnector, ReasonerResponse};
 use spec::reasons::NoReason;
@@ -55,6 +55,13 @@ pub enum Error {
     /// Failed to log the reasoner's response to the given logger.
     #[error("Failed to log the reasoner's response to {to}")]
     LogResponse {
+        to:  &'static str,
+        #[source]
+        err: Trace,
+    },
+    /// Failed to log the question to the given logger.
+    #[error("Failed to log the question to {to}")]
+    LogQuestion {
         to:  &'static str,
         #[source]
         err: Trace,
@@ -200,7 +207,7 @@ impl BitOr<Self> for PosixFilePermission {
 
 /***** LIBRARY *****/
 /// The overarching input to the POSIX reasoner.
-#[derive(Debug)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct State {
     /// The policy to give.
     pub config:   Config,
@@ -248,6 +255,12 @@ impl ReasonerConnector for PosixReasonerConnector {
     {
         async move {
             let _span = span!(Level::INFO, "ReasonerConnector::consult", reference = logger.reference()).entered();
+
+            // Log the input
+            logger
+                .log_question(&state, &())
+                .await
+                .map_err(|err| Error::LogQuestion { to: std::any::type_name::<SessionedAuditLogger<L>>(), err: err.freeze() })?;
 
             // The datasets used in the workflow. E.g., `st_antonius_ect`.
             let datasets: WorkflowDatasets = WorkflowDatasets::from(&state.workflow);

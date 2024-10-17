@@ -4,7 +4,7 @@
 //  Created:
 //    10 Oct 2024, 14:16:24
 //  Last edited:
-//    17 Oct 2024, 11:26:13
+//    17 Oct 2024, 13:17:01
 //  Auto updated?
 //    Yes
 //
@@ -20,6 +20,7 @@ use std::path::PathBuf;
 
 use enum_debug::EnumDebug as _;
 use serde::Serialize;
+use serde_json::Value;
 use spec::auditlogger::AuditLogger;
 use spec::context::Context;
 use spec::reasonerconn::ReasonerResponse;
@@ -151,7 +152,7 @@ impl FileLogger {
     ///
     /// # Errors
     /// This function errors if we failed to perform the logging completely (i.e., either write or flush).
-    async fn log<T: Clone + Debug + Serialize>(&self, stmt: LogStatement<'_, T>) -> Result<(), Error> {
+    async fn log(&self, stmt: LogStatement<'_>) -> Result<(), Error> {
         // Step 1: Open the log file
         let mut handle: File = if !self.path.exists() {
             debug!("Creating new log file at '{}'...", self.path.display());
@@ -207,13 +208,13 @@ impl AuditLogger for FileLogger {
     {
         async move {
             // Serialize the context first
-            let ctx: String = match serde_json::to_string_pretty(context) {
+            let context: Value = match serde_json::to_value(context) {
                 Ok(ctx) => ctx,
                 Err(err) => return Err(Error::LogStatementSerialize { kind: "LogStatement::Context".into(), err }),
             };
 
             // Log it
-            self.log::<()>(LogStatement::Context { context: Cow::Owned(ctx) }).await?;
+            self.log(LogStatement::Context { context }).await?;
             self.logged_context = true;
             Ok(())
         }
@@ -236,18 +237,43 @@ impl AuditLogger for FileLogger {
             }
 
             // Serialize the response first
-            let res: ReasonerResponse<String> = match response {
+            let response: Value = match serde_json::to_value(&match response {
                 ReasonerResponse::Success => ReasonerResponse::Success,
-                ReasonerResponse::Violated(r) => ReasonerResponse::Violated(r.to_string()),
+                ReasonerResponse::Violated(reasons) => ReasonerResponse::Violated(reasons.to_string()),
+            }) {
+                Ok(res) => res,
+                Err(err) => return Err(Error::LogStatementSerialize { kind: "LogStatement::ReasonerResponse".into(), err }),
             };
 
             // Log it
-            self.log(LogStatement::ReasonerResponse {
-                reference: Cow::Borrowed(reference),
-                response: Cow::Borrowed(&res),
-                raw: raw.map(Cow::Borrowed),
-            })
-            .await
+            self.log(LogStatement::ReasonerResponse { reference: Cow::Borrowed(reference), response, raw: raw.map(Cow::Borrowed) }).await
+        }
+    }
+
+    #[inline]
+    fn log_question<'a, S, Q>(&'a mut self, reference: &'a str, state: &'a S, question: &'a Q) -> impl 'a + Future<Output = Result<(), Self::Error>>
+    where
+        S: Serialize,
+        Q: Serialize,
+    {
+        async move {
+            #[cfg(debug_assertions)]
+            if !self.logged_context {
+                tracing::warn!("Logging reasoner response without having logged the reasoner context; please call FileLogger::log_context() first.");
+            }
+
+            // Serialize the state & question first
+            let state: Value = match serde_json::to_value(state) {
+                Ok(res) => res,
+                Err(err) => return Err(Error::LogStatementSerialize { kind: "LogStatement::ReasonerConsult".into(), err }),
+            };
+            let question: Value = match serde_json::to_value(question) {
+                Ok(res) => res,
+                Err(err) => return Err(Error::LogStatementSerialize { kind: "LogStatement::ReasonerConsult".into(), err }),
+            };
+
+            // Log it
+            self.log(LogStatement::ReasonerConsult { reference: Cow::Borrowed(reference), state, question }).await
         }
     }
 }

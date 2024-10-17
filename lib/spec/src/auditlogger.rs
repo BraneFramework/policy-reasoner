@@ -4,7 +4,7 @@
 //  Created:
 //    09 Oct 2024, 13:38:41
 //  Last edited:
-//    17 Oct 2024, 11:22:53
+//    17 Oct 2024, 13:14:18
 //  Auto updated?
 //    Yes
 //
@@ -16,6 +16,8 @@
 use std::error::Error;
 use std::fmt::Display;
 use std::future::Future;
+
+use serde::Serialize;
 
 use crate::context::Context;
 use crate::reasonerconn::ReasonerResponse;
@@ -64,6 +66,19 @@ impl<L: AuditLogger> SessionedAuditLogger<L> {
     {
         L::log_response(&mut self.logger, &self.reference, response, raw)
     }
+
+    /// Logs that the reasoner is being asked a question.
+    ///
+    /// # Arguments
+    /// - `state`: Some serializable state given as input to the reasoner.
+    /// - `question`: Some serializable question that we're asking.
+    pub fn log_question<'a, S, Q>(&'a mut self, state: &'a S, question: &'a Q) -> impl 'a + Future<Output = Result<(), <Self as AuditLogger>::Error>>
+    where
+        S: Serialize,
+        Q: Serialize,
+    {
+        L::log_question(&mut self.logger, &self.reference, state, question)
+    }
 }
 impl<L: AuditLogger> AuditLogger for SessionedAuditLogger<L> {
     type Error = L::Error;
@@ -85,6 +100,14 @@ impl<L: AuditLogger> AuditLogger for SessionedAuditLogger<L> {
         R: Display,
     {
         L::log_response(&mut self.logger, reference, response, raw)
+    }
+
+    fn log_question<'a, S, Q>(&'a mut self, reference: &'a str, state: &'a S, question: &'a Q) -> impl 'a + Future<Output = Result<(), Self::Error>>
+    where
+        S: Serialize,
+        Q: Serialize,
+    {
+        L::log_question(&mut self.logger, reference, state, question)
     }
 }
 
@@ -121,4 +144,15 @@ pub trait AuditLogger {
     ) -> impl 'a + Future<Output = Result<(), Self::Error>>
     where
         R: Display;
+
+    /// Logs that the reasoner is being asked a question.
+    ///
+    /// # Arguments
+    /// - `reference`: Some reference that links the response to a particular answer.
+    /// - `state`: Some serializable state given as input to the reasoner.
+    /// - `question`: Some serializable question that we're asking.
+    fn log_question<'a, S, Q>(&'a mut self, reference: &'a str, state: &'a S, question: &'a Q) -> impl 'a + Future<Output = Result<(), Self::Error>>
+    where
+        S: Serialize,
+        Q: Serialize;
 }
