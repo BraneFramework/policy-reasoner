@@ -4,7 +4,7 @@
 //  Created:
 //    11 Oct 2024, 16:54:04
 //  Last edited:
-//    15 Oct 2024, 17:42:33
+//    18 Oct 2024, 11:27:06
 //  Auto updated?
 //    Yes
 //
@@ -45,13 +45,14 @@ impl<'w> _InfallibleAssertion<'w> for DatasetCollector<'w> {}
 /***** VISITORS *****/
 /// Visits a [`Workflow`] in order to find all datasets used.
 struct DatasetCollector<'w> {
-    read_sets:    Vec<(&'w Entity, &'w Dataset)>,
-    write_sets:   Vec<(&'w Entity, &'w Dataset)>,
+    here: &'w str,
+    read_sets: Vec<(&'w Entity, &'w Dataset)>,
+    write_sets: Vec<(&'w Entity, &'w Dataset)>,
     execute_sets: Vec<(&'w Entity, &'w Dataset)>,
 }
-impl<'w> Default for DatasetCollector<'w> {
+impl<'w> DatasetCollector<'w> {
     #[inline]
-    fn default() -> Self { Self { read_sets: Default::default(), write_sets: Default::default(), execute_sets: Default::default() } }
+    fn new(here: &'w str) -> Self { Self { here, read_sets: Default::default(), write_sets: Default::default(), execute_sets: Default::default() } }
 }
 impl<'w> Visitor<'w> for DatasetCollector<'w> {
     type Error = Infallible;
@@ -94,8 +95,19 @@ impl<'w> Visitor<'w> for DatasetCollector<'w> {
         // be able to write policies explicitly for this use-case.
 
         let location: &'w Entity = elem.at.as_ref().unwrap_or_else(|| LazyLock::force(&UNSPECIFIED_LOCATION));
-        self.read_sets.extend(elem.input.iter().map(|d| (location, d)));
-        self.write_sets.extend(elem.output.iter().map(|d| (location, d)));
+        self.read_sets.extend(
+            elem.input
+                .iter()
+                .filter(|data| {
+                    // We only consider input datasets that are at out location
+                    data.from.as_ref().is_some_and(|ent| ent.id == self.here)
+                })
+                .map(|d| (location, d)),
+        );
+        // We only consider written sets that are created at our location
+        if location.id == self.here {
+            self.write_sets.extend(elem.output.iter().map(|d| (location, d)));
+        }
 
         // Also visit the next one before returning, lol
         self.visit(&elem.next)
@@ -115,16 +127,16 @@ pub struct WorkflowDatasets<'w> {
     pub write_sets:   Vec<(&'w Entity, &'w Dataset)>,
     pub execute_sets: Vec<(&'w Entity, &'w Dataset)>,
 }
-impl<'w> From<&'w Workflow> for WorkflowDatasets<'w> {
+impl<'w> WorkflowDatasets<'w> {
     #[inline]
-    fn from(value: &'w Workflow) -> Self {
-        let _span = span!(Level::INFO, "PosixReasonerConnector::find_datasets_in_workflow", workflow = value.id).entered();
-        debug!("Walking the workflow in order to find datasets. Starting with {:?}", &value.start);
+    pub fn new(here: &'w str, wf: &'w Workflow) -> Self {
+        let _span = span!(Level::INFO, "PosixReasonerConnector::find_datasets_in_workflow", workflow = wf.id).entered();
+        debug!("Walking the workflow in order to find datasets. Starting with {:?}", &wf.start);
 
-        let mut visitor = DatasetCollector::default();
+        let mut visitor = DatasetCollector::new(here);
         // SAFETY: We can do this because `DatasetCollector` cannot physically error (its error is `Infallible`)
         unsafe {
-            value.visit(&mut visitor).unwrap_unchecked();
+            wf.visit(&mut visitor).unwrap_unchecked();
         }
 
         WorkflowDatasets { read_sets: visitor.read_sets, write_sets: visitor.write_sets, execute_sets: visitor.execute_sets }

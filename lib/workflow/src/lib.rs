@@ -4,7 +4,7 @@
 //  Created:
 //    08 Oct 2024, 16:16:26
 //  Last edited:
-//    15 Oct 2024, 16:40:22
+//    18 Oct 2024, 11:20:46
 //  Auto updated?
 //    Yes
 //
@@ -30,7 +30,9 @@ use serde::{Deserialize, Serialize};
 #[cfg_attr(feature = "serde", derive(Deserialize, Serialize))]
 pub struct Dataset {
     /// Some identifier of the dataset.
-    pub id: String,
+    pub id:   String,
+    /// If planned, the location where the dataset is transferred from.
+    pub from: Option<Entity>,
 }
 
 /// Represents a user/site that can compute, store data, do neither or do both.

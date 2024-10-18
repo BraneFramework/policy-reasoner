@@ -4,7 +4,7 @@
 //  Created:
 //    11 Oct 2024, 16:54:51
 //  Last edited:
-//    17 Oct 2024, 13:57:53
+//    18 Oct 2024, 11:27:13
 //  Auto updated?
 //    Yes
 //
@@ -263,7 +263,7 @@ impl ReasonerConnector for PosixReasonerConnector {
                 .map_err(|err| Error::LogQuestion { to: std::any::type_name::<SessionedAuditLogger<L>>(), err: err.freeze() })?;
 
             // The datasets used in the workflow. E.g., `st_antonius_ect`.
-            let datasets: WorkflowDatasets = WorkflowDatasets::from(&state.workflow);
+            let datasets: WorkflowDatasets = WorkflowDatasets::new(&state.config.id, &state.workflow);
             debug!("Found datasets in workflow {:?}: {:#?}", state.workflow.id, datasets);
 
             // Loop to find the permissions on the disk
