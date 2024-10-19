@@ -4,7 +4,7 @@
 //  Created:
 //    08 Oct 2024, 16:16:26
 //  Last edited:
-//    18 Oct 2024, 11:20:46
+//    19 Oct 2024, 10:50:29
 //  Auto updated?
 //    Yes
 //
@@ -18,6 +18,8 @@ pub mod visitor;
 #[cfg(feature = "visualize")]
 pub mod visualize;
 
+use std::hash::{Hash, Hasher};
+
 // Imports
 use enum_debug::EnumDebug;
 #[cfg(feature = "serde")]
@@ -26,6 +28,10 @@ use serde::{Deserialize, Serialize};
 
 /***** AUXILLARY DATA *****/
 /// Defines a representation of a dataset.
+///
+/// Note that its uniqueness (i.e., what is considered in [`Hash`] and [`PartialEq`]) is purely a
+/// function of the dataset's id; i.e., two datasets with the same name but different sources are
+/// considered the same.
 #[derive(Clone, Debug)]
 #[cfg_attr(feature = "serde", derive(Deserialize, Serialize))]
 pub struct Dataset {
@@ -33,6 +39,18 @@ pub struct Dataset {
     pub id:   String,
     /// If planned, the location where the dataset is transferred from.
     pub from: Option<Entity>,
+}
+impl Eq for Dataset {}
+impl Hash for Dataset {
+    #[inline]
+    fn hash<H: Hasher>(&self, state: &mut H) { self.id.hash(state) }
+}
+impl PartialEq for Dataset {
+    #[inline]
+    fn eq(&self, other: &Self) -> bool { self.id == other.id }
+
+    #[inline]
+    fn ne(&self, other: &Self) -> bool { self.id != other.id }
 }
 
 /// Represents a user/site that can compute, store data, do neither or do both.
