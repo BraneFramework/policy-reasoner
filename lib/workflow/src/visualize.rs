@@ -4,7 +4,7 @@
 //  Created:
 //    31 Oct 2023, 14:30:00
 //  Last edited:
-//    08 Oct 2024, 18:15:02
+//    21 Oct 2024, 13:33:05
 //  Auto updated?
 //    Yes
 //
@@ -170,7 +170,7 @@ impl Display for WorkflowFormatter<'_> {
         // Print global metadata
         if !self.wf.metadata.is_empty() {
             writeln!(f, "{}  - id      : {:?}", Indent(4), self.wf.id)?;
-            writeln!(f, "{}  - user    : {:?}", Indent(4), self.wf.user.id)?;
+            writeln!(f, "{}  - user    : {:?}", Indent(4), self.wf.user.as_ref().map(|ent| &ent.id))?;
             writeln!(
                 f,
                 "{}  - metadata: {:?}",

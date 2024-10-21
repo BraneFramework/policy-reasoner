@@ -4,7 +4,7 @@
 //  Created:
 //    08 Oct 2024, 17:34:14
 //  Last edited:
-//    05 May 2025, 12:01:56
+//    05 May 2025, 12:04:21
 //  Auto updated?
 //    Yes
 //
@@ -28,7 +28,7 @@ mod tests {
     /// Generates a workflow with minimal info
     #[inline]
     fn gen_wf(id: impl Into<String>, start: impl Into<Elem>) -> Workflow {
-        Workflow { id: id.into(), start: start.into(), user: Entity { id: "amy".into() }, metadata: vec![], signature: None }
+        Workflow { id: id.into(), start: start.into(), user: Some(Entity { id: "amy".into() }), metadata: vec![], signature: None }
     }
 
     /// Generates a branch.

@@ -4,7 +4,7 @@
 //  Created:
 //    08 Oct 2024, 16:16:26
 //  Last edited:
-//    19 Oct 2024, 10:50:29
+//    21 Oct 2024, 13:32:08
 //  Auto updated?
 //    Yes
 //
@@ -86,7 +86,7 @@ pub struct Workflow {
     pub start: Elem,
 
     /// The user instigating this workflow (and thus getting the result, if any).
-    pub user:      Entity,
+    pub user:      Option<Entity>,
     /// The metadata associated with this workflow as a whole.
     pub metadata:  Vec<Metadata>,
     /// The signature verifying this workflow. If present, it's given as a pair of the person signing it and their signature.
