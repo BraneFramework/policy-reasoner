@@ -4,7 +4,7 @@
 //  Created:
 //    08 Oct 2024, 16:16:26
 //  Last edited:
-//    21 Oct 2024, 13:32:08
+//    22 Oct 2024, 10:35:57
 //  Auto updated?
 //    Yes
 //
@@ -54,11 +54,26 @@ impl PartialEq for Dataset {
 }
 
 /// Represents a user/site that can compute, store data, do neither or do both.
+///
+/// Note that its uniqueness (i.e., what is considered in [`Hash`] and [`PartialEq`]) is purely a
+/// function of the entity's id.
 #[derive(Clone, Debug)]
 #[cfg_attr(feature = "serde", derive(Deserialize, Serialize))]
 pub struct Entity {
     /// Some identifier of this domain.
     pub id: String,
+}
+impl Eq for Entity {}
+impl Hash for Entity {
+    #[inline]
+    fn hash<H: Hasher>(&self, state: &mut H) { self.id.hash(state) }
+}
+impl PartialEq for Entity {
+    #[inline]
+    fn eq(&self, other: &Self) -> bool { self.id == other.id }
+
+    #[inline]
+    fn ne(&self, other: &Self) -> bool { self.id != other.id }
 }
 
 /// Represents a "tag" and everything we need to know.
