@@ -4,7 +4,7 @@
 //  Created:
 //    11 Oct 2024, 16:54:04
 //  Last edited:
-//    18 Oct 2024, 11:27:06
+//    22 Oct 2024, 10:54:08
 //  Auto updated?
 //    Yes
 //
@@ -17,7 +17,7 @@ use std::sync::LazyLock;
 
 use tracing::{Level, debug, span};
 use workflow::visitor::Visitor;
-use workflow::{Dataset, ElemCall, Entity, Workflow};
+use workflow::{Dataset, Elem, ElemCall, Entity, Workflow};
 
 
 /***** CONSTANTS *****/
@@ -85,7 +85,7 @@ impl<'w> Visitor<'w> for DatasetCollector<'w> {
     //     self.write_sets.extend(repeat(location).zip(stop_sets.iter().cloned()));
     // }
 
-    fn visit_call(&mut self, elem: &'w ElemCall) -> Result<(), Self::Error> {
+    fn visit_call(&mut self, elem: &'w ElemCall) -> Result<Option<&'w Elem>, Self::Error> {
         // We take a more simplified view on dataset reading/writing.
 
         // We consider a task's inputs as READING. Any task's outputs are WRITING.
@@ -110,7 +110,7 @@ impl<'w> Visitor<'w> for DatasetCollector<'w> {
         }
 
         // Also visit the next one before returning, lol
-        self.visit(&elem.next)
+        Ok(Some(&elem.next))
     }
 }
 
