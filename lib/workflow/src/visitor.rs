@@ -4,7 +4,7 @@
 //  Created:
 //    08 Oct 2024, 17:35:03
 //  Last edited:
-//    14 Oct 2024, 11:55:45
+//    22 Oct 2024, 10:59:10
 //  Auto updated?
 //    Yes
 //
@@ -37,16 +37,43 @@ pub trait Visitor<'w> {
     ///
     /// # Errors
     /// If this visitor fails, then the whole visiting processes is terminated.
-    fn visit(&mut self, elem: &'w Elem) -> Result<(), Self::Error> {
-        match elem {
-            Elem::Call(c) => self.visit_call(c),
+    fn visit(&mut self, mut elem: &'w Elem) -> Result<(), Self::Error> {
+        loop {
+            match elem {
+                Elem::Call(c) => match self.visit_call(c) {
+                    Ok(Some(next)) => {
+                        elem = next;
+                    },
+                    Ok(None) => return Ok(()),
+                    Err(err) => return Err(err),
+                },
 
-            Elem::Branch(b) => self.visit_branch(b),
-            Elem::Parallel(p) => self.visit_parallel(p),
-            Elem::Loop(l) => self.visit_loop(l),
+                Elem::Branch(b) => match self.visit_branch(b) {
+                    Ok(Some(next)) => {
+                        elem = next;
+                    },
+                    Ok(None) => return Ok(()),
+                    Err(err) => return Err(err),
+                },
+                Elem::Parallel(p) => match self.visit_parallel(p) {
+                    Ok(Some(next)) => {
+                        elem = next;
+                    },
+                    Ok(None) => return Ok(()),
+                    Err(err) => return Err(err),
+                },
+                Elem::Loop(l) => match self.visit_loop(l) {
+                    Ok(Some(next)) => {
+                        elem = next;
+                    },
+                    Ok(None) => return Ok(()),
+                    Err(err) => return Err(err),
+                },
 
-            Elem::Next => self.visit_next(),
-            Elem::Stop => self.visit_stop(),
+                // Note: these can never return a next
+                Elem::Next => return self.visit_next(),
+                Elem::Stop => return self.visit_stop(),
+            }
         }
     }
 
@@ -55,30 +82,54 @@ pub trait Visitor<'w> {
     ///
     /// The default implementation doesn't do anything meaningful besides visiting the next node.
     ///
+    /// Usually, you don't call this function directly. Call [`Visitor::visit()`] instead to
+    /// traverse a node. If you do call it manually, take care to process the
+    /// [returned value](#returns) correctly.
+    ///
     /// # Arguments
     /// - `elem`: The visited [`ElemCall`].
+    ///
+    /// # Returns
+    /// This function can return the reference to a new [`Elem`] to traverse to.
+    ///
+    /// Implementations can do so when there is a "next" element to traverse that happens after all
+    /// visiting for this element is done. If so, then returning it instead of calling
+    /// [`Visitor::visit()`] manually saves stack space because it is traversed by iteration
+    /// instead of recursion.
     ///
     /// # Errors
     /// If this visitor fails, then the whole visiting processes is terminated.
     #[inline]
-    fn visit_call(&mut self, elem: &'w ElemCall) -> Result<(), Self::Error> { self.visit(&elem.next) }
+    fn visit_call(&mut self, elem: &'w ElemCall) -> Result<Option<&'w Elem>, Self::Error> { Ok(Some(&elem.next)) }
 
     /// Visits an [`Elem::Branch`].
     ///
     /// The default implementation doesn't do anything meaningful besides visiting the branches,
     /// and then the next node.
     ///
+    /// Usually, you don't call this function directly. Call [`Visitor::visit()`] instead to
+    /// traverse a node. If you do call it manually, take care to process the
+    /// [returned value](#returns) correctly.
+    ///
     /// # Arguments
     /// - `elem`: The visited [`ElemBranch`].
+    ///
+    /// # Returns
+    /// This function can return the reference to a new [`Elem`] to traverse to.
+    ///
+    /// Implementations can do so when there is a "next" element to traverse that happens after all
+    /// visiting for this element is done. If so, then returning it instead of calling
+    /// [`Visitor::visit()`] manually saves stack space because it is traversed by iteration
+    /// instead of recursion.
     ///
     /// # Errors
     /// If this visitor fails, then the whole visiting processes is terminated.
     #[inline]
-    fn visit_branch(&mut self, elem: &'w ElemBranch) -> Result<(), Self::Error> {
+    fn visit_branch(&mut self, elem: &'w ElemBranch) -> Result<Option<&'w Elem>, Self::Error> {
         for b in &elem.branches {
             self.visit(b)?;
         }
-        self.visit(&elem.next)
+        Ok(Some(&elem.next))
     }
 
     /// Visits an [`Elem::Parallel`].
@@ -86,17 +137,29 @@ pub trait Visitor<'w> {
     /// The default implementation doesn't do anything meaningful besides visiting the branches,
     /// and then the next node.
     ///
+    /// Usually, you don't call this function directly. Call [`Visitor::visit()`] instead to
+    /// traverse a node. If you do call it manually, take care to process the
+    /// [returned value](#returns) correctly.
+    ///
     /// # Arguments
     /// - `elem`: The visited [`ElemParallel`].
+    ///
+    /// # Returns
+    /// This function can return the reference to a new [`Elem`] to traverse to.
+    ///
+    /// Implementations can do so when there is a "next" element to traverse that happens after all
+    /// visiting for this element is done. If so, then returning it instead of calling
+    /// [`Visitor::visit()`] manually saves stack space because it is traversed by iteration
+    /// instead of recursion.
     ///
     /// # Errors
     /// If this visitor fails, then the whole visiting processes is terminated.
     #[inline]
-    fn visit_parallel(&mut self, elem: &'w ElemParallel) -> Result<(), Self::Error> {
+    fn visit_parallel(&mut self, elem: &'w ElemParallel) -> Result<Option<&'w Elem>, Self::Error> {
         for b in &elem.branches {
             self.visit(b)?;
         }
-        self.visit(&elem.next)
+        Ok(Some(&elem.next))
     }
 
     /// Visits an [`Elem::Loop`].
@@ -110,9 +173,9 @@ pub trait Visitor<'w> {
     /// # Errors
     /// If this visitor fails, then the whole visiting processes is terminated.
     #[inline]
-    fn visit_loop(&mut self, elem: &'w ElemLoop) -> Result<(), Self::Error> {
+    fn visit_loop(&mut self, elem: &'w ElemLoop) -> Result<Option<&'w Elem>, Self::Error> {
         self.visit(&elem.body)?;
-        self.visit(&elem.next)
+        Ok(Some(&elem.next))
     }
 
 
@@ -141,16 +204,16 @@ impl<'a, 'w, T: Visitor<'w>> Visitor<'w> for &'a mut T {
     fn visit(&mut self, elem: &'w Elem) -> Result<(), Self::Error> { T::visit(self, elem) }
 
     #[inline]
-    fn visit_call(&mut self, elem: &'w ElemCall) -> Result<(), Self::Error> { T::visit_call(self, elem) }
+    fn visit_call(&mut self, elem: &'w ElemCall) -> Result<Option<&'w Elem>, Self::Error> { T::visit_call(self, elem) }
 
     #[inline]
-    fn visit_branch(&mut self, elem: &'w ElemBranch) -> Result<(), Self::Error> { T::visit_branch(self, elem) }
+    fn visit_branch(&mut self, elem: &'w ElemBranch) -> Result<Option<&'w Elem>, Self::Error> { T::visit_branch(self, elem) }
 
     #[inline]
-    fn visit_parallel(&mut self, elem: &'w ElemParallel) -> Result<(), Self::Error> { T::visit_parallel(self, elem) }
+    fn visit_parallel(&mut self, elem: &'w ElemParallel) -> Result<Option<&'w Elem>, Self::Error> { T::visit_parallel(self, elem) }
 
     #[inline]
-    fn visit_loop(&mut self, elem: &'w ElemLoop) -> Result<(), Self::Error> { T::visit_loop(self, elem) }
+    fn visit_loop(&mut self, elem: &'w ElemLoop) -> Result<Option<&'w Elem>, Self::Error> { T::visit_loop(self, elem) }
 
     #[inline]
     fn visit_next(&mut self) -> Result<(), Self::Error> { T::visit_next(self) }
@@ -180,16 +243,42 @@ pub trait VisitorMut<'w> {
     ///
     /// # Errors
     /// If this visitor fails, then the whole visiting processes is terminated.
-    fn visit(&mut self, elem: &'w mut Elem) -> Result<(), Self::Error> {
-        match elem {
-            Elem::Call(c) => self.visit_call(c),
+    fn visit(&mut self, mut elem: &'w mut Elem) -> Result<(), Self::Error> {
+        loop {
+            match elem {
+                Elem::Call(c) => match self.visit_call(c) {
+                    Ok(Some(next)) => {
+                        elem = next;
+                    },
+                    Ok(None) => return Ok(()),
+                    Err(err) => return Err(err),
+                },
 
-            Elem::Branch(b) => self.visit_branch(b),
-            Elem::Parallel(p) => self.visit_parallel(p),
-            Elem::Loop(l) => self.visit_loop(l),
+                Elem::Branch(b) => match self.visit_branch(b) {
+                    Ok(Some(next)) => {
+                        elem = next;
+                    },
+                    Ok(None) => return Ok(()),
+                    Err(err) => return Err(err),
+                },
+                Elem::Parallel(p) => match self.visit_parallel(p) {
+                    Ok(Some(next)) => {
+                        elem = next;
+                    },
+                    Ok(None) => return Ok(()),
+                    Err(err) => return Err(err),
+                },
+                Elem::Loop(l) => match self.visit_loop(l) {
+                    Ok(Some(next)) => {
+                        elem = next;
+                    },
+                    Ok(None) => return Ok(()),
+                    Err(err) => return Err(err),
+                },
 
-            Elem::Next => self.visit_next(),
-            Elem::Stop => self.visit_stop(),
+                Elem::Next => return self.visit_next(),
+                Elem::Stop => return self.visit_stop(),
+            }
         }
     }
 
@@ -198,30 +287,54 @@ pub trait VisitorMut<'w> {
     ///
     /// The default implementation doesn't do anything meaningful besides visiting the next node.
     ///
+    /// Usually, you don't call this function directly. Call [`VisitorMut::visit()`] instead to
+    /// traverse a node. If you do call it manually, take care to process the
+    /// [returned value](#returns) correctly.
+    ///
     /// # Arguments
     /// - `elem`: The visited [`ElemCall`].
+    ///
+    /// # Returns
+    /// This function can return the reference to a new [`Elem`] to traverse to.
+    ///
+    /// Implementations can do so when there is a "next" element to traverse that happens after all
+    /// visiting for this element is done. If so, then returning it instead of calling
+    /// [`VisitorMut::visit()`] manually saves stack space because it is traversed by iteration
+    /// instead of recursion.
     ///
     /// # Errors
     /// If this visitor fails, then the whole visiting processes is terminated.
     #[inline]
-    fn visit_call(&mut self, elem: &'w mut ElemCall) -> Result<(), Self::Error> { self.visit(&mut elem.next) }
+    fn visit_call(&mut self, elem: &'w mut ElemCall) -> Result<Option<&'w mut Elem>, Self::Error> { Ok(Some(&mut elem.next)) }
 
     /// Visits an [`Elem::Branch`].
     ///
     /// The default implementation doesn't do anything meaningful besides visiting the branches,
     /// and then the next node.
     ///
+    /// Usually, you don't call this function directly. Call [`VisitorMut::visit()`] instead to
+    /// traverse a node. If you do call it manually, take care to process the
+    /// [returned value](#returns) correctly.
+    ///
     /// # Arguments
     /// - `elem`: The visited [`ElemBranch`].
+    ///
+    /// # Returns
+    /// This function can return the reference to a new [`Elem`] to traverse to.
+    ///
+    /// Implementations can do so when there is a "next" element to traverse that happens after all
+    /// visiting for this element is done. If so, then returning it instead of calling
+    /// [`VisitorMut::visit()`] manually saves stack space because it is traversed by iteration
+    /// instead of recursion.
     ///
     /// # Errors
     /// If this visitor fails, then the whole visiting processes is terminated.
     #[inline]
-    fn visit_branch(&mut self, elem: &'w mut ElemBranch) -> Result<(), Self::Error> {
+    fn visit_branch(&mut self, elem: &'w mut ElemBranch) -> Result<Option<&'w mut Elem>, Self::Error> {
         for b in &mut elem.branches {
             self.visit(b)?;
         }
-        self.visit(&mut elem.next)
+        Ok(Some(&mut elem.next))
     }
 
     /// Visits an [`Elem::Parallel`].
@@ -229,17 +342,29 @@ pub trait VisitorMut<'w> {
     /// The default implementation doesn't do anything meaningful besides visiting the branches,
     /// and then the next node.
     ///
+    /// Usually, you don't call this function directly. Call [`VisitorMut::visit()`] instead to
+    /// traverse a node. If you do call it manually, take care to process the
+    /// [returned value](#returns) correctly.
+    ///
     /// # Arguments
     /// - `elem`: The visited [`ElemParallel`].
+    ///
+    /// # Returns
+    /// This function can return the reference to a new [`Elem`] to traverse to.
+    ///
+    /// Implementations can do so when there is a "next" element to traverse that happens after all
+    /// visiting for this element is done. If so, then returning it instead of calling
+    /// [`VisitorMut::visit()`] manually saves stack space because it is traversed by iteration
+    /// instead of recursion.
     ///
     /// # Errors
     /// If this visitor fails, then the whole visiting processes is terminated.
     #[inline]
-    fn visit_parallel(&mut self, elem: &'w mut ElemParallel) -> Result<(), Self::Error> {
+    fn visit_parallel(&mut self, elem: &'w mut ElemParallel) -> Result<Option<&'w mut Elem>, Self::Error> {
         for b in &mut elem.branches {
             self.visit(b)?;
         }
-        self.visit(&mut elem.next)
+        Ok(Some(&mut elem.next))
     }
 
     /// Visits an [`Elem::Loop`].
@@ -247,15 +372,27 @@ pub trait VisitorMut<'w> {
     /// The default implementation doesn't do anything meaningful besides visiting the body, and
     /// then the next node.
     ///
+    /// Usually, you don't call this function directly. Call [`VisitorMut::visit()`] instead to
+    /// traverse a node. If you do call it manually, take care to process the
+    /// [returned value](#returns) correctly.
+    ///
     /// # Arguments
     /// - `elem`: The visited [`ElemLoop`].
+    ///
+    /// # Returns
+    /// This function can return the reference to a new [`Elem`] to traverse to.
+    ///
+    /// Implementations can do so when there is a "next" element to traverse that happens after all
+    /// visiting for this element is done. If so, then returning it instead of calling
+    /// [`VisitorMut::visit()`] manually saves stack space because it is traversed by iteration
+    /// instead of recursion.
     ///
     /// # Errors
     /// If this visitor fails, then the whole visiting processes is terminated.
     #[inline]
-    fn visit_loop(&mut self, elem: &'w mut ElemLoop) -> Result<(), Self::Error> {
+    fn visit_loop(&mut self, elem: &'w mut ElemLoop) -> Result<Option<&'w mut Elem>, Self::Error> {
         self.visit(&mut elem.body)?;
-        self.visit(&mut elem.next)
+        Ok(Some(&mut elem.next))
     }
 
 
@@ -284,16 +421,16 @@ impl<'a, 'w, T: VisitorMut<'w>> VisitorMut<'w> for &'a mut T {
     fn visit(&mut self, elem: &'w mut Elem) -> Result<(), Self::Error> { T::visit(self, elem) }
 
     #[inline]
-    fn visit_call(&mut self, elem: &'w mut ElemCall) -> Result<(), Self::Error> { T::visit_call(self, elem) }
+    fn visit_call(&mut self, elem: &'w mut ElemCall) -> Result<Option<&'w mut Elem>, Self::Error> { T::visit_call(self, elem) }
 
     #[inline]
-    fn visit_branch(&mut self, elem: &'w mut ElemBranch) -> Result<(), Self::Error> { T::visit_branch(self, elem) }
+    fn visit_branch(&mut self, elem: &'w mut ElemBranch) -> Result<Option<&'w mut Elem>, Self::Error> { T::visit_branch(self, elem) }
 
     #[inline]
-    fn visit_parallel(&mut self, elem: &'w mut ElemParallel) -> Result<(), Self::Error> { T::visit_parallel(self, elem) }
+    fn visit_parallel(&mut self, elem: &'w mut ElemParallel) -> Result<Option<&'w mut Elem>, Self::Error> { T::visit_parallel(self, elem) }
 
     #[inline]
-    fn visit_loop(&mut self, elem: &'w mut ElemLoop) -> Result<(), Self::Error> { T::visit_loop(self, elem) }
+    fn visit_loop(&mut self, elem: &'w mut ElemLoop) -> Result<Option<&'w mut Elem>, Self::Error> { T::visit_loop(self, elem) }
 
     #[inline]
     fn visit_next(&mut self) -> Result<(), Self::Error> { T::visit_next(self) }
@@ -361,6 +498,10 @@ pub trait VisitorOwned {
     ///
     /// The default implementation doesn't do anything meaningful besides visiting the next node.
     ///
+    /// Usually, you don't call this function directly. Call [`VisitorOwned::visit()`] or
+    /// [`VisitorOwned::visit_mut()`] instead to traverse a node. If you do call it manually, take
+    /// care to process the [returned value](#returns) correctly.
+    ///
     /// # Arguments
     /// - `elem`: The visited [`ElemCall`].
     ///
@@ -379,6 +520,10 @@ pub trait VisitorOwned {
     ///
     /// The default implementation doesn't do anything meaningful besides visiting the branches,
     /// and then the next node.
+    ///
+    /// Usually, you don't call this function directly. Call [`VisitorOwned::visit()`] or
+    /// [`VisitorOwned::visit_mut()`] instead to traverse a node. If you do call it manually, take
+    /// care to process the [returned value](#returns) correctly.
     ///
     /// # Arguments
     /// - `elem`: The visited [`ElemBranch`].
@@ -402,6 +547,10 @@ pub trait VisitorOwned {
     /// The default implementation doesn't do anything meaningful besides visiting the branches,
     /// and then the next node.
     ///
+    /// Usually, you don't call this function directly. Call [`VisitorOwned::visit()`] or
+    /// [`VisitorOwned::visit_mut()`] instead to traverse a node. If you do call it manually, take
+    /// care to process the [returned value](#returns) correctly.
+    ///
     /// # Arguments
     /// - `elem`: The visited [`ElemParallel`].
     ///
@@ -424,6 +573,10 @@ pub trait VisitorOwned {
     /// The default implementation doesn't do anything meaningful besides visiting the body, and
     /// then the next node.
     ///
+    /// Usually, you don't call this function directly. Call [`VisitorOwned::visit()`] or
+    /// [`VisitorOwned::visit_mut()`] instead to traverse a node. If you do call it manually, take
+    /// care to process the [returned value](#returns) correctly.
+    ///
     /// # Arguments
     /// - `elem`: The visited [`ElemLoop`].
     ///
@@ -444,6 +597,10 @@ pub trait VisitorOwned {
     ///
     /// The default implementation doesn't do anything meaningful.
     ///
+    /// Usually, you don't call this function directly. Call [`VisitorOwned::visit()`] or
+    /// [`VisitorOwned::visit_mut()`] instead to traverse a node. If you do call it manually, take
+    /// care to process the [returned value](#returns) correctly.
+    ///
     /// # Returns
     /// An [`Elem::Next`] (i.e., nothing is replaced).
     ///
@@ -455,6 +612,10 @@ pub trait VisitorOwned {
     /// Visits an [`Elem::Stop`].
     ///
     /// The default implementation doesn't do anything meaningful.
+    ///
+    /// Usually, you don't call this function directly. Call [`VisitorOwned::visit()`] or
+    /// [`VisitorOwned::visit_mut()`] instead to traverse a node. If you do call it manually, take
+    /// care to process the [returned value](#returns) correctly.
     ///
     /// # Returns
     /// An [`Elem::Stop`] (i.e., nothing is replaced).
