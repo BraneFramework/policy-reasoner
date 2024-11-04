@@ -4,7 +4,7 @@
 //  Created:
 //    09 Oct 2024, 13:38:41
 //  Last edited:
-//    17 Oct 2024, 13:14:18
+//    04 Nov 2024, 16:35:48
 //  Auto updated?
 //    Yes
 //
@@ -155,4 +155,39 @@ pub trait AuditLogger {
     where
         S: Serialize,
         Q: Serialize;
+}
+
+// Standard impls
+impl<'a, T: AuditLogger> AuditLogger for &'a mut T {
+    type Error = T::Error;
+
+    #[inline]
+    fn log_context<'s, C>(&'s mut self, context: &'s C) -> impl 's + Future<Output = Result<(), Self::Error>>
+    where
+        C: ?Sized + Context,
+    {
+        <T as AuditLogger>::log_context(self, context)
+    }
+
+    #[inline]
+    fn log_response<'s, R>(
+        &'s mut self,
+        reference: &'s str,
+        response: &'s ReasonerResponse<R>,
+        raw: Option<&'s str>,
+    ) -> impl 's + Future<Output = Result<(), Self::Error>>
+    where
+        R: Display,
+    {
+        <T as AuditLogger>::log_response(self, reference, response, raw)
+    }
+
+    #[inline]
+    fn log_question<'s, S, Q>(&'s mut self, reference: &'s str, state: &'s S, question: &'s Q) -> impl 's + Future<Output = Result<(), Self::Error>>
+    where
+        S: Serialize,
+        Q: Serialize,
+    {
+        <T as AuditLogger>::log_question(self, reference, state, question)
+    }
 }
