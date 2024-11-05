@@ -4,7 +4,7 @@
 //  Created:
 //    09 Oct 2024, 13:38:41
 //  Last edited:
-//    05 Nov 2024, 10:23:16
+//    05 Nov 2024, 11:13:21
 //  Auto updated?
 //    Yes
 //
@@ -60,9 +60,9 @@ impl<L: AuditLogger> SessionedAuditLogger<L> {
         &'a self,
         response: &'a ReasonerResponse<R>,
         raw: Option<&'a str>,
-    ) -> impl 'a + Future<Output = Result<(), <Self as AuditLogger>::Error>>
+    ) -> impl 'a + Send + Future<Output = Result<(), <Self as AuditLogger>::Error>>
     where
-        R: Display,
+        R: Sync + Display,
     {
         L::log_response(&self.logger, &self.reference, response, raw)
     }
@@ -72,10 +72,14 @@ impl<L: AuditLogger> SessionedAuditLogger<L> {
     /// # Arguments
     /// - `state`: Some serializable state given as input to the reasoner.
     /// - `question`: Some serializable question that we're asking.
-    pub fn log_question<'a, S, Q>(&'a self, state: &'a S, question: &'a Q) -> impl 'a + Future<Output = Result<(), <Self as AuditLogger>::Error>>
+    pub fn log_question<'a, S, Q>(
+        &'a self,
+        state: &'a S,
+        question: &'a Q,
+    ) -> impl 'a + Send + Future<Output = Result<(), <Self as AuditLogger>::Error>>
     where
-        S: Serialize,
-        Q: Serialize,
+        S: Sync + Serialize,
+        Q: Sync + Serialize,
     {
         L::log_question(&self.logger, &self.reference, state, question)
     }
@@ -83,9 +87,9 @@ impl<L: AuditLogger> SessionedAuditLogger<L> {
 impl<L: AuditLogger> AuditLogger for SessionedAuditLogger<L> {
     type Error = L::Error;
 
-    fn log_context<'a, C>(&'a self, context: &'a C) -> impl 'a + Future<Output = Result<(), Self::Error>>
+    fn log_context<'a, C>(&'a self, context: &'a C) -> impl 'a + Send + Future<Output = Result<(), Self::Error>>
     where
-        C: ?Sized + Context,
+        C: ?Sized + Sync + Context,
     {
         L::log_context(&self.logger, context)
     }
@@ -95,17 +99,22 @@ impl<L: AuditLogger> AuditLogger for SessionedAuditLogger<L> {
         reference: &'a str,
         response: &'a ReasonerResponse<R>,
         raw: Option<&'a str>,
-    ) -> impl 'a + Future<Output = Result<(), Self::Error>>
+    ) -> impl 'a + Send + Future<Output = Result<(), Self::Error>>
     where
-        R: Display,
+        R: Sync + Display,
     {
         L::log_response(&self.logger, reference, response, raw)
     }
 
-    fn log_question<'a, S, Q>(&'a self, reference: &'a str, state: &'a S, question: &'a Q) -> impl 'a + Future<Output = Result<(), Self::Error>>
+    fn log_question<'a, S, Q>(
+        &'a self,
+        reference: &'a str,
+        state: &'a S,
+        question: &'a Q,
+    ) -> impl 'a + Send + Future<Output = Result<(), Self::Error>>
     where
-        S: Serialize,
-        Q: Serialize,
+        S: Sync + Serialize,
+        Q: Sync + Serialize,
     {
         L::log_question(&self.logger, reference, state, question)
     }
@@ -128,9 +137,9 @@ pub trait AuditLogger {
     ///
     /// # Arguments
     /// - `context`: Something [`Serialize`]able that we want to write at startup.
-    fn log_context<'a, C>(&'a self, context: &'a C) -> impl 'a + Future<Output = Result<(), Self::Error>>
+    fn log_context<'a, C>(&'a self, context: &'a C) -> impl 'a + Send + Future<Output = Result<(), Self::Error>>
     where
-        C: ?Sized + Context;
+        C: ?Sized + Sync + Context;
 
     /// Log the response of a reasoner.
     ///
@@ -143,9 +152,9 @@ pub trait AuditLogger {
         reference: &'a str,
         response: &'a ReasonerResponse<R>,
         raw: Option<&'a str>,
-    ) -> impl 'a + Future<Output = Result<(), Self::Error>>
+    ) -> impl 'a + Send + Future<Output = Result<(), Self::Error>>
     where
-        R: Display;
+        R: Sync + Display;
 
     /// Logs that the reasoner is being asked a question.
     ///
@@ -153,10 +162,15 @@ pub trait AuditLogger {
     /// - `reference`: Some reference that links the response to a particular answer.
     /// - `state`: Some serializable state given as input to the reasoner.
     /// - `question`: Some serializable question that we're asking.
-    fn log_question<'a, S, Q>(&'a self, reference: &'a str, state: &'a S, question: &'a Q) -> impl 'a + Future<Output = Result<(), Self::Error>>
+    fn log_question<'a, S, Q>(
+        &'a self,
+        reference: &'a str,
+        state: &'a S,
+        question: &'a Q,
+    ) -> impl 'a + Send + Future<Output = Result<(), Self::Error>>
     where
-        S: Serialize,
-        Q: Serialize;
+        S: Sync + Serialize,
+        Q: Sync + Serialize;
 }
 
 // Standard impls
@@ -164,9 +178,9 @@ impl<'a, T: AuditLogger> AuditLogger for &'a T {
     type Error = T::Error;
 
     #[inline]
-    fn log_context<'s, C>(&'s self, context: &'s C) -> impl 's + Future<Output = Result<(), Self::Error>>
+    fn log_context<'s, C>(&'s self, context: &'s C) -> impl 's + Send + Future<Output = Result<(), Self::Error>>
     where
-        C: ?Sized + Context,
+        C: ?Sized + Sync + Context,
     {
         <T as AuditLogger>::log_context(self, context)
     }
@@ -177,18 +191,23 @@ impl<'a, T: AuditLogger> AuditLogger for &'a T {
         reference: &'s str,
         response: &'s ReasonerResponse<R>,
         raw: Option<&'s str>,
-    ) -> impl 's + Future<Output = Result<(), Self::Error>>
+    ) -> impl 's + Send + Future<Output = Result<(), Self::Error>>
     where
-        R: Display,
+        R: Sync + Display,
     {
         <T as AuditLogger>::log_response(self, reference, response, raw)
     }
 
     #[inline]
-    fn log_question<'s, S, Q>(&'s self, reference: &'s str, state: &'s S, question: &'s Q) -> impl 's + Future<Output = Result<(), Self::Error>>
+    fn log_question<'s, S, Q>(
+        &'s self,
+        reference: &'s str,
+        state: &'s S,
+        question: &'s Q,
+    ) -> impl 's + Send + Future<Output = Result<(), Self::Error>>
     where
-        S: Serialize,
-        Q: Serialize,
+        S: Sync + Serialize,
+        Q: Sync + Serialize,
     {
         <T as AuditLogger>::log_question(self, reference, state, question)
     }
@@ -197,9 +216,9 @@ impl<'a, T: AuditLogger> AuditLogger for &'a mut T {
     type Error = T::Error;
 
     #[inline]
-    fn log_context<'s, C>(&'s self, context: &'s C) -> impl 's + Future<Output = Result<(), Self::Error>>
+    fn log_context<'s, C>(&'s self, context: &'s C) -> impl 's + Send + Future<Output = Result<(), Self::Error>>
     where
-        C: ?Sized + Context,
+        C: ?Sized + Sync + Context,
     {
         <T as AuditLogger>::log_context(self, context)
     }
@@ -210,18 +229,23 @@ impl<'a, T: AuditLogger> AuditLogger for &'a mut T {
         reference: &'s str,
         response: &'s ReasonerResponse<R>,
         raw: Option<&'s str>,
-    ) -> impl 's + Future<Output = Result<(), Self::Error>>
+    ) -> impl 's + Send + Future<Output = Result<(), Self::Error>>
     where
-        R: Display,
+        R: Sync + Display,
     {
         <T as AuditLogger>::log_response(self, reference, response, raw)
     }
 
     #[inline]
-    fn log_question<'s, S, Q>(&'s self, reference: &'s str, state: &'s S, question: &'s Q) -> impl 's + Future<Output = Result<(), Self::Error>>
+    fn log_question<'s, S, Q>(
+        &'s self,
+        reference: &'s str,
+        state: &'s S,
+        question: &'s Q,
+    ) -> impl 's + Send + Future<Output = Result<(), Self::Error>>
     where
-        S: Serialize,
-        Q: Serialize,
+        S: Sync + Serialize,
+        Q: Sync + Serialize,
     {
         <T as AuditLogger>::log_question(self, reference, state, question)
     }

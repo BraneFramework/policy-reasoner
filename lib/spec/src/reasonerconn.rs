@@ -4,7 +4,7 @@
 //  Created:
 //    09 Oct 2024, 13:35:41
 //  Last edited:
-//    05 Nov 2024, 10:43:44
+//    05 Nov 2024, 11:06:39
 //  Auto updated?
 //    Yes
 //
@@ -62,12 +62,12 @@ pub trait ReasonerConnector {
     ///
     /// # Errors
     /// This function may error if the reasoner was unreachable or did not respond (correctly).
-    fn consult<L>(
-        &self,
+    fn consult<'a, L>(
+        &'a self,
         state: Self::State,
         question: Self::Question,
-        logger: &SessionedAuditLogger<L>,
-    ) -> impl Future<Output = Result<ReasonerResponse<Self::Reason>, Self::Error>>
+        logger: &'a SessionedAuditLogger<L>,
+    ) -> impl 'a + Send + Future<Output = Result<ReasonerResponse<Self::Reason>, Self::Error>>
     where
-        L: AuditLogger;
+        L: Sync + AuditLogger;
 }
