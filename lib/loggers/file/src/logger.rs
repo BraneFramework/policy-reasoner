@@ -4,7 +4,7 @@
 //  Created:
 //    10 Oct 2024, 14:16:24
 //  Last edited:
-//    17 Oct 2024, 13:17:01
+//    05 Nov 2024, 10:43:25
 //  Auto updated?
 //    Yes
 //
@@ -124,7 +124,7 @@ pub struct FileLogger {
     path: PathBuf,
     /// Whether the user has already printed the context or not.
     #[cfg(debug_assertions)]
-    logged_context: bool,
+    logged_context: std::sync::Arc<std::sync::atomic::AtomicBool>,
 }
 impl FileLogger {
     /// Constructor for the FileLogger that initializes it pointing to the given file.
@@ -141,7 +141,7 @@ impl FileLogger {
             id: id.into(),
             path: path.into(),
             #[cfg(debug_assertions)]
-            logged_context: false,
+            logged_context: std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false)),
         }
     }
 
@@ -202,7 +202,7 @@ impl AuditLogger for FileLogger {
     type Error = Error;
 
     #[inline]
-    fn log_context<'a, C>(&'a mut self, context: &'a C) -> impl 'a + Future<Output = Result<(), Self::Error>>
+    fn log_context<'a, C>(&'a self, context: &'a C) -> impl 'a + Future<Output = Result<(), Self::Error>>
     where
         C: ?Sized + Context,
     {
@@ -215,14 +215,15 @@ impl AuditLogger for FileLogger {
 
             // Log it
             self.log(LogStatement::Context { context }).await?;
-            self.logged_context = true;
+            #[cfg(debug_assertions)]
+            self.logged_context.store(true, std::sync::atomic::Ordering::Relaxed);
             Ok(())
         }
     }
 
     #[inline]
     fn log_response<'a, R>(
-        &'a mut self,
+        &'a self,
         reference: &'a str,
         response: &'a ReasonerResponse<R>,
         raw: Option<&'a str>,
@@ -232,7 +233,7 @@ impl AuditLogger for FileLogger {
     {
         async move {
             #[cfg(debug_assertions)]
-            if !self.logged_context {
+            if !self.logged_context.load(std::sync::atomic::Ordering::Relaxed) {
                 tracing::warn!("Logging reasoner response without having logged the reasoner context; please call FileLogger::log_context() first.");
             }
 
@@ -251,14 +252,14 @@ impl AuditLogger for FileLogger {
     }
 
     #[inline]
-    fn log_question<'a, S, Q>(&'a mut self, reference: &'a str, state: &'a S, question: &'a Q) -> impl 'a + Future<Output = Result<(), Self::Error>>
+    fn log_question<'a, S, Q>(&'a self, reference: &'a str, state: &'a S, question: &'a Q) -> impl 'a + Future<Output = Result<(), Self::Error>>
     where
         S: Serialize,
         Q: Serialize,
     {
         async move {
             #[cfg(debug_assertions)]
-            if !self.logged_context {
+            if !self.logged_context.load(std::sync::atomic::Ordering::Relaxed) {
                 tracing::warn!("Logging reasoner response without having logged the reasoner context; please call FileLogger::log_context() first.");
             }
 

@@ -4,7 +4,7 @@
 //  Created:
 //    11 Oct 2024, 16:54:51
 //  Last edited:
-//    18 Oct 2024, 11:27:13
+//    05 Nov 2024, 10:44:07
 //  Auto updated?
 //    Yes
 //
@@ -248,7 +248,7 @@ impl ReasonerConnector for PosixReasonerConnector {
         &self,
         state: Self::State,
         _question: Self::Question,
-        logger: &mut SessionedAuditLogger<L>,
+        logger: &SessionedAuditLogger<L>,
     ) -> impl Future<Output = Result<ReasonerResponse<Self::Reason>, Self::Error>>
     where
         L: AuditLogger,

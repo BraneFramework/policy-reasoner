@@ -4,7 +4,7 @@
 //  Created:
 //    10 Oct 2024, 14:46:33
 //  Last edited:
-//    17 Oct 2024, 13:14:34
+//    05 Nov 2024, 10:23:27
 //  Auto updated?
 //    Yes
 //
@@ -41,7 +41,7 @@ impl AuditLogger for MockLogger {
     type Error = Infallible;
 
     #[inline]
-    fn log_context<'a, C>(&'a mut self, _context: &'a C) -> impl 'a + Future<Output = Result<(), Self::Error>>
+    fn log_context<'a, C>(&'a self, _context: &'a C) -> impl 'a + Future<Output = Result<(), Self::Error>>
     where
         C: ?Sized + Context,
     {
@@ -53,7 +53,7 @@ impl AuditLogger for MockLogger {
 
     #[inline]
     fn log_response<'a, R>(
-        &'a mut self,
+        &'a self,
         _reference: &'a str,
         _response: &'a ReasonerResponse<R>,
         _raw: Option<&'a str>,
@@ -68,12 +68,7 @@ impl AuditLogger for MockLogger {
     }
 
     #[inline]
-    fn log_question<'a, S, Q>(
-        &'a mut self,
-        _reference: &'a str,
-        _state: &'a S,
-        _question: &'a Q,
-    ) -> impl 'a + Future<Output = Result<(), Self::Error>>
+    fn log_question<'a, S, Q>(&'a self, _reference: &'a str, _state: &'a S, _question: &'a Q) -> impl 'a + Future<Output = Result<(), Self::Error>>
     where
         S: Serialize,
         Q: Serialize,
