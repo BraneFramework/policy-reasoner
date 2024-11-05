@@ -4,7 +4,7 @@
 //  Created:
 //    11 Oct 2024, 16:54:51
 //  Last edited:
-//    05 Nov 2024, 10:44:07
+//    05 Nov 2024, 11:15:59
 //  Auto updated?
 //    Yes
 //
@@ -27,7 +27,7 @@ use spec::reasonerconn::{ReasonerConnector, ReasonerResponse};
 use spec::reasons::NoReason;
 use thiserror::Error;
 use tokio::fs;
-use tracing::{Level, debug, info, span};
+use tracing::{Instrument as _, Level, debug, info, span};
 use workflow::Workflow;
 
 use crate::config::{Config, DataPolicy, PosixLocalIdentity};
@@ -244,18 +244,16 @@ impl ReasonerConnector for PosixReasonerConnector {
     type State = State;
 
     #[inline]
-    fn consult<L>(
-        &self,
+    fn consult<'a, L>(
+        &'a self,
         state: Self::State,
         _question: Self::Question,
-        logger: &SessionedAuditLogger<L>,
-    ) -> impl Future<Output = Result<ReasonerResponse<Self::Reason>, Self::Error>>
+        logger: &'a SessionedAuditLogger<L>,
+    ) -> impl 'a + Send + Future<Output = Result<ReasonerResponse<Self::Reason>, Self::Error>>
     where
-        L: AuditLogger,
+        L: Sync + AuditLogger,
     {
         async move {
-            let _span = span!(Level::INFO, "ReasonerConnector::consult", reference = logger.reference()).entered();
-
             // Log the input
             logger
                 .log_question(&state, &())
@@ -297,6 +295,7 @@ impl ReasonerConnector for PosixReasonerConnector {
                 .map_err(|err| Error::LogResponse { to: std::any::type_name::<SessionedAuditLogger<L>>(), err: err.freeze() })?;
             Ok(ReasonerResponse::Success)
         }
+        .instrument(span!(Level::INFO, "ReasonerConnector::consult", reference = logger.reference()))
     }
 }
 

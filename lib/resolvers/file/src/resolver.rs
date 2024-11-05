@@ -4,7 +4,7 @@
 //  Created:
 //    10 Oct 2024, 15:55:23
 //  Last edited:
-//    05 Nov 2024, 11:02:05
+//    05 Nov 2024, 11:15:26
 //  Auto updated?
 //    Yes
 //
@@ -23,7 +23,7 @@ use spec::AuditLogger;
 use spec::auditlogger::SessionedAuditLogger;
 use spec::stateresolver::StateResolver;
 use tokio::fs;
-use tracing::{Level, debug, span};
+use tracing::{Instrument as _, Level, debug, span};
 
 
 /***** ERRORS *****/
@@ -95,25 +95,20 @@ impl<R: Sync + for<'de> Deserialize<'de>> StateResolver for FileResolver<R> {
         L: Sync + AuditLogger,
     {
         async move {
-            // NOTE: Using `#[instrument]` adds some unnecessary trait bounds on `S` and such.
-            // NOTE: Using `entered()` carries the scope across await points, which isn't correct.
-            //       As we know `fs::read_to_string()` and `serde_json::from_str()` won't call
-            //       tracing themselves, we only use the guard on the debugs themselves.
-            let span = span!(Level::INFO, "FileResolver::resolve", reference = logger.reference());
-
             // Read the file in one go// Read the file in one go
-            span.in_scope(|| debug!("Opening input file '{}'...", self.path.display()));
+            debug!("Opening input file '{}'...", self.path.display());
             let state: String = match fs::read_to_string(&self.path).await {
                 Ok(state) => state,
                 Err(err) => return Err(Error::FileRead { path: self.path.clone(), err }),
             };
 
             // Parse it as JSON
-            span.in_scope(|| debug!("Parsing input file '{}'...", self.path.display()));
+            debug!("Parsing input file '{}'...", self.path.display());
             match serde_json::from_str(&state) {
                 Ok(state) => Ok(state),
                 Err(err) => Err(Error::FileDeserialize { to: std::any::type_name::<R>(), path: self.path.clone(), err }),
             }
         }
+        .instrument(span!(Level::INFO, "FileResolver::resolve", reference = logger.reference()))
     }
 }

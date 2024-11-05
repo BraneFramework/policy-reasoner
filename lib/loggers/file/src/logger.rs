@@ -4,7 +4,7 @@
 //  Created:
 //    10 Oct 2024, 14:16:24
 //  Last edited:
-//    05 Nov 2024, 10:43:25
+//    05 Nov 2024, 11:13:00
 //  Auto updated?
 //    Yes
 //
@@ -202,9 +202,9 @@ impl AuditLogger for FileLogger {
     type Error = Error;
 
     #[inline]
-    fn log_context<'a, C>(&'a self, context: &'a C) -> impl 'a + Future<Output = Result<(), Self::Error>>
+    fn log_context<'a, C>(&'a self, context: &'a C) -> impl 'a + Send + Future<Output = Result<(), Self::Error>>
     where
-        C: ?Sized + Context,
+        C: ?Sized + Sync + Context,
     {
         async move {
             // Serialize the context first
@@ -227,9 +227,9 @@ impl AuditLogger for FileLogger {
         reference: &'a str,
         response: &'a ReasonerResponse<R>,
         raw: Option<&'a str>,
-    ) -> impl 'a + Future<Output = Result<(), Self::Error>>
+    ) -> impl 'a + Send + Future<Output = Result<(), Self::Error>>
     where
-        R: Display,
+        R: Sync + Display,
     {
         async move {
             #[cfg(debug_assertions)]
@@ -252,10 +252,15 @@ impl AuditLogger for FileLogger {
     }
 
     #[inline]
-    fn log_question<'a, S, Q>(&'a self, reference: &'a str, state: &'a S, question: &'a Q) -> impl 'a + Future<Output = Result<(), Self::Error>>
+    fn log_question<'a, S, Q>(
+        &'a self,
+        reference: &'a str,
+        state: &'a S,
+        question: &'a Q,
+    ) -> impl 'a + Send + Future<Output = Result<(), Self::Error>>
     where
-        S: Serialize,
-        Q: Serialize,
+        S: Sync + Serialize,
+        Q: Sync + Serialize,
     {
         async move {
             #[cfg(debug_assertions)]

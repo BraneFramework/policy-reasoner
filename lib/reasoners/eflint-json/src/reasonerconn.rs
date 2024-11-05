@@ -4,7 +4,7 @@
 //  Created:
 //    09 Oct 2024, 15:52:06
 //  Last edited:
-//    05 Nov 2024, 10:44:14
+//    05 Nov 2024, 11:17:24
 //  Auto updated?
 //    Yes
 //
@@ -24,7 +24,7 @@ use serde::{Deserialize, Serialize};
 use spec::auditlogger::{AuditLogger, SessionedAuditLogger};
 use spec::reasonerconn::{ReasonerConnector, ReasonerResponse};
 use thiserror::Error;
-use tracing::{Level, debug, span};
+use tracing::{Instrument as _, Level, debug, span};
 
 use crate::reasons::ReasonHandler;
 use crate::spec::EFlintable;
@@ -199,12 +199,12 @@ impl<R, S, Q> EFlintJsonReasonerConnector<R, S, Q> {
 }
 impl<R, S, Q> ReasonerConnector for EFlintJsonReasonerConnector<R, S, Q>
 where
-    R: ReasonHandler,
-    R::Reason: Display,
+    R: Sync + ReasonHandler,
+    R::Reason: Send + Sync + Display,
     R::Error: 'static,
-    S: EFlintable + Serialize,
+    S: Send + Sync + EFlintable + Serialize,
     S::Error: 'static,
-    Q: EFlintable + Serialize,
+    Q: Send + Sync + EFlintable + Serialize,
     Q::Error: 'static,
 {
     type Error = Error<R::Error, S::Error, Q::Error>;
@@ -212,18 +212,16 @@ where
     type Reason = R::Reason;
     type State = State<S>;
 
-    fn consult<L>(
-        &self,
+    fn consult<'a, L>(
+        &'a self,
         state: Self::State,
         question: Self::Question,
-        logger: &SessionedAuditLogger<L>,
-    ) -> impl Future<Output = Result<ReasonerResponse<Self::Reason>, Self::Error>>
+        logger: &'a SessionedAuditLogger<L>,
+    ) -> impl 'a + Send + Future<Output = Result<ReasonerResponse<Self::Reason>, Self::Error>>
     where
-        L: AuditLogger,
+        L: Sync + AuditLogger,
     {
         async move {
-            // NOTE: Using `#[instrument]` adds some unnecessary trait bounds on `S` and such.
-            let _span = span!(Level::INFO, "EFlintJsonReasonerConnector::consult", reference = logger.reference()).entered();
             logger
                 .log_question(&state, &question)
                 .await
@@ -307,5 +305,6 @@ where
             debug!("Final reasoner verdict: {verdict:?}");
             Ok(verdict)
         }
+        .instrument(span!(Level::INFO, "EFlintJsonReasonerConnector::consult", reference = logger.reference()))
     }
 }

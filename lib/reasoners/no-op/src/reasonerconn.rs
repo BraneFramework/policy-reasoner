@@ -4,7 +4,7 @@
 //  Created:
 //    10 Oct 2024, 16:21:09
 //  Last edited:
-//    05 Nov 2024, 10:43:39
+//    05 Nov 2024, 11:14:47
 //  Auto updated?
 //    Yes
 //
@@ -21,7 +21,7 @@ use spec::auditlogger::SessionedAuditLogger;
 use spec::reasonerconn::ReasonerResponse;
 use spec::{AuditLogger, ReasonerConnector};
 use thiserror::Error;
-use tracing::{Level, debug, span};
+use tracing::{Instrument as _, Level, debug, span};
 
 
 /***** ERRORS *****/
@@ -69,25 +69,23 @@ impl<Q> NoOpReasonerConnector<Q> {
 }
 impl<Q> ReasonerConnector for NoOpReasonerConnector<Q>
 where
-    Q: Serialize,
+    Q: Send + Sync + Serialize,
 {
     type Error = Error;
     type Question = Q;
     type Reason = ();
     type State = ();
 
-    fn consult<L>(
-        &self,
+    fn consult<'a, L>(
+        &'a self,
         state: Self::State,
         question: Self::Question,
-        logger: &SessionedAuditLogger<L>,
-    ) -> impl Future<Output = Result<ReasonerResponse<Self::Reason>, Self::Error>>
+        logger: &'a SessionedAuditLogger<L>,
+    ) -> impl 'a + Send + Future<Output = Result<ReasonerResponse<Self::Reason>, Self::Error>>
     where
-        L: AuditLogger,
+        L: Sync + AuditLogger,
     {
         async move {
-            // NOTE: Using `#[instrument]` adds some unnecessary trait bounds on `S` and such.
-            let _span = span!(Level::INFO, "NoOpReasonerConnector::consult", reference = logger.reference()).entered();
             debug!("NoOpReasonerConnector: request received");
 
             // Log that the question has been asked
@@ -104,5 +102,6 @@ where
 
             Ok(ReasonerResponse::Success)
         }
+        .instrument(span!(Level::INFO, "NoOpReasonerConnector::consult", reference = logger.reference()))
     }
 }
