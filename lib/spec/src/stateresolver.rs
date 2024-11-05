@@ -4,7 +4,7 @@
 //  Created:
 //    10 Oct 2024, 14:57:24
 //  Last edited:
-//    10 Oct 2024, 16:07:13
+//    05 Nov 2024, 10:55:01
 //  Auto updated?
 //    Yes
 //
@@ -52,16 +52,20 @@ macro_rules! tuple_impl {
             impl<E, [<T $fi>] $(, [<T $i>])*> StateResolver for ([<T $fi>] $(, [<T $i>])*)
             where
                 E: std::error::Error,
-                [<T $fi>]: StateResolver<Error = E>,
-                $([<T $i>]: StateResolver<State = [<T $pi>]::Resolved, Error = E>,)*
+                [<T $fi>]: Sync + StateResolver<Error = E>,
+                [<T $fi>]::State: Send,
+                $(
+                    [<T $i>]: Sync + StateResolver<State = [<T $pi>]::Resolved, Error = E>,
+                    [<T $i>]::State: Send,
+                )*
             {
                 type State = [<T $fi>]::State;
                 type Resolved = [<T $li>]::Resolved;
                 type Error = E;
 
-                fn resolve<L>(&self, state: Self::State, logger: &SessionedAuditLogger<L>) -> impl Future<Output = Result<Self::Resolved, Self::Error>>
+                fn resolve<'a, L>(&'a self, state: Self::State, logger: &'a SessionedAuditLogger<L>) -> impl 'a + Send + Future<Output = Result<Self::Resolved, Self::Error>>
                 where
-                    L: AuditLogger,
+                    L: Sync + AuditLogger,
                 {
                     async move {
                         let resolved: [<T $fi>]::Resolved = self.$fi.resolve(state, logger).await?;
@@ -100,9 +104,13 @@ pub trait StateResolver {
     ///
     /// # Errors
     /// This function may error if it failed to do its resolution.
-    fn resolve<L>(&self, state: Self::State, logger: &SessionedAuditLogger<L>) -> impl Future<Output = Result<Self::Resolved, Self::Error>>
+    fn resolve<'a, L>(
+        &'a self,
+        state: Self::State,
+        logger: &'a SessionedAuditLogger<L>,
+    ) -> impl 'a + Send + Future<Output = Result<Self::Resolved, Self::Error>>
     where
-        L: AuditLogger;
+        L: Sync + AuditLogger;
 }
 
 // Default impls

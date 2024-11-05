@@ -4,7 +4,7 @@
 //  Created:
 //    10 Oct 2024, 15:55:23
 //  Last edited:
-//    10 Oct 2024, 16:10:46
+//    05 Nov 2024, 11:02:05
 //  Auto updated?
 //    Yes
 //
@@ -81,28 +81,35 @@ impl<R> FileResolver<R> {
     #[inline]
     pub fn new(path: impl Into<PathBuf>) -> Self { Self { path: path.into(), _resolved: PhantomData } }
 }
-impl<R: for<'de> Deserialize<'de>> StateResolver for FileResolver<R> {
+impl<R: Sync + for<'de> Deserialize<'de>> StateResolver for FileResolver<R> {
     type Error = Error;
     type Resolved = R;
     type State = ();
 
-    fn resolve<L>(&self, _state: Self::State, logger: &SessionedAuditLogger<L>) -> impl Future<Output = Result<Self::Resolved, Self::Error>>
+    fn resolve<'a, L>(
+        &'a self,
+        _state: Self::State,
+        logger: &'a SessionedAuditLogger<L>,
+    ) -> impl 'a + Send + Future<Output = Result<Self::Resolved, Self::Error>>
     where
-        L: AuditLogger,
+        L: Sync + AuditLogger,
     {
         async move {
             // NOTE: Using `#[instrument]` adds some unnecessary trait bounds on `S` and such.
-            let _span = span!(Level::INFO, "FileResolver::resolve", reference = logger.reference()).entered();
+            // NOTE: Using `entered()` carries the scope across await points, which isn't correct.
+            //       As we know `fs::read_to_string()` and `serde_json::from_str()` won't call
+            //       tracing themselves, we only use the guard on the debugs themselves.
+            let span = span!(Level::INFO, "FileResolver::resolve", reference = logger.reference());
 
             // Read the file in one go// Read the file in one go
-            debug!("Opening input file '{}'...", self.path.display());
+            span.in_scope(|| debug!("Opening input file '{}'...", self.path.display()));
             let state: String = match fs::read_to_string(&self.path).await {
                 Ok(state) => state,
                 Err(err) => return Err(Error::FileRead { path: self.path.clone(), err }),
             };
 
             // Parse it as JSON
-            debug!("Parsing input file '{}'...", self.path.display());
+            span.in_scope(|| debug!("Parsing input file '{}'...", self.path.display()));
             match serde_json::from_str(&state) {
                 Ok(state) => Ok(state),
                 Err(err) => Err(Error::FileDeserialize { to: std::any::type_name::<R>(), path: self.path.clone(), err }),
