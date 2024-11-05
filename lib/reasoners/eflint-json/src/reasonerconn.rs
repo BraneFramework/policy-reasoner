@@ -4,7 +4,7 @@
 //  Created:
 //    09 Oct 2024, 15:52:06
 //  Last edited:
-//    17 Oct 2024, 13:59:28
+//    05 Nov 2024, 10:44:14
 //  Auto updated?
 //    Yes
 //
@@ -216,7 +216,7 @@ where
         &self,
         state: Self::State,
         question: Self::Question,
-        logger: &mut SessionedAuditLogger<L>,
+        logger: &SessionedAuditLogger<L>,
     ) -> impl Future<Output = Result<ReasonerResponse<Self::Reason>, Self::Error>>
     where
         L: AuditLogger,
