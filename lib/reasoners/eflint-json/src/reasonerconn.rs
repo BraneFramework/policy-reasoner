@@ -4,7 +4,7 @@
 //  Created:
 //    09 Oct 2024, 15:52:06
 //  Last edited:
-//    06 Nov 2024, 14:25:12
+//    06 Nov 2024, 14:59:35
 //  Auto updated?
 //    Yes
 //
@@ -130,15 +130,6 @@ impl spec::context::Context for Context {
     fn kind(&self) -> &str { "eflint-json" }
 }
 
-/// Defines the eFLINT reasoner state to submit to it.
-#[derive(Clone, Debug, Deserialize, Serialize)]
-pub struct State<S> {
-    /// The policy used.
-    pub policy: Vec<Phrase>,
-    /// The rest of the state that is appended to the end of the request.
-    pub state:  S,
-}
-
 
 
 
@@ -210,7 +201,7 @@ where
     type Error = Error<R::Error, S::Error, Q::Error>;
     type Question = Q;
     type Reason = R::Reason;
-    type State = State<S>;
+    type State = S;
 
     fn consult<'a, L>(
         &'a self,
@@ -229,8 +220,8 @@ where
 
             // Build the full policy
             debug!("Building full policy...");
-            let mut phrases: Vec<Phrase> = state.policy;
-            phrases.extend(state.state.to_eflint().map_err(|err| Error::StateToEFlint { err })?);
+            let mut phrases: Vec<Phrase> = Vec::new();
+            phrases.extend(state.to_eflint().map_err(|err| Error::StateToEFlint { err })?);
             phrases.extend(question.to_eflint().map_err(|err| Error::QuestionToEFlint { err })?);
             debug!("Full request length: {} phrase(s)", phrases.len());
 
