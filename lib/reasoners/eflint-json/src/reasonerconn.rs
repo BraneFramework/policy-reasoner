@@ -4,7 +4,7 @@
 //  Created:
 //    09 Oct 2024, 15:52:06
 //  Last edited:
-//    05 Nov 2024, 11:17:24
+//    06 Nov 2024, 14:25:12
 //  Auto updated?
 //    Yes
 //
@@ -176,7 +176,7 @@ impl<R, S, Q> EFlintJsonReasonerConnector<R, S, Q> {
     pub fn new_async<'l, L: AuditLogger>(
         addr: impl 'l + Into<String>,
         handler: R,
-        logger: &'l mut L,
+        logger: &'l L,
     ) -> impl 'l + Future<Output = Result<Self, Error<R::Error, S::Error, Q::Error>>>
     where
         R: 'l + ReasonHandler,
