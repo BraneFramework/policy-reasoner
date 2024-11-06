@@ -4,7 +4,7 @@
 //  Created:
 //    17 Oct 2024, 09:53:49
 //  Last edited:
-//    17 Oct 2024, 09:54:09
+//    06 Nov 2024, 15:03:48
 //  Auto updated?
 //    Yes
 //
@@ -15,10 +15,12 @@
 use std::fmt::{Display, Formatter, Result as FResult};
 use std::ops::{Deref, DerefMut};
 
+use serde::{Deserialize, Serialize};
+
 
 /***** LIBRARY ****/
 /// Represents that no reason is used.
-#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+#[derive(Clone, Copy, Debug, Deserialize, Eq, Hash, PartialEq, Serialize)]
 pub struct NoReason;
 impl Display for NoReason {
     #[inline]
@@ -26,7 +28,7 @@ impl Display for NoReason {
 }
 
 /// Represents that multiple reasons can be given.
-#[derive(Clone, Debug, Eq, Hash, PartialEq)]
+#[derive(Clone, Debug, Deserialize, Eq, Hash, PartialEq, Serialize)]
 pub struct ManyReason<R>(Vec<R>);
 impl<R> Default for ManyReason<R> {
     #[inline]
