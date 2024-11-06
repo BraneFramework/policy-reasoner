@@ -4,7 +4,7 @@
 //  Created:
 //    09 Oct 2024, 16:06:18
 //  Last edited:
-//    06 Nov 2024, 14:38:50
+//    06 Nov 2024, 14:41:36
 //  Auto updated?
 //    Yes
 //
@@ -71,19 +71,19 @@ impl EFlintable for Phrase {
 }
 
 // Pointer impls
-impl<'a, T: EFlintable> EFlintable for &'a T {
+impl<'a, T: ?Sized + EFlintable> EFlintable for &'a T {
     type Error = T::Error;
 
     #[inline]
     fn to_eflint(&self) -> Result<Vec<Phrase>, Self::Error> { <T as EFlintable>::to_eflint(self) }
 }
-impl<'a, T: EFlintable> EFlintable for &'a mut T {
+impl<'a, T: ?Sized + EFlintable> EFlintable for &'a mut T {
     type Error = T::Error;
 
     #[inline]
     fn to_eflint(&self) -> Result<Vec<Phrase>, Self::Error> { <T as EFlintable>::to_eflint(self) }
 }
-impl<'a, T: Clone + EFlintable> EFlintable for Cow<'a, T> {
+impl<'a, T: ?Sized + EFlintable + ToOwned> EFlintable for Cow<'a, T> {
     type Error = T::Error;
 
     #[inline]
