@@ -4,7 +4,7 @@
 //  Created:
 //    09 Oct 2024, 16:06:18
 //  Last edited:
-//    10 Oct 2024, 14:06:45
+//    06 Nov 2024, 14:38:50
 //  Auto updated?
 //    Yes
 //
@@ -12,17 +12,36 @@
 //!   Defines some general interface for this crate.
 //
 
+use std::borrow::Cow;
 use std::convert::Infallible;
-use std::error::Error;
+use std::error;
 
 use eflint_json::spec::Phrase;
+use thiserror::Error;
+
+
+/***** ERRORS *****/
+/// Special error that occurs when something cannot be serialized as eFLINT in a container of
+/// those things.
+#[derive(Debug, Error)]
+#[error("Failed to serialize element {i} to eFLINT")]
+pub struct Error<E> {
+    /// The index of the failed element.
+    i:   usize,
+    /// The nested error.
+    #[source]
+    err: E,
+}
+
+
+
 
 
 /***** LIBRARY *****/
 /// Defines something that can be turned into eFLINT phrases.
 pub trait EFlintable {
     /// The error type returned when converting to eFLINT.
-    type Error: Error;
+    type Error: error::Error;
 
 
     /// Converts this state to eFLINT phrases.
@@ -35,10 +54,73 @@ pub trait EFlintable {
     fn to_eflint(&self) -> Result<Vec<Phrase>, Self::Error>;
 }
 
-// Default impls
+// Practical impls
 impl EFlintable for () {
     type Error = Infallible;
 
     #[inline]
     fn to_eflint(&self) -> Result<Vec<Phrase>, Self::Error> { Ok(Vec::new()) }
+}
+
+// eFLINT impls
+impl EFlintable for Phrase {
+    type Error = Infallible;
+
+    #[inline]
+    fn to_eflint(&self) -> Result<Vec<Phrase>, Self::Error> { Ok(vec![self.clone()]) }
+}
+
+// Pointer impls
+impl<'a, T: EFlintable> EFlintable for &'a T {
+    type Error = T::Error;
+
+    #[inline]
+    fn to_eflint(&self) -> Result<Vec<Phrase>, Self::Error> { <T as EFlintable>::to_eflint(self) }
+}
+impl<'a, T: EFlintable> EFlintable for &'a mut T {
+    type Error = T::Error;
+
+    #[inline]
+    fn to_eflint(&self) -> Result<Vec<Phrase>, Self::Error> { <T as EFlintable>::to_eflint(self) }
+}
+impl<'a, T: Clone + EFlintable> EFlintable for Cow<'a, T> {
+    type Error = T::Error;
+
+    #[inline]
+    fn to_eflint(&self) -> Result<Vec<Phrase>, Self::Error> { <T as EFlintable>::to_eflint(self) }
+}
+
+// Container impls
+impl<T: EFlintable> EFlintable for [T]
+where
+    T::Error: 'static,
+{
+    type Error = Error<T::Error>;
+
+    #[inline]
+    fn to_eflint(&self) -> Result<Vec<Phrase>, Self::Error> {
+        let mut res: Vec<Phrase> = Vec::with_capacity(self.len());
+        for (i, e) in self.iter().enumerate() {
+            res.extend(e.to_eflint().map_err(|err| Error { i, err })?);
+        }
+        Ok(res)
+    }
+}
+impl<const LEN: usize, T: EFlintable> EFlintable for [T; LEN]
+where
+    T::Error: 'static,
+{
+    type Error = Error<T::Error>;
+
+    #[inline]
+    fn to_eflint(&self) -> Result<Vec<Phrase>, Self::Error> { <[T] as EFlintable>::to_eflint(self) }
+}
+impl<T: EFlintable> EFlintable for Vec<T>
+where
+    T::Error: 'static,
+{
+    type Error = Error<T::Error>;
+
+    #[inline]
+    fn to_eflint(&self) -> Result<Vec<Phrase>, Self::Error> { <[T] as EFlintable>::to_eflint(self) }
 }
