@@ -4,7 +4,7 @@
 //  Created:
 //    10 Oct 2024, 13:54:17
 //  Last edited:
-//    17 Oct 2024, 12:07:02
+//    06 Nov 2024, 14:59:22
 //  Auto updated?
 //    Yes
 //
@@ -18,11 +18,12 @@ use std::path::PathBuf;
 
 use clap::Parser;
 use console::style;
+use eflint_json_reasoner::json::spec::Phrase;
 use error_trace::trace;
 use policy_reasoner::loggers::file::FileLogger;
+use policy_reasoner::reasoners::eflint_json::EFlintJsonReasonerConnector;
 use policy_reasoner::reasoners::eflint_json::json::spec::RequestPhrases;
 use policy_reasoner::reasoners::eflint_json::reasons::EFlintSilentReasonHandler;
-use policy_reasoner::reasoners::eflint_json::{EFlintJsonReasonerConnector, State};
 use policy_reasoner::spec::auditlogger::SessionedAuditLogger;
 use policy_reasoner::spec::reasonerconn::ReasonerConnector as _;
 use policy_reasoner::spec::reasons::NoReason;
@@ -181,7 +182,7 @@ async fn main() {
     };
 
     // Create the reasoner
-    let conn = match EFlintJsonReasonerConnector::<EFlintSilentReasonHandler, (), ()>::new_async(
+    let conn = match EFlintJsonReasonerConnector::<EFlintSilentReasonHandler, Vec<Phrase>, ()>::new_async(
         &args.address,
         EFlintSilentReasonHandler,
         &mut logger,
@@ -194,7 +195,7 @@ async fn main() {
             std::process::exit(1);
         },
     };
-    let verdict: ReasonerResponse<NoReason> = match conn.consult(State { policy: policy.phrases, state: () }, (), &mut logger).await {
+    let verdict: ReasonerResponse<NoReason> = match conn.consult(policy.phrases, (), &mut logger).await {
         Ok(res) => res,
         Err(err) => {
             error!("{}", trace!(("Failed to send message to reasoner at {:?}", args.address), err));
