@@ -4,7 +4,7 @@
 //  Created:
 //    17 Oct 2024, 09:53:49
 //  Last edited:
-//    06 Nov 2024, 15:03:48
+//    14 Nov 2024, 15:25:23
 //  Auto updated?
 //    Yes
 //
@@ -52,6 +52,10 @@ impl<R> ManyReason<R> {
     /// A new ManyReason that doesn't have any reasons embedded in it yet but space for at least `capacity` reasons.
     #[inline]
     pub fn with_capacity(capacity: usize) -> Self { Self(Vec::with_capacity(capacity)) }
+
+    /// Consumes the set and returns and iterator-by-ownership.
+    #[inline]
+    pub fn into_iter(self) -> std::vec::IntoIter<R> { self.0.into_iter() }
 }
 impl<R: Display> Display for ManyReason<R> {
     #[inline]
