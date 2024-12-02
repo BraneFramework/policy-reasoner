@@ -4,7 +4,7 @@
 //  Created:
 //    09 Oct 2024, 13:35:41
 //  Last edited:
-//    05 Nov 2024, 11:06:39
+//    02 Dec 2024, 14:21:21
 //  Auto updated?
 //    Yes
 //
@@ -12,6 +12,7 @@
 //!   Defines the interface to the backend reasoner.
 //
 
+use std::borrow::Cow;
 use std::error::Error;
 use std::future::Future;
 
@@ -21,6 +22,36 @@ use crate::auditlogger::{AuditLogger, SessionedAuditLogger};
 
 
 /***** AUXILLARY *****/
+/// Defines the general information contained within a [`ReasonerConnector::Context`].
+pub trait ReasonerContext: Serialize {
+    /// Returns some identifier for the specific reasoner version.
+    ///
+    /// This is useful, because users may (want) to depend on specific non-language, but
+    /// yes-reasoner, features.
+    ///
+    /// # Returns
+    /// A string identifier denoting this reasoner's version.
+    fn version(&self) -> Cow<str>;
+
+    /// Returns some identifier of the language that's being used as backend.
+    ///
+    /// # Returns
+    /// A string identifier that tells users the language used.
+    fn language(&self) -> Cow<str>;
+
+    /// Returns some identifier of the specific language version being used as backend.
+    ///
+    /// This would usually be a semantic version number. However, it may also denote specific
+    /// dialects or additional extensions.
+    ///
+    /// # Returns
+    /// A string identifier that tells users which version of the backend
+    /// [language](ReasonerContext::language()) is being used.
+    fn language_version(&self) -> Cow<str>;
+}
+
+
+
 /// Defines the result of a reasoner.
 ///
 /// # Generics
@@ -40,6 +71,8 @@ pub enum ReasonerResponse<R> {
 /***** LIBRARY *****/
 /// Defines the interface with the backend reasoner.
 pub trait ReasonerConnector {
+    /// Some context returned that describes this reasoner for policy writers.
+    type Context: ReasonerContext;
     /// The type of state that this reasoner accepts.
     type State;
     /// The type of question that this reasoner accepts.
@@ -49,6 +82,16 @@ pub trait ReasonerConnector {
     /// The error returned by the reasoner.
     type Error: Error;
 
+
+    /// Retrieves some context of the connector that is relevant for people writing policy.
+    ///
+    /// Ideally, the context allows policy reasoners to uniquely identify everything they need to
+    /// know to write policy in the appropriate language, version and interface required by the
+    /// reasoner.
+    ///
+    /// # Returns
+    /// A [`Context`](ReasonerConnector::Context) that describes this context.
+    fn context(&self) -> Self::Context;
 
     /// Sends a policy to the backend reasoner.
     ///

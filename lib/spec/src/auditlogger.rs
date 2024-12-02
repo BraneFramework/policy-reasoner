@@ -4,7 +4,7 @@
 //  Created:
 //    09 Oct 2024, 13:38:41
 //  Last edited:
-//    05 Nov 2024, 11:13:21
+//    02 Dec 2024, 14:21:01
 //  Auto updated?
 //    Yes
 //
@@ -19,8 +19,7 @@ use std::future::Future;
 
 use serde::Serialize;
 
-use crate::context::Context;
-use crate::reasonerconn::ReasonerResponse;
+use crate::reasonerconn::{ReasonerContext, ReasonerResponse};
 
 
 /***** AUXILLARY *****/
@@ -89,7 +88,7 @@ impl<L: AuditLogger> AuditLogger for SessionedAuditLogger<L> {
 
     fn log_context<'a, C>(&'a self, context: &'a C) -> impl 'a + Send + Future<Output = Result<(), Self::Error>>
     where
-        C: ?Sized + Sync + Context,
+        C: ?Sized + Sync + ReasonerContext,
     {
         L::log_context(&self.logger, context)
     }
@@ -139,7 +138,7 @@ pub trait AuditLogger {
     /// - `context`: Something [`Serialize`]able that we want to write at startup.
     fn log_context<'a, C>(&'a self, context: &'a C) -> impl 'a + Send + Future<Output = Result<(), Self::Error>>
     where
-        C: ?Sized + Sync + Context;
+        C: ?Sized + Sync + ReasonerContext;
 
     /// Log the response of a reasoner.
     ///
@@ -180,7 +179,7 @@ impl<'a, T: AuditLogger> AuditLogger for &'a T {
     #[inline]
     fn log_context<'s, C>(&'s self, context: &'s C) -> impl 's + Send + Future<Output = Result<(), Self::Error>>
     where
-        C: ?Sized + Sync + Context,
+        C: ?Sized + Sync + ReasonerContext,
     {
         <T as AuditLogger>::log_context(self, context)
     }
@@ -218,7 +217,7 @@ impl<'a, T: AuditLogger> AuditLogger for &'a mut T {
     #[inline]
     fn log_context<'s, C>(&'s self, context: &'s C) -> impl 's + Send + Future<Output = Result<(), Self::Error>>
     where
-        C: ?Sized + Sync + Context,
+        C: ?Sized + Sync + ReasonerContext,
     {
         <T as AuditLogger>::log_context(self, context)
     }

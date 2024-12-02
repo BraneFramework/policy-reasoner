@@ -4,7 +4,7 @@
 //  Created:
 //    10 Oct 2024, 14:16:24
 //  Last edited:
-//    05 Nov 2024, 11:13:00
+//    02 Dec 2024, 14:21:52
 //  Auto updated?
 //    Yes
 //
@@ -22,8 +22,7 @@ use enum_debug::EnumDebug as _;
 use serde::Serialize;
 use serde_json::Value;
 use spec::auditlogger::AuditLogger;
-use spec::context::Context;
-use spec::reasonerconn::ReasonerResponse;
+use spec::reasonerconn::{ReasonerContext, ReasonerResponse};
 use tokio::fs::{File, OpenOptions};
 use tokio::io::AsyncWriteExt as _;
 use tracing::debug;
@@ -204,7 +203,7 @@ impl AuditLogger for FileLogger {
     #[inline]
     fn log_context<'a, C>(&'a self, context: &'a C) -> impl 'a + Send + Future<Output = Result<(), Self::Error>>
     where
-        C: ?Sized + Sync + Context,
+        C: ?Sized + Sync + ReasonerContext,
     {
         async move {
             // Serialize the context first

@@ -4,7 +4,7 @@
 //  Created:
 //    09 Oct 2024, 15:52:06
 //  Last edited:
-//    06 Nov 2024, 14:59:35
+//    02 Dec 2024, 14:32:35
 //  Auto updated?
 //    Yes
 //
@@ -12,6 +12,7 @@
 //!   Defines a [`ReasonerConnector`] for an eFLINT JSON reasoner.
 //
 
+use std::borrow::Cow;
 use std::collections::HashMap;
 use std::fmt::Display;
 use std::future::Future;
@@ -22,7 +23,7 @@ use eflint_json::spec::{Phrase, PhraseResult, Request, RequestCommon, RequestPhr
 use error_trace::{ErrorTrace as _, Trace};
 use serde::{Deserialize, Serialize};
 use spec::auditlogger::{AuditLogger, SessionedAuditLogger};
-use spec::reasonerconn::{ReasonerConnector, ReasonerResponse};
+use spec::reasonerconn::{ReasonerConnector, ReasonerContext, ReasonerResponse};
 use thiserror::Error;
 use tracing::{Instrument as _, Level, debug, span};
 
@@ -120,14 +121,61 @@ pub enum Error<R, S, Q> {
 
 /***** AUXILLARY *****/
 /// Defines the context for the eFLINT reasoner.
-#[derive(Clone, Debug, Deserialize, Serialize)]
-pub struct Context {
-    /// The address of the context.
-    addr: String,
+#[derive(Clone, Copy, Debug, Deserialize, Serialize)]
+pub struct EFlintJsonReasonerContext {
+    /// The version of the reasoner.
+    pub version: &'static str,
+    /// The language identifier of the reasoner.
+    pub language: &'static str,
+    /// The language version identifier of the reasoner.
+    pub language_version: &'static str,
 }
-impl spec::context::Context for Context {
+impl Default for EFlintJsonReasonerContext {
     #[inline]
-    fn kind(&self) -> &str { "eflint-json" }
+    fn default() -> Self { Self { version: env!("CARGO_PKG_VERSION"), language: "eflint-json", language_version: "0.1.0-srv" } }
+}
+impl ReasonerContext for EFlintJsonReasonerContext {
+    #[inline]
+    fn version(&self) -> Cow<str> { Cow::Borrowed(self.version) }
+
+    #[inline]
+    fn language(&self) -> Cow<str> { Cow::Borrowed(self.language) }
+
+    #[inline]
+    fn language_version(&self) -> Cow<str> { Cow::Borrowed(self.language_version) }
+}
+
+/// Defines a slightly more elaborate context for the eFLINT reasoner that's relevant for private
+/// use, but not for public.
+///
+/// Mostly exists for logging to the audit log.
+#[derive(Clone, Copy, Debug, Serialize)]
+pub struct EFlintJsonReasonerContextFull<'a> {
+    /// The normal context
+    pub context: EFlintJsonReasonerContext,
+    /// The address of the reasoner we're connecting to.
+    pub addr:    &'a str,
+}
+impl<'a> EFlintJsonReasonerContextFull<'a> {
+    /// Constructor for the EFlintJsonReasonerContextFull.
+    ///
+    /// # Arguments
+    /// - `addr`: The address of the physical reasoner we connect to.
+    ///
+    /// # Returns
+    /// A new EFlintJsonReasonerContextFull that can be logged.
+    #[inline]
+    pub fn new(addr: &'a str) -> Self { Self { context: EFlintJsonReasonerContext::default(), addr } }
+}
+impl<'a> ReasonerContext for EFlintJsonReasonerContextFull<'a> {
+    #[inline]
+    fn version(&self) -> Cow<str> { Cow::Borrowed(self.context.version) }
+
+    #[inline]
+    fn language(&self) -> Cow<str> { Cow::Borrowed(self.context.language) }
+
+    #[inline]
+    fn language_version(&self) -> Cow<str> { Cow::Borrowed(self.context.language_version) }
 }
 
 
@@ -181,7 +229,7 @@ impl<R, S, Q> EFlintJsonReasonerConnector<R, S, Q> {
         async move {
             let addr: String = addr.into();
             logger
-                .log_context(&Context { addr: addr.clone() })
+                .log_context(&EFlintJsonReasonerContextFull::new(&addr))
                 .await
                 .map_err(|err| Error::LogContext { to: std::any::type_name::<L>(), err: err.freeze() })?;
             Ok(Self { addr, reason_handler: handler, _state: PhantomData, _question: PhantomData })
@@ -198,10 +246,13 @@ where
     Q: Send + Sync + EFlintable + Serialize,
     Q::Error: 'static,
 {
+    type Context = EFlintJsonReasonerContext;
     type Error = Error<R::Error, S::Error, Q::Error>;
     type Question = Q;
     type Reason = R::Reason;
     type State = S;
+
+    fn context(&self) -> Self::Context { EFlintJsonReasonerContext::default() }
 
     fn consult<'a, L>(
         &'a self,

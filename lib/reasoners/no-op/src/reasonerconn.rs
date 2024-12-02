@@ -4,7 +4,7 @@
 //  Created:
 //    10 Oct 2024, 16:21:09
 //  Last edited:
-//    05 Nov 2024, 11:14:47
+//    02 Dec 2024, 14:33:59
 //  Auto updated?
 //    Yes
 //
@@ -12,13 +12,14 @@
 //!   <Todo>
 //
 
+use std::borrow::Cow;
 use std::future::Future;
 use std::marker::PhantomData;
 
 use error_trace::{ErrorTrace as _, Trace};
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use spec::auditlogger::SessionedAuditLogger;
-use spec::reasonerconn::ReasonerResponse;
+use spec::reasonerconn::{ReasonerContext, ReasonerResponse};
 use spec::{AuditLogger, ReasonerConnector};
 use thiserror::Error;
 use tracing::{Instrument as _, Level, debug, span};
@@ -27,6 +28,13 @@ use tracing::{Instrument as _, Level, debug, span};
 /***** ERRORS *****/
 #[derive(Debug, Error)]
 pub enum Error {
+    /// Failed to log the reasoner's context to the given logger.
+    #[error("Failed to log the reasoner's context to {to}")]
+    LogContext {
+        to:  &'static str,
+        #[source]
+        err: Trace,
+    },
     /// Failed to log the reasoner's response to the given logger.
     #[error("Failed to log the reasoner's response to {to}")]
     LogResponse {
@@ -47,6 +55,36 @@ pub enum Error {
 
 
 
+/***** AUXILLARY *****/
+/// The [`ReasonerContext`] returned by the [`NoOpReasonerConnector`].
+#[derive(Clone, Copy, Debug, Deserialize, Serialize)]
+pub struct NoOpReasonerContext {
+    /// The version of this reasoner.
+    pub version: &'static str,
+    /// The language identifier of this reasoner.
+    pub language: &'static str,
+    /// The language's version identifier of this reasoner.
+    pub language_version: &'static str,
+}
+impl Default for NoOpReasonerContext {
+    #[inline]
+    fn default() -> Self { Self { version: env!("CARGO_PKG_VERSION"), language: "no-op", language_version: "v1" } }
+}
+impl ReasonerContext for NoOpReasonerContext {
+    #[inline]
+    fn version(&self) -> Cow<str> { Cow::Borrowed(self.version) }
+
+    #[inline]
+    fn language(&self) -> Cow<str> { Cow::Borrowed(self.language) }
+
+    #[inline]
+    fn language_version(&self) -> Cow<str> { Cow::Borrowed(self.language_version) }
+}
+
+
+
+
+
 /***** LIBRARY *****/
 /// The minimal no-operation reasoner connector, that approves all validation requests by default (it does not check any
 /// policy/permissions).
@@ -55,26 +93,39 @@ pub struct NoOpReasonerConnector<Q> {
     /// The completely arbitrary question that can be asked.
     _question: PhantomData<Q>,
 }
-impl<Q> Default for NoOpReasonerConnector<Q> {
-    #[inline]
-    fn default() -> Self { Self::new() }
-}
 impl<Q> NoOpReasonerConnector<Q> {
     /// Constructor for the NoOpReasonerConnector.
     ///
-    /// # Returns
-    /// A new connector, ready to allow anything in sight.
+    /// This constructor logs asynchronously.
+    ///
+    /// # Arguments
+    /// - `logger`: A logger to write this reasoner's context to.
+    ///
+    /// # Errors
+    /// This function may error if it failed to log to the given `logger`.
     #[inline]
-    pub fn new() -> Self { Self { _question: PhantomData } }
+    pub fn new_async<'l, L: AuditLogger>(logger: &'l mut L) -> impl 'l + Future<Output = Result<Self, Error>> {
+        async move {
+            logger
+                .log_context(&NoOpReasonerContext::default())
+                .await
+                .map_err(|err| Error::LogContext { to: std::any::type_name::<L>(), err: err.freeze() })?;
+            Ok(Self { _question: PhantomData })
+        }
+    }
 }
 impl<Q> ReasonerConnector for NoOpReasonerConnector<Q>
 where
     Q: Send + Sync + Serialize,
 {
+    type Context = NoOpReasonerContext;
     type Error = Error;
     type Question = Q;
     type Reason = ();
     type State = ();
+
+    #[inline]
+    fn context(&self) -> Self::Context { NoOpReasonerContext::default() }
 
     fn consult<'a, L>(
         &'a self,

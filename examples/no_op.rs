@@ -4,7 +4,7 @@
 //  Created:
 //    10 Oct 2024, 16:17:21
 //  Last edited:
-//    17 Oct 2024, 12:05:45
+//    02 Dec 2024, 14:34:47
 //  Auto updated?
 //    Yes
 //
@@ -18,9 +18,9 @@ use console::style;
 use error_trace::trace;
 use policy_reasoner::loggers::file::FileLogger;
 use policy_reasoner::reasoners::no_op::NoOpReasonerConnector;
+use policy_reasoner::spec::ReasonerConnector as _;
 use policy_reasoner::spec::auditlogger::SessionedAuditLogger;
 use policy_reasoner::spec::reasonerconn::ReasonerResponse;
-use policy_reasoner::spec::{AuditLogger, ReasonerConnector as _};
 use tracing::{Level, error, info};
 
 
@@ -61,13 +61,15 @@ async fn main() {
     // Create the logger
     let mut logger: SessionedAuditLogger<FileLogger> =
         SessionedAuditLogger::new("test", FileLogger::new(format!("{} - v{}", env!("CARGO_BIN_NAME"), env!("CARGO_PKG_VERSION")), "./test.log"));
-    if let Err(err) = logger.log_context("no-op").await {
-        error!("{}", trace!(("Failed to log no-op reasoner context"), err));
-        std::process::exit(1);
-    }
 
     // Run the reasoner
-    let conn: NoOpReasonerConnector<()> = NoOpReasonerConnector::new();
+    let conn: NoOpReasonerConnector<()> = match NoOpReasonerConnector::new_async(&mut logger).await {
+        Ok(conn) => conn,
+        Err(err) => {
+            error!("{}", trace!(("Failed to setup no-op reasoner"), err));
+            std::process::exit(1);
+        },
+    };
     let verdict: ReasonerResponse<()> = conn.consult((), (), &mut logger).await.unwrap();
 
     // OK, report

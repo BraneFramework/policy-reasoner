@@ -4,7 +4,7 @@
 //  Created:
 //    11 Oct 2024, 16:54:51
 //  Last edited:
-//    05 Nov 2024, 11:15:59
+//    02 Dec 2024, 14:28:32
 //  Auto updated?
 //    Yes
 //
@@ -13,6 +13,7 @@
 //
 
 
+use std::borrow::Cow;
 /***** LIBRARY *****/
 use std::future::Future;
 use std::iter::repeat;
@@ -23,7 +24,7 @@ use std::path::{Path, PathBuf};
 use error_trace::{ErrorTrace as _, Trace};
 use serde::{Deserialize, Serialize};
 use spec::auditlogger::{AuditLogger, SessionedAuditLogger};
-use spec::reasonerconn::{ReasonerConnector, ReasonerResponse};
+use spec::reasonerconn::{ReasonerConnector, ReasonerContext, ReasonerResponse};
 use spec::reasons::NoReason;
 use thiserror::Error;
 use tokio::fs;
@@ -205,7 +206,32 @@ impl BitOr<Self> for PosixFilePermission {
 
 
 
-/***** LIBRARY *****/
+/***** AUXILLARY *****/
+/// The [`ReasonerContext`] returned by the [`PosixReasonerConnector`].
+#[derive(Clone, Copy, Debug, Deserialize, Serialize)]
+pub struct PosixReasonerContext {
+    /// The version of this reasoner.
+    pub version: &'static str,
+    /// The language identifier of this reasoner.
+    pub language: &'static str,
+    /// The language's version identifier of this reasoner.
+    pub language_version: &'static str,
+}
+impl Default for PosixReasonerContext {
+    #[inline]
+    fn default() -> Self { Self { version: env!("CARGO_PKG_VERSION"), language: "posix", language_version: "0.2.0" } }
+}
+impl ReasonerContext for PosixReasonerContext {
+    #[inline]
+    fn version(&self) -> Cow<str> { Cow::Borrowed(self.version) }
+
+    #[inline]
+    fn language(&self) -> Cow<str> { Cow::Borrowed(self.language) }
+
+    #[inline]
+    fn language_version(&self) -> Cow<str> { Cow::Borrowed(self.language_version) }
+}
+
 /// The overarching input to the POSIX reasoner.
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct State {
@@ -217,6 +243,9 @@ pub struct State {
 
 
 
+
+
+/***** LIBRARY *****/
 /// The POSIX reasoner connector. This connector is used to validate workflows based on POSIX file permissions.
 pub struct PosixReasonerConnector;
 impl PosixReasonerConnector {
@@ -232,16 +261,23 @@ impl PosixReasonerConnector {
     #[inline]
     pub fn new_async<'l, L: AuditLogger>(logger: &'l mut L) -> impl 'l + Future<Output = Result<Self, Error>> {
         async move {
-            logger.log_context("posix").await.map_err(|err| Error::LogContext { to: std::any::type_name::<L>(), err: err.freeze() })?;
+            logger
+                .log_context(&PosixReasonerContext::default())
+                .await
+                .map_err(|err| Error::LogContext { to: std::any::type_name::<L>(), err: err.freeze() })?;
             Ok(Self)
         }
     }
 }
 impl ReasonerConnector for PosixReasonerConnector {
+    type Context = PosixReasonerContext;
     type Error = Error;
     type Question = ();
     type Reason = NoReason;
     type State = State;
+
+    #[inline]
+    fn context(&self) -> Self::Context { PosixReasonerContext::default() }
 
     #[inline]
     fn consult<'a, L>(
@@ -298,32 +334,3 @@ impl ReasonerConnector for PosixReasonerConnector {
         .instrument(span!(Level::INFO, "ReasonerConnector::consult", reference = logger.reference()))
     }
 }
-
-// /// The context of the POSIX reasoner connector. This context is used to identify the reasoner connector.
-// /// See [`ConnectorContext`] and [`ConnectorWithContext`].
-// #[derive(Debug, Clone, serde::Serialize)]
-// pub struct PosixReasonerConnectorContext {
-//     #[serde(rename = "type")]
-//     pub t: String,
-//     pub version: String,
-// }
-
-// impl std::hash::Hash for PosixReasonerConnectorContext {
-//     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-//         self.t.hash(state);
-//         self.version.hash(state);
-//     }
-// }
-
-// impl ConnectorContext for PosixReasonerConnectorContext {
-//     fn r#type(&self) -> String { self.t.clone() }
-
-//     fn version(&self) -> String { self.version.clone() }
-// }
-
-// impl ConnectorWithContext for PosixReasonerConnector {
-//     type Context = PosixReasonerConnectorContext;
-
-//     #[inline]
-//     fn context() -> Self::Context { PosixReasonerConnectorContext { t: "posix".into(), version: "0.1.0".into() } }
-// }
