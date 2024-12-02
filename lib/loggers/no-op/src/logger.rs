@@ -4,7 +4,7 @@
 //  Created:
 //    10 Oct 2024, 14:46:33
 //  Last edited:
-//    05 Nov 2024, 10:23:27
+//    02 Dec 2024, 14:21:38
 //  Auto updated?
 //    Yes
 //
@@ -18,8 +18,7 @@ use std::future::Future;
 
 use serde::Serialize;
 use spec::auditlogger::AuditLogger;
-use spec::context::Context;
-use spec::reasonerconn::ReasonerResponse;
+use spec::reasonerconn::{ReasonerContext, ReasonerResponse};
 
 
 /***** LIBRARY *****/
@@ -43,7 +42,7 @@ impl AuditLogger for MockLogger {
     #[inline]
     fn log_context<'a, C>(&'a self, _context: &'a C) -> impl 'a + Future<Output = Result<(), Self::Error>>
     where
-        C: ?Sized + Context,
+        C: ?Sized + ReasonerContext,
     {
         async move {
             println!("AUDIT LOG: log_context");
