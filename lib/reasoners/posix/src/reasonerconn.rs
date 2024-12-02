@@ -4,7 +4,7 @@
 //  Created:
 //    11 Oct 2024, 16:54:51
 //  Last edited:
-//    02 Dec 2024, 14:28:32
+//    02 Dec 2024, 15:48:38
 //  Auto updated?
 //    Yes
 //
@@ -208,28 +208,28 @@ impl BitOr<Self> for PosixFilePermission {
 
 /***** AUXILLARY *****/
 /// The [`ReasonerContext`] returned by the [`PosixReasonerConnector`].
-#[derive(Clone, Copy, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct PosixReasonerContext {
     /// The version of this reasoner.
-    pub version: &'static str,
+    pub version: String,
     /// The language identifier of this reasoner.
-    pub language: &'static str,
+    pub language: String,
     /// The language's version identifier of this reasoner.
-    pub language_version: &'static str,
+    pub language_version: String,
 }
 impl Default for PosixReasonerContext {
     #[inline]
-    fn default() -> Self { Self { version: env!("CARGO_PKG_VERSION"), language: "posix", language_version: "0.2.0" } }
+    fn default() -> Self { Self { version: env!("CARGO_PKG_VERSION").into(), language: "posix".into(), language_version: "0.2.0".into() } }
 }
 impl ReasonerContext for PosixReasonerContext {
     #[inline]
-    fn version(&self) -> Cow<str> { Cow::Borrowed(self.version) }
+    fn version(&self) -> Cow<str> { Cow::Borrowed(&self.version) }
 
     #[inline]
-    fn language(&self) -> Cow<str> { Cow::Borrowed(self.language) }
+    fn language(&self) -> Cow<str> { Cow::Borrowed(&self.language) }
 
     #[inline]
-    fn language_version(&self) -> Cow<str> { Cow::Borrowed(self.language_version) }
+    fn language_version(&self) -> Cow<str> { Cow::Borrowed(&self.language_version) }
 }
 
 /// The overarching input to the POSIX reasoner.

@@ -4,7 +4,7 @@
 //  Created:
 //    09 Oct 2024, 15:52:06
 //  Last edited:
-//    02 Dec 2024, 14:32:35
+//    02 Dec 2024, 15:49:51
 //  Auto updated?
 //    Yes
 //
@@ -121,35 +121,35 @@ pub enum Error<R, S, Q> {
 
 /***** AUXILLARY *****/
 /// Defines the context for the eFLINT reasoner.
-#[derive(Clone, Copy, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct EFlintJsonReasonerContext {
     /// The version of the reasoner.
-    pub version: &'static str,
+    pub version: String,
     /// The language identifier of the reasoner.
-    pub language: &'static str,
+    pub language: String,
     /// The language version identifier of the reasoner.
-    pub language_version: &'static str,
+    pub language_version: String,
 }
 impl Default for EFlintJsonReasonerContext {
     #[inline]
-    fn default() -> Self { Self { version: env!("CARGO_PKG_VERSION"), language: "eflint-json", language_version: "0.1.0-srv" } }
+    fn default() -> Self { Self { version: env!("CARGO_PKG_VERSION").into(), language: "eflint-json".into(), language_version: "0.1.0-srv".into() } }
 }
 impl ReasonerContext for EFlintJsonReasonerContext {
     #[inline]
-    fn version(&self) -> Cow<str> { Cow::Borrowed(self.version) }
+    fn version(&self) -> Cow<str> { Cow::Borrowed(&self.version) }
 
     #[inline]
-    fn language(&self) -> Cow<str> { Cow::Borrowed(self.language) }
+    fn language(&self) -> Cow<str> { Cow::Borrowed(&self.language) }
 
     #[inline]
-    fn language_version(&self) -> Cow<str> { Cow::Borrowed(self.language_version) }
+    fn language_version(&self) -> Cow<str> { Cow::Borrowed(&self.language_version) }
 }
 
 /// Defines a slightly more elaborate context for the eFLINT reasoner that's relevant for private
 /// use, but not for public.
 ///
 /// Mostly exists for logging to the audit log.
-#[derive(Clone, Copy, Debug, Serialize)]
+#[derive(Clone, Debug, Serialize)]
 pub struct EFlintJsonReasonerContextFull<'a> {
     /// The normal context
     pub context: EFlintJsonReasonerContext,
@@ -169,13 +169,13 @@ impl<'a> EFlintJsonReasonerContextFull<'a> {
 }
 impl<'a> ReasonerContext for EFlintJsonReasonerContextFull<'a> {
     #[inline]
-    fn version(&self) -> Cow<str> { Cow::Borrowed(self.context.version) }
+    fn version(&self) -> Cow<str> { Cow::Borrowed(&self.context.version) }
 
     #[inline]
-    fn language(&self) -> Cow<str> { Cow::Borrowed(self.context.language) }
+    fn language(&self) -> Cow<str> { Cow::Borrowed(&self.context.language) }
 
     #[inline]
-    fn language_version(&self) -> Cow<str> { Cow::Borrowed(self.context.language_version) }
+    fn language_version(&self) -> Cow<str> { Cow::Borrowed(&self.context.language_version) }
 }
 
 

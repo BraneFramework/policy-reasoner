@@ -4,7 +4,7 @@
 //  Created:
 //    10 Oct 2024, 16:21:09
 //  Last edited:
-//    02 Dec 2024, 14:33:59
+//    02 Dec 2024, 15:49:08
 //  Auto updated?
 //    Yes
 //
@@ -57,28 +57,28 @@ pub enum Error {
 
 /***** AUXILLARY *****/
 /// The [`ReasonerContext`] returned by the [`NoOpReasonerConnector`].
-#[derive(Clone, Copy, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct NoOpReasonerContext {
     /// The version of this reasoner.
-    pub version: &'static str,
+    pub version: String,
     /// The language identifier of this reasoner.
-    pub language: &'static str,
+    pub language: String,
     /// The language's version identifier of this reasoner.
-    pub language_version: &'static str,
+    pub language_version: String,
 }
 impl Default for NoOpReasonerContext {
     #[inline]
-    fn default() -> Self { Self { version: env!("CARGO_PKG_VERSION"), language: "no-op", language_version: "v1" } }
+    fn default() -> Self { Self { version: env!("CARGO_PKG_VERSION").into(), language: "no-op".into(), language_version: "v1".into() } }
 }
 impl ReasonerContext for NoOpReasonerContext {
     #[inline]
-    fn version(&self) -> Cow<str> { Cow::Borrowed(self.version) }
+    fn version(&self) -> Cow<str> { Cow::Borrowed(&self.version) }
 
     #[inline]
-    fn language(&self) -> Cow<str> { Cow::Borrowed(self.language) }
+    fn language(&self) -> Cow<str> { Cow::Borrowed(&self.language) }
 
     #[inline]
-    fn language_version(&self) -> Cow<str> { Cow::Borrowed(self.language_version) }
+    fn language_version(&self) -> Cow<str> { Cow::Borrowed(&self.language_version) }
 }
 
 
