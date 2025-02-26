@@ -1,0 +1,50 @@
+name: Deploy Rust Documentation to GitHub Pages
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  pages: write
+  id-token: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out the code
+        uses: actions/checkout@v4
+
+      - name: Install Rust with dtolnay's toolchain
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: stable
+
+      - name: Build Documentation
+        run: |
+          cargo doc --workspace --no-deps --document-private-items
+
+      - name: Prepare Documentation for GitHub Pages
+        run: |
+          mkdir -p gh-pages/unstable
+          cp -r target/doc/* gh-pages/unstable
+          echo '<meta http-equiv="refresh" content="0; url=unstable/overview/index.html">' > gh-pages/index.html
+
+      - name: Upload to GitHub Pages
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: gh-pages
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+
+    steps:
+      - name: Deploy to GitHub Pages
+        uses: actions/deploy-pages@v4
+
