@@ -30,7 +30,7 @@ jobs:
         run: |
           mkdir -p gh-pages/unstable
           cp -r target/doc/* gh-pages/unstable
-          echo '<meta http-equiv="refresh" content="0; url=unstable/overview/index.html">' > gh-pages/index.html
+          echo '<meta http-equiv="refresh" content="0; url=unstable/policy_reasoner/index.html">' > gh-pages/index.html
 
       - name: Upload to GitHub Pages
         uses: actions/upload-pages-artifact@v3
