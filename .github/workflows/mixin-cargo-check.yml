@@ -1,4 +1,4 @@
-# name: Cargo Check
+name: Cargo Check
 
 on:
   workflow_call:
@@ -7,35 +7,41 @@ on:
         required: true
         type: string
       rust-version:
-        required: true
+        required: false
         type: string
+      cache:
+        required: false
+        type: boolean
+        default: false
+
+env:
+  CARGO_INCREMENTAL: 0
+  CARGO_TERM_COLOR: always
+  RUSTFLAGS: -Dwarnings
+  RUSTDOCFLAGS: -Dwarnings
 
 jobs:
   cargo-check:
-    name: ${{ inputs.os }}
+    name: "${{ inputs.os }}"
     runs-on: ${{ inputs.os }}
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Install rust toolchain
-        uses: dtolnay/rust-toolchain@master
-        with:
-          toolchain: ${{ inputs.rust-version }}
-          components: rustfmt, clippy
+      - name: Override active rustup toolchain
+        if: inputs.rust-version != ''
+        run: echo "RUSTUP_TOOLCHAIN=${{ inputs.rust-version }}" >> $GITHUB_ENV
+
+      - name: Show toolchain
+        run: rustup show active-toolchain
 
       - name: Install Cargo Hack
         uses: taiki-e/install-action@cargo-hack
 
-      - name: Install protoc
-        uses: arduino/setup-protoc@v3
-        with:
-          version: 21.11
-          repo-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Cache dependencies
+        if: inputs.cache
+        uses: Swatinem/rust-cache@v2
 
       - name: Check project
-        run: cargo hack check --feature-powerset --locked --workspace
-
-      - name: Build project
-        run: cargo hack build --feature-powerset --workspace
+        run: cargo hack --feature-powerset check --workspace

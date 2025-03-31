@@ -60,4 +60,3 @@ jobs:
         with:
           command: check licenses
           arguments: --all-features
-
