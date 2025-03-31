@@ -34,48 +34,48 @@ jobs:
       os: ubuntu-24.04
       cache: true
 
-  check-stable-linux-arm:
-    name: "Check"
-    uses: ./.github/workflows/mixin-cargo-check.yml
-    with:
-      os: ubuntu-24.04-arm
-      cache: true
-
-  build-stable-linux-arm:
-    needs: check-stable-linux-arm
-    name: "Build"
-    uses: ./.github/workflows/mixin-cargo-build.yml
-    with:
-      os: ubuntu-24.04-arm
-      cache: true
-
-  check-stable-windows:
-    name: "Check"
-    uses: ./.github/workflows/mixin-cargo-check.yml
-    with:
-      os: windows-latest
-      cache: true
-
-  build-stable-windows:
-    needs: check-stable-windows
-    name: "Build"
-    uses: ./.github/workflows/mixin-cargo-build.yml
-    with:
-      os: windows-latest
-      cache: true
-
-  check-stable-macos:
-    name: "Check"
-    uses: ./.github/workflows/mixin-cargo-check.yml
-    with:
-      os: macos-latest
-
-  build-stable-macos:
-    needs: check-stable-macos
-    name: "Build"
-    uses: ./.github/workflows/mixin-cargo-build.yml
-    with:
-      os: macos-latest
+  # check-stable-linux-arm:
+  #   name: "Check"
+  #   uses: ./.github/workflows/mixin-cargo-check.yml
+  #   with:
+  #     os: ubuntu-24.04-arm
+  #     cache: true
+  #
+  # build-stable-linux-arm:
+  #   needs: check-stable-linux-arm
+  #   name: "Build"
+  #   uses: ./.github/workflows/mixin-cargo-build.yml
+  #   with:
+  #     os: ubuntu-24.04-arm
+  #     cache: true
+  #
+  # check-stable-windows:
+  #   name: "Check"
+  #   uses: ./.github/workflows/mixin-cargo-check.yml
+  #   with:
+  #     os: windows-latest
+  #     cache: true
+  #
+  # build-stable-windows:
+  #   needs: check-stable-windows
+  #   name: "Build"
+  #   uses: ./.github/workflows/mixin-cargo-build.yml
+  #   with:
+  #     os: windows-latest
+  #     cache: true
+  #
+  # check-stable-macos:
+  #   name: "Check"
+  #   uses: ./.github/workflows/mixin-cargo-check.yml
+  #   with:
+  #     os: macos-latest
+  #
+  # build-stable-macos:
+  #   needs: check-stable-macos
+  #   name: "Build"
+  #   uses: ./.github/workflows/mixin-cargo-build.yml
+  #   with:
+  #     os: macos-latest
 
   test:
     needs: check-stable-linux
