@@ -215,7 +215,7 @@ pub enum Error {
     UnknownTask { id: usize },
     /// Unknown function given.
     UnknownFunc { id: FunctionId },
-    /// A [`Call`](ast::Edge::Call)-edge was encountered while we didn't know of a function ID on the stack.
+    /// A [`Call`](brane_ast::ast::Edge::Call)-edge was encountered while we didn't know of a function ID on the stack.
     CallingWithoutId { pc: ResolvedProgramCounter },
 }
 impl Display for Error {
@@ -302,7 +302,7 @@ fn pushes_func_id(instrs: &[EdgeInstr], idx: usize) -> Option<Option<usize>> {
 ///
 /// # Arguments
 /// - `wir`: The [`Workflow`] to analyse.
-/// - `table`: A running [`VirtualSymTable`] that determines the current types in scope.
+/// - `table`: A running [`SymTable`] that determines the current types in scope.
 /// - `trace`: A stack of call pointers that keeps track of the trace of function calls. Allows us to avoid recursion.
 /// - `stack_id`: The function ID currently known to be on the stack. Is [`None`] if we don't know this.
 /// - `pc`: The program-counter-index of the edge to analyse. These are pairs of `(function, edge_idx)`, where main is referred to by [`usize::MAX`](usize).

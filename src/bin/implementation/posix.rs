@@ -125,7 +125,7 @@
 //!   but it can be quite daunting to figure out how every part of this system works. The author made a good effort to
 //!   improve the documentation during the running of this project, and that helped a lot. That combined with the already
 //!   existing implementation of the eFlint reasoner made this project possible. We hope that the POSIX (and
-//!   [no_op](crate::no_op)) reasoner can help guide future contributors in either extension of the current reasoners or
+//!   no_op reasoner can help guide future contributors in either extension of the current reasoners or
 //!   the addition of new reasoner types.
 
 use std::collections::{HashMap, HashSet};
@@ -248,7 +248,7 @@ impl PosixFilePermission {
     /// For more about POSIX permission bits see:
     /// <https://en.wikipedia.org/wiki/File-system_permissions#Numeric_notation>.
     ///
-    /// Also see the related [`UserType::get_mode_bitmask`].
+    /// Also see the related [`PosixFileClass::get_mode_bitmask`].
     fn to_mode_bit(self) -> u32 {
         match self {
             PosixFilePermission::Read => 4,

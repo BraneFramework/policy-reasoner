@@ -38,7 +38,7 @@ pub trait ConnectorContext {
 
 /// Defines an intermediary that allows us to conveniently log `ReasonerConnector`'s context.
 pub trait ConnectorWithContext {
-    /// The type returned by [`ReasonerConnector::full_context()`].
+    /// The type returned by [`Self::context()`].
     type Context: ConnectorContext + std::hash::Hash + Sync + Send + Serialize + Clone + core::fmt::Debug;
 
     /// Returns hash of connector's context.
