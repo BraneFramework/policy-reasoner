@@ -28,7 +28,7 @@ pub struct NestedCliParserHelpFormatter<'n, 'l, P> {
     /// The parser in question.
     parser: P,
 }
-impl<'n, 'l, P: NestedCliParser> Display for NestedCliParserHelpFormatter<'n, 'l, P> {
+impl<P: NestedCliParser> Display for NestedCliParserHelpFormatter<'_, '_, P> {
     #[inline]
     fn fmt(&self, f: &mut Formatter<'_>) -> FResult { self.parser.help_fmt(self.name, self.short, self.long, f) }
 }
@@ -94,7 +94,7 @@ pub trait NestedCliParser {
     /// - `args`: The raw [`&str`] to parse.
     ///
     /// # Returns
-    /// A new instance of [`Self::Arguments`](NestedCliParser::Arguments) that contains the information parsed from the raw `args`.
+    /// A new instance of [`Self::Args`] that contains the information parsed from the raw `args`.
     ///
     /// # Errors
     /// This function has free roam to error as it desires. Typically, however, this should be when the input is invalid for this parser.

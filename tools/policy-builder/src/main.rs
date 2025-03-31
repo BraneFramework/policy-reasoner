@@ -113,7 +113,7 @@ fn main() {
     };
 
     // Run the thing, then
-    if let Err(err) = compile(&args.path, output, args.compiler.as_ref().map(|c| c.as_path())) {
+    if let Err(err) = compile(&args.path, output, args.compiler.as_deref()) {
         error!("{}", err.trace());
         std::process::exit(1);
     }

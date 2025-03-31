@@ -62,7 +62,7 @@ fn optimize_elem(elem: Elem) -> (bool, Elem) {
                             loop {
                                 match &*next_branch.next {
                                     Elem::Branch(nb) => {
-                                        next_branch = &nb;
+                                        next_branch = nb;
                                     },
                                     Elem::Next => {
                                         break;
