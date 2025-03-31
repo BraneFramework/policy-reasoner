@@ -1,6 +1,7 @@
 [package]
 name = "policy-builder"
 description = "Tool for taking a collection of eFLINT files and compiling them to a single eFLINT JSON Spec."
+rust-version = "1.81"
 edition = "2021"
 authors = [ "Tim Müller" ]
 version.workspace = true

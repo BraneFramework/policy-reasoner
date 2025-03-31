@@ -1,6 +1,7 @@
 [package]
 name = "policy-reasoner"
 description = "Long-awaited implementation of the EPI Framework checkers, which reason about policies and contrain systems like [Brane](https://github.com/epi-project/brane)"
+rust-version = "1.82"
 edition = "2021"
 version.workspace = true
 repository.workspace = true

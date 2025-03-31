@@ -1,6 +1,7 @@
 [package]
 name = "checker-client"
 description = "A tool to make requests to the checker conveniently, for demo/testing purposes."
+rust-version = "1.81"
 edition = "2021"
 version.workspace = true
 repository.workspace = true

@@ -1,5 +1,6 @@
 [package]
 name = "auth-resolver"
+rust-version = "1.81"
 edition = "2021"
 version.workspace = true
 repository.workspace = true
