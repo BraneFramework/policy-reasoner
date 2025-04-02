@@ -1,6 +1,7 @@
 [package]
 name = "key-manager"
 description = "A tool that copies `branectl`s behaviour in making it easy to generates key/tokens."
+rust-version = "1.82"
 edition = "2021"
 version.workspace = true
 repository.workspace = true

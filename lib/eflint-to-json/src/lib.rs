@@ -55,7 +55,7 @@ impl Display for ChildStreams {
 }
 impl error::Error for ChildStreams {}
 
-/// Defines a wrapper around [`ChildStdout`]/[`ChildStderr`] that allow them to be serialized as errors in a trace.
+/// Defines a wrapper around [`ChildStdout`]/[`std::process::ChildStderr`] that allow them to be serialized as errors in a trace.
 #[derive(Debug)]
 pub struct ChildStream(&'static str, String);
 impl ChildStream {

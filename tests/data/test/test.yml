@@ -10,6 +10,5 @@ name: Test
 owners: null
 description: A test dataset for testing the VM.
 created: 1970-01-01T00:00:00Z
-access:
-  localhost: !file
-    path: ./test.csv
+access: !file
+  path: ./test.csv

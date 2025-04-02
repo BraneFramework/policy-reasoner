@@ -23,11 +23,10 @@ allow = [
     "CC0-1.0",
     "CC-PDDC",
     "OpenSSL",
+    "Unicode-3.0",
     "Unicode-DFS-2016",
     "Zlib",
 ]
-
-copyleft = "deny"
 
 confidence-threshold = 0.8
 

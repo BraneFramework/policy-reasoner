@@ -38,7 +38,7 @@ pub trait ConnectorContext {
 
 /// Defines an intermediary that allows us to conveniently log `ReasonerConnector`'s context.
 pub trait ConnectorWithContext {
-    /// The type returned by [`ReasonerConnector::full_context()`].
+    /// The type returned by [`Self::context()`].
     type Context: ConnectorContext + std::hash::Hash + Sync + Send + Serialize + Clone + core::fmt::Debug;
 
     /// Returns hash of connector's context.
@@ -224,7 +224,7 @@ impl<'a> LogStatement<'a> {
     #[inline]
     pub fn reasoner_context<C: ConnectorWithContext>() -> Self {
         Self::ReasonerContext {
-            connector_context:      serde_json::to_value(&C::context())
+            connector_context:      serde_json::to_value(C::context())
                 .unwrap_or_else(|err| panic!("Could not serialize context of {}: {}", std::any::type_name::<C>(), err)),
             connector_context_hash: C::hash(),
         }

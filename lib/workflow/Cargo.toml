@@ -1,6 +1,7 @@
 [package]
 name = "workflow"
 description = "Defines the workflow representation used internally by the checker."
+rust-version = "1.81"
 edition = "2021"
 authors = [ "Tim Müller" ]
 version.workspace = true

@@ -1,5 +1,6 @@
 [package]
 name = "nested-cli-parser"
+rust-version = "1.78"
 edition = "2021"
 version.workspace = true
 repository.workspace = true

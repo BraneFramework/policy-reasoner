@@ -1,5 +1,6 @@
 [package]
 name = "policy"
+rust-version = "1.81"
 edition = "2021"
 authors = ["Bas Kloosterman"]
 version.workspace = true

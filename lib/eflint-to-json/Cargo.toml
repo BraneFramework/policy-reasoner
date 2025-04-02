@@ -1,6 +1,7 @@
 [package]
 name = "eflint-to-json"
 description = "Defines a high-level wrapper around Olaf's [`eflint-to-json`](https://github.com/Olaf-Erkemeij/eflint-server) executable that compiles eFLINT to eFLINT JSON Specification."
+rust-version = "1.81"
 edition = "2021"
 version.workspace = true
 repository.workspace = true

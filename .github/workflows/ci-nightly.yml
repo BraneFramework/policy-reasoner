@@ -1,0 +1,36 @@
+name: Nightly CI
+on:
+  pull_request: 
+    types: [opened, synchronize, reopened]
+  push:
+    branches:
+      - 'main'
+
+# Cancel in progress CI run if new version is pushed
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
+
+env:
+  CARGO_INCREMENTAL: 0
+  CARGO_TERM_COLOR: always
+  RUSTFLAGS: -Dwarnings
+  RUSTDOCFLAGS: -Dwarnings
+
+jobs:
+  # This one is optional, but it is nice to know if something will work as intended in the future
+  check-nightly:
+    name: "Check & Build (Nightly)"
+
+    uses: ./.github/workflows/mixin-cargo-check.yml
+    with:
+      os: ubuntu-24.04
+      rust-version: nightly
+
+  clippy-nightly:
+    needs: check-nightly
+    name: "Clippy (Nightly)"
+    uses: ./.github/workflows/mixin-cargo-clippy.yml
+    with:
+      os: ubuntu-24.04
+      rust-version: nightly

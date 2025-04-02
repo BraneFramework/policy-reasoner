@@ -164,7 +164,8 @@ impl PolicyDataAccess for DummyPolicyStore {
                 // TODO: Compute hash by hand
                 reasoner_connector_context: String::from("No context exists"),
             },
-            content:     Vec::new(), })
+            content:     Vec::new(),
+        })
     }
 
     async fn deactivate_policy<F: 'static + Send + Future<Output = Result<(), PolicyDataError>>>(

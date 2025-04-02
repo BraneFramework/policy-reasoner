@@ -183,7 +183,7 @@ pub struct WorkflowFormatter<'w> {
     /// The workflow to format.
     wf: &'w Workflow,
 }
-impl<'w> Display for WorkflowFormatter<'w> {
+impl Display for WorkflowFormatter<'_> {
     fn fmt(&self, f: &mut Formatter<'_>) -> FResult {
         // Print some nice header thingy
         writeln!(f, "Workflow [")?;

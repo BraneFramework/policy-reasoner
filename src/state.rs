@@ -45,7 +45,7 @@ use state_resolver::{State, StateResolver};
 /// The list of recognized keys for the arguments of the [`FileStateResolver`].
 pub const FILE_STATE_RESOLVER_KEYS: [&'static str; 2] = ["f", "file"];
 
-/// The list of recognized keys for the arguments of the [`BraneApiStateResolver`].
+/// The list of recognized keys for the arguments of the [`BraneApiResolver`].
 #[cfg(feature = "brane-api-resolver")]
 pub const BRANE_API_STATE_RESOLVER_KEYS: [&'static str; 2] = ["u", "use-case-file"];
 

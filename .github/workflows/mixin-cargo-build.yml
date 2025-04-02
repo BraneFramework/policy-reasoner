@@ -1,4 +1,4 @@
-name: Cargo Clippy
+name: Cargo Build
 
 on:
   workflow_call:
@@ -9,6 +9,10 @@ on:
       rust-version:
         required: false
         type: string
+      cache:
+        required: false
+        type: boolean
+        default: false
 
 env:
   CARGO_INCREMENTAL: 0
@@ -17,8 +21,8 @@ env:
   RUSTDOCFLAGS: -Dwarnings
 
 jobs:
-  cargo-clippy:
-    name: "${{ inputs.os }} / ${{ inputs.rust-version }}"
+  cargo-build:
+    name: "${{ inputs.os }}"
     runs-on: ${{ inputs.os }}
 
     steps:
@@ -32,8 +36,12 @@ jobs:
       - name: Show toolchain
         run: rustup show active-toolchain
 
-      - name: Install Clippy
-        run: rustup component add clippy
+      - name: Install Cargo Hack
+        uses: taiki-e/install-action@cargo-hack
 
-      - name: Run clippy
-        run: cargo clippy --workspace
+      - name: Cache dependencies
+        if: inputs.cache
+        uses: Swatinem/rust-cache@v2
+
+      - name: Build project
+        run: cargo build --workspace

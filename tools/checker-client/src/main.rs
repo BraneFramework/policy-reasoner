@@ -56,13 +56,13 @@ use srv::models::{AddPolicyPostModel, PolicyContentPostModel, SetVersionPostMode
 const JWT_KEY: &[u8] = b"wL5hkXZpM929BXRCMgVt1GNdM3cSDovRZsU_mPaOPrNJ8x9TvOv9yb3Ps5GkIqdfCyXWM9HEzh0zNDvc_pA_BqAlLiCtlrSajDtCza42HQgWkE71ocWFB5yMkeVcDWaBwUcDm_lPiy-BdfGjmpdox8H7-mOQoieEMNt8hXQR5E7rA3PC9Ih8lma0pFtkRkuCDYyLmBH7geajvkTE77pB5YVUQ57Qm4uijpBus8083tN2UP-oCqBmpAfZ0BtyGY3oFlRk3sf_HwhSz2gFalYUuK8379hY4BOzuM80pIL18VHVzFgOwRI48RBCk21M5aoFiLMc5Gp9VTKKd9VxQNgExA";
 
 /// The checker path to the policy API's policy list request path.
-const POLICY_ADD_POLICY_PATH: (Method, &'static str) = (Method::POST, "v1/management/policies");
+const POLICY_ADD_POLICY_PATH: (Method, &str) = (Method::POST, "v1/management/policies");
 /// The checker path to the policy API's set-active-policy request path.
-const POLICY_SET_ACTIVE_POLICY_PATH: (Method, &'static str) = (Method::PUT, "v1/management/policies/active");
+const POLICY_SET_ACTIVE_POLICY_PATH: (Method, &str) = (Method::PUT, "v1/management/policies/active");
 /// The checker path to the policy API's get-active-policy request path.
-const POLICY_GET_ACTIVE_POLICY_PATH: (Method, &'static str) = (Method::GET, "v1/management/policies/active");
+const POLICY_GET_ACTIVE_POLICY_PATH: (Method, &str) = (Method::GET, "v1/management/policies/active");
 /// The checker path to the deliberation API's workflow check request path.
-const DELIB_WORKFLOW_VALIDATION_PATH: (Method, &'static str) = (Method::POST, "v1/deliberation/execute-workflow");
+const DELIB_WORKFLOW_VALIDATION_PATH: (Method, &str) = (Method::POST, "v1/deliberation/execute-workflow");
 
 /***** ERRORS *****/
 /// Defines errors that originate from parsing [`PolicyLanguage`]s.
@@ -411,6 +411,7 @@ fn plan_wir(edges: &mut [Edge], pc: (usize, usize), breakpoint: Option<(usize, u
 
     // Match on it
     use Edge::*;
+    #[allow(clippy::needless_return)]
     match edge {
         Node { task: _, locs, at, input: _, result: _, metadata: _, next } => {
             let next: usize = *next;
@@ -473,7 +474,7 @@ fn plan_wir(edges: &mut [Edge], pc: (usize, usize), breakpoint: Option<(usize, u
             plan_wir(edges, (pc.0, next), breakpoint);
         },
         Return { result: _ } => return,
-    }
+    };
 }
 
 /// Analyses a line to see if it's the start of a logging line.
@@ -588,7 +589,7 @@ fn main() {
 
                         // Run the compiler
                         debug!("Running eflint-to-json compiler on '{}'...", push.path.display());
-                        if let Err(err) = compile(&push.path, handle, push.eflint_to_json_path.as_ref().map(|p| p.as_path())) {
+                        if let Err(err) = compile(&push.path, handle, push.eflint_to_json_path.as_deref()) {
                             error!("{}", trace!(("Failed to compile input file '{}'", push.path.display()), err));
                             std::process::exit(1);
                         };
@@ -994,7 +995,7 @@ fn main() {
                     let mut funcs: Arc<HashMap<usize, Vec<Edge>>> = Arc::new(HashMap::new());
                     std::mem::swap(&mut funcs, &mut wir.funcs);
                     let mut funcs: HashMap<usize, Vec<Edge>> = Arc::into_inner(funcs).unwrap();
-                    for (_, edges) in &mut funcs {
+                    for edges in funcs.values_mut() {
                         plan_wir(edges, (usize::MAX, 0), None);
                     }
                     let mut funcs: Arc<HashMap<usize, Vec<Edge>>> = Arc::new(funcs);
