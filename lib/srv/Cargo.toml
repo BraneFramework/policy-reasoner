@@ -34,5 +34,5 @@ workflow = { path = "../workflow" }
 error-trace.workspace = true
 
 # Brane
-brane-ast = { git = "https://github.com/epi-project/brane" }
-brane-exe = { git = "https://github.com/epi-project/brane" }
+brane-ast = { git = "https://github.com/braneframework/brane" }
+brane-exe = { git = "https://github.com/braneframework/brane" }

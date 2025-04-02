@@ -179,7 +179,7 @@ impl Display for DownloadSecurity<'_> {
 /***** LIBRARY *****/
 /// Downloads some file from the interwebs to the given location.
 ///
-/// Courtesy of the Brane project (<https://github.com/epi-project/brane/blob/master/brane-shr/src/fs.rs#L1285C1-L1463C2>).
+/// Courtesy of the Brane project (<https://github.com/braneframework/brane/blob/master/brane-shr/src/fs.rs#L1285C1-L1463C2>).
 ///
 /// # Arguments
 /// - `source`: The URL to download the file from.
@@ -348,7 +348,7 @@ pub fn download_file(source: impl AsRef<str>, target: impl AsRef<Path>, security
 
 /// Downloads some file from the interwebs to the given location.
 ///
-/// Courtesy of the Brane project (<https://github.com/epi-project/brane/blob/master/brane-shr/src/fs.rs#L1285C1-L1463C2>).
+/// Courtesy of the Brane project (<https://github.com/braneframework/brane/blob/master/brane-shr/src/fs.rs#L1285C1-L1463C2>).
 ///
 /// # Arguments
 /// - `source`: The URL to download the file from.

@@ -1,6 +1,6 @@
 [package]
 name = "policy-reasoner"
-description = "Long-awaited implementation of the EPI Framework checkers, which reason about policies and contrain systems like [Brane](https://github.com/epi-project/brane)"
+description = "Long-awaited implementation of the EPI Framework checkers, which reason about policies and contrain systems like [Brane](https://github.com/braneframework/brane)"
 rust-version = "1.82"
 edition = "2021"
 version.workspace = true
@@ -10,7 +10,7 @@ license.workspace = true
 
 [workspace.package]
 version = "0.1.0"
-repository = "https://github.com/epi-project/policy-reasoner"
+repository = "https://github.com/braneframework/policy-reasoner"
 authors = [ "Bas Kloosterman", "Tim Müller" ]
 license = "Apache-2.0"
 
@@ -55,9 +55,9 @@ humanlog.workspace = true
 eflint-json = { git = "https://gitlab.com/eflint/json-spec-rs", branch = "incorrect-is-invariant" }
 
 # Brane
-brane-cfg = { git = "https://github.com/epi-project/brane", optional = true }
-brane-shr = { git = "https://github.com/epi-project/brane" }
-specifications = { git = "https://github.com/epi-project/brane" }
+brane-cfg = { git = "https://github.com/braneframework/brane", optional = true }
+brane-shr = { git = "https://github.com/braneframework/brane" }
+specifications = { git = "https://github.com/braneframework/brane" }
 
 # Weird
 graphql_client = { version = "0.13", optional = true }

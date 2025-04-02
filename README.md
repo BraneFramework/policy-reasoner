@@ -1,11 +1,11 @@
 # policy-reasoner
-Implements the famous policy reasoner, known as `checker` in Brane terminology. Builds on top of reasoners like [eFLINT](https://gitlab.com/eflint) and meant to be queried by [Brane](https://github.com/epi-project/brane).
+Implements the famous policy reasoner, known as `checker` in Brane terminology. Builds on top of reasoners like [eFLINT](https://gitlab.com/eflint) and meant to be queried by [Brane](https://github.com/braneframework/brane).
 
-This project is complemented by the [Policy Reasoner GUI](https://github.com/epi-project/policy-reasoner-gui).
+This project is complemented by the [Policy Reasoner GUI](https://github.com/braneframework/policy-reasoner-gui).
 
 
 ## Installation
-This section describes how to install the policy reasoner in isolation. It is automatically built as the `brane-chk` service in [Brane](https://github.com/epi-project/brane).
+This section describes how to install the policy reasoner in isolation. It is automatically built as the `brane-chk` service in [Brane](https://github.com/braneframework/brane).
 
 
 ### Compiling `eflint-server` (and `eflint-json`)
@@ -91,7 +91,7 @@ EFLINT_TO_JSON_PATH="<path/to/eflint-server-go>/cmd/eflint-to-json/eflint-to-jso
 
 
 ## Usage
-> The [Policy Reasoner GUI](https://github.com/epi-project/policy-reasoner-gui) provides an alternative interface to the Policy Reasoner. You can consult that repository for more information on using it.
+> The [Policy Reasoner GUI](https://github.com/braneframework/policy-reasoner-gui) provides an alternative interface to the Policy Reasoner. You can consult that repository for more information on using it.
 
 The Policy Reasoner implements two endpoints:
 - The _deliberation endpoint_ is used by systems using the reasoners to consult policy; and
@@ -188,7 +188,7 @@ curl -X PUT -H "Authorization: Bearer $JWT_EXPERT" -H "Content-Type: application
 
 
 ## Contribution
-Contributions to this project are welcome! If you have thoughts, suggestions or encounter bugs, you can leave an issue on this repository's [issue-page](https://github.com/epi-project/policy-reasoner/issues). If you have concrete fixes already implemented, you can also create [pull requests](https://github.com/epi-project/policy-reasoner/pulls) directly.
+Contributions to this project are welcome! If you have thoughts, suggestions or encounter bugs, you can leave an issue on this repository's [issue-page](https://github.com/braneframework/policy-reasoner/issues). If you have concrete fixes already implemented, you can also create [pull requests](https://github.com/braneframework/policy-reasoner/pulls) directly.
 
 An overview the structure of this repository can be found in [Architecture.md](./ARCHITECTURE.md)
 
