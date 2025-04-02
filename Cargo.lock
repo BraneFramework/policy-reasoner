@@ -2794,7 +2794,7 @@ dependencies = [
  "specifications 3.0.0 (git+https://github.com/braneframework/brane)",
  "srv 0.1.0",
  "state-resolver 0.1.0",
- "thiserror 1.0.69",
+ "thiserror 2.0.12",
  "tokio",
  "uuid",
  "warp",
