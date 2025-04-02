@@ -17,7 +17,7 @@ jsonwebtoken = "9.2.0"
 log = "0.4.22"
 
 # Brane
-brane-ctl = { git = "https://github.com/epi-project/brane" }
+brane-ctl = { git = "https://github.com/braneframework/brane" }
 
 # Workspace dependencies
 error-trace.workspace = true

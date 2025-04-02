@@ -22,9 +22,9 @@ enum-debug.workspace = true
 transform.workspace = true
 
 # Brane
-brane-ast = { git = "https://github.com/epi-project/brane" }
-brane-exe = { git = "https://github.com/epi-project/brane" }
-specifications = { git = "https://github.com/epi-project/brane" }
+brane-ast = { git = "https://github.com/braneframework/brane" }
+brane-exe = { git = "https://github.com/braneframework/brane" }
+specifications = { git = "https://github.com/braneframework/brane" }
 
 
 [dev-dependencies]
@@ -40,7 +40,7 @@ humanlog.workspace = true
 names.workspace = true
 
 # Brane
-brane-shr = { git = "https://github.com/epi-project/brane" }
+brane-shr = { git = "https://github.com/braneframework/brane" }
 
 
 [features]

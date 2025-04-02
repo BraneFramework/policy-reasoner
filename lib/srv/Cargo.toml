@@ -12,7 +12,7 @@ license.workspace = true
 [dependencies]
 # Crates.io
 chrono = "0.4.35"
-http = "1.0.0"
+http = "1.1.0"
 log = "0.4.22"
 problem_details = "0.5.1"
 serde = { version="1.0.204", features=["derive"] }
@@ -34,5 +34,5 @@ workflow = { path = "../workflow" }
 error-trace.workspace = true
 
 # Brane
-brane-ast = { git = "https://github.com/epi-project/brane" }
-brane-exe = { git = "https://github.com/epi-project/brane" }
+brane-ast = { git = "https://github.com/braneframework/brane" }
+brane-exe = { git = "https://github.com/braneframework/brane" }
