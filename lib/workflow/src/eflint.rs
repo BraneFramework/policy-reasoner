@@ -19,7 +19,7 @@ use eflint_json::spec::{ConstructorInput, Expression, ExpressionConstructorApp, 
 use enum_debug::EnumDebug as _;
 use log::{trace, warn};
 use rand::Rng as _;
-use rand::distributions::Alphanumeric;
+use rand::distr::Alphanumeric;
 
 use crate::spec::{Dataset, Elem, ElemBranch, ElemCommit, ElemLoop, ElemParallel, ElemTask, Metadata, User, Workflow};
 
@@ -80,7 +80,7 @@ fn name_loops(mut elem: &Elem, wf_id: &str, loops: &mut HashMap<*const ElemLoop,
                 // Generate a name for this loop
                 loops.insert(
                     l as *const ElemLoop,
-                    format!("{wf_id}-{}-loop", rand::thread_rng().sample_iter(Alphanumeric).take(4).map(char::from).collect::<String>()),
+                    format!("{wf_id}-{}-loop", rand::rng().sample_iter(Alphanumeric).take(4).map(char::from).collect::<String>()),
                 );
 
                 // Continue
@@ -410,8 +410,7 @@ fn compile_eflint(mut elem: &Elem, wf_id: &str, wf_user: &User, loop_names: &Has
                 // +node(workflow(#wf_id), #id).
                 // +commit(node(workflow(#wf_id), #id)).
                 // ```
-                let id: String =
-                    format!("{}-{}-loop", wf_id, rand::thread_rng().sample_iter(Alphanumeric).take(4).map(char::from).collect::<String>());
+                let id: String = format!("{}-{}-loop", wf_id, rand::rng().sample_iter(Alphanumeric).take(4).map(char::from).collect::<String>());
                 let node: Expression = constr_app!("node", constr_app!("workflow", str_lit!(wf_id)), str_lit!(id.clone()));
                 phrases.push(create!(node.clone()));
                 phrases.push(create!(constr_app!("loop", node.clone())));

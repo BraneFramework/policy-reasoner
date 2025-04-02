@@ -42,7 +42,7 @@ use jwt::SignWithKey as _;
 use log::{LevelFilter, debug, error, info, trace as trace_log, warn};
 use policy::Policy;
 use rand::Rng as _;
-use rand::distributions::Alphanumeric;
+use rand::distr::Alphanumeric;
 use reqwest::blocking::{Client, Request, Response};
 use reqwest::{Method, StatusCode};
 use serde_json::value::RawValue;
@@ -571,10 +571,8 @@ fn main() {
                 // Match on the input language
                 let json_path: Cow<Path> = match push.language {
                     PolicyLanguage::EFlint => {
-                        let json_path: PathBuf = env::temp_dir().join(format!(
-                            "policy-{}.json",
-                            rand::thread_rng().sample_iter(Alphanumeric).take(8).map(char::from).collect::<String>()
-                        ));
+                        let json_path: PathBuf = env::temp_dir()
+                            .join(format!("policy-{}.json", rand::rng().sample_iter(Alphanumeric).take(8).map(char::from).collect::<String>()));
                         debug!("Compiling input file '{}' to eFLINT JSON file '{}'...", push.path.display(), json_path.display());
 
                         // Open the output file
