@@ -60,7 +60,7 @@ brane-shr = { git = "https://github.com/braneframework/brane" }
 specifications = { git = "https://github.com/braneframework/brane" }
 
 # Weird
-graphql_client = { version = "0.13", optional = true }
+graphql_client = { version = "0.14.0", optional = true }
 
 
 [build-dependencies]
