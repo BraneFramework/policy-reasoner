@@ -124,10 +124,11 @@ where
         let this_arc: Arc<Self> = Arc::new(self);
 
         let ping = warp::get().and(warp::path("ping")).map(|| warp::reply::json(&PingResponse { success: true, ping: String::from("pong") }));
-        let policy_api = Self::policy_handlers(this_arc.clone());
+        let policy_api = Self::policy_routes(this_arc.clone());
         let reasoner_conn_api = Self::reasoner_connector_handlers(this_arc.clone());
-        let deliberation_api = Self::deliberation_handlers(this_arc.clone());
+        let deliberation_api = Self::deliberation_routes(this_arc.clone());
 
+        // FIXME: Check if we handled all these recovery filters correctly
         let index = warp::any().and(deliberation_api.or(policy_api).or(reasoner_conn_api).or(ping)).recover(|err: Rejection| async move {
             debug!("err: {:?}", err);
             let res: Result<Box<dyn Reply>, Rejection> = if let Some(auth_resolver::AuthResolverError { .. }) = err.find() {

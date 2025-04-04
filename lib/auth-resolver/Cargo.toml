@@ -12,4 +12,5 @@ license.workspace = true
 [dependencies]
 async-trait = "0.1.67"
 serde = { version = "1.0.204", features = ["derive"] }
-warp = "0.3"
+http = "1.0.0"
+# axum = "0.8.0"

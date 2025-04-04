@@ -18,6 +18,11 @@ use std::sync::Arc;
 
 use audit_logger::{AuditLogger, SessionedConnectorAuditLogger};
 use auth_resolver::{AuthContext, AuthResolver};
+use axum::extract::State;
+use axum::http::StatusCode;
+use axum::response::IntoResponse;
+use axum::routing::post;
+use axum::{Extension, Json, Router};
 use brane_ast::SymTable;
 use deliberation::spec::{
     AccessDataRequest, DataAccessResponse, DeliberationAllowResponse, DeliberationDenyResponse, DeliberationResponse, ExecuteTaskRequest,
@@ -26,16 +31,16 @@ use deliberation::spec::{
 use error_trace::ErrorTrace as _;
 use log::{debug, error, info};
 use policy::{Policy, PolicyDataAccess, PolicyDataError};
+use problem_details::ProblemDetails;
 use reasonerconn::ReasonerConnector;
 use serde::Serialize;
 use state_resolver::StateResolver;
 use warp::Filter;
-use warp::hyper::StatusCode;
 use warp::reject::{Reject, Rejection};
-use warp::reply::{Json, WithStatus};
 use workflow::Workflow;
 
 use crate::Srv;
+use crate::problem::Problem;
 
 /***** HELPER FUNCTIONS *****/
 /// Retrieves the currently active policy, or immediately denies the request if there is no such policy.
@@ -51,7 +56,8 @@ async fn get_active_policy<L: AuditLogger, P: PolicyDataAccess>(
     logger: &L,
     reference: &str,
     policystore: &P,
-) -> Result<Result<Policy, WithStatus<Json>>, Rejection> {
+    // FIXME: This function should not return warp results. It should just let the handler take care of that
+) -> Result<Result<Policy, (StatusCode, Json<Verdict>)>, Rejection> {
     // Attempt to get the policy first
     match policystore.get_active().await {
         Ok(policy) => Ok(Ok(policy)),
@@ -66,16 +72,19 @@ async fn get_active_policy<L: AuditLogger, P: PolicyDataAccess>(
 
             // Log it: first, the "actual response" with the reason and then the verdict returned to the user
             logger.log_reasoner_response(reference, "<reasoner not queried because no active policy is present>").await.map_err(|err| {
+                // FIXME: I don't think this is debug level
                 debug!("Could not log \"reasoner response\" to audit log : {:?} | request id: {}", err, reference);
                 warp::reject::custom(err)
             })?;
             logger.log_verdict(reference, &verdict).await.map_err(|err| {
+                // FIXME: I don't think this is debug level
                 debug!("Could not log verdict to audit log : {:?} | request id: {}", err, reference);
+                ConfidentialError(err).into_response();
                 warp::reject::custom(err)
             })?;
 
             // Then send it to the user as promised
-            Ok(Err(warp::reply::with_status(warp::reply::json(&verdict), StatusCode::OK)))
+            Ok(Err((StatusCode::OK, Json(verdict))))
         },
         Err(PolicyDataError::GeneralError(err)) => {
             error!("Failed to get currently active policy: {err}");
@@ -106,6 +115,15 @@ impl<E: Error> Error for RejectableError<E> {
 }
 impl<E: 'static + Debug + Send + Sync> Reject for RejectableError<E> {}
 
+impl<E: 'static + Debug + Send + Sync> IntoResponse for RejectableError<E> {
+    fn into_response(self) -> axum::response::Response {
+        // FIXME: This does not seem to match any recovery filter.
+        // This would mean we would return an "Got err: " followed, by the error, but I cannot
+        // imagine that we actually want to do so
+        todo!()
+    }
+}
+
 /***** IMPLEMENTATION *****/
 impl<L, C, P, S, PA, DA> Srv<L, C, P, S, PA, DA>
 where
@@ -117,12 +135,26 @@ where
     DA: 'static + AuthResolver + Send + Sync,
     C::Context: Send + Sync + Debug + Serialize,
 {
+    pub fn deliberation_routes(this: Arc<Self>) -> Router {
+        // let authentication_middleware = axum::middleware::from_fn_with_state();
+
+        let router = Router::new()
+            .route("execute-task", post(Self::handle_execute_task_request))
+            .route("access-data", post(Self::handle_access_data_request))
+            .route("execute-workflow", post(Self::handle_validate_workflow_request))
+
+            // .layer(authentication_middleware)
+            .with_state(this);
+
+        router
+    }
+
     // POST /v1/deliberation/execute-task
     async fn handle_execute_task_request(
-        auth_ctx: AuthContext,
-        this: Arc<Self>,
-        body: ExecuteTaskRequest,
-    ) -> Result<warp::reply::WithStatus<warp::reply::Json>, warp::reject::Rejection> {
+        Extension(auth_ctx): Extension<AuthContext>,
+        State(state): State<Arc<Self>>,
+        Json(body): Json<ExecuteTaskRequest>,
+    ) -> Result<(StatusCode, Json<Verdict>), Problem> {
         info!("Handling exec-task request");
         let ExecuteTaskRequest { use_case, workflow, task_id } = body;
         let verdict_reference: String = uuid::Uuid::new_v4().into();
@@ -135,7 +167,7 @@ where
         let workflow: Workflow = match Workflow::try_from(workflow) {
             Ok(workflow) => workflow,
             Err(err) => {
-                return Ok(warp::reply::with_status(warp::reply::json(&err.to_string()), warp::hyper::StatusCode::BAD_REQUEST));
+                return Err(ProblemDetails::new().with_status(StatusCode::BAD_REQUEST).with_detail(&err.to_string()).into());
             },
         };
         // Get the task ID based on the request's target ID
@@ -143,11 +175,13 @@ where
         debug!("Considering task '{}' in workflow '{}'", task_id, workflow.id);
 
         debug!("Retrieving state...");
-        let state = match this.stateresolver.get_state(use_case).await {
+        let state = match state.stateresolver.get_state(use_case).await {
             Ok(state) => state,
             Err(err) => {
                 error!("Could not retrieve state: {err} | request id: {verdict_reference}");
-                return Err(warp::reject::custom(RejectableError(err)));
+                // FIXME: Why not just use a Problem? The entire rejection path is kinda lost on me
+                // here.
+                return Err(RejectableError(err));
             },
         };
         debug!(
@@ -169,7 +203,8 @@ where
         // let policy = this.policystore.get_active().await.unwrap();
         debug!("Got policy with {} bodies", policy.content.len());
 
-        this.logger
+        state
+            .logger
             .log_exec_task_request(&verdict_reference, &auth_ctx, policy.version.version.unwrap(), &state, &workflow, &task_id)
             .await
             .map_err(|err| {
@@ -181,7 +216,7 @@ where
 
         match this
             .reasonerconn
-            .execute_task(SessionedConnectorAuditLogger::new(verdict_reference.clone(), this.logger.clone()), policy, state, workflow, task_id)
+            .execute_task(SessionedConnectorAuditLogger::new(verdict_reference.clone(), state.logger.clone()), policy, state, workflow, task_id)
             .await
         {
             Ok(v) => {
@@ -424,31 +459,6 @@ where
             },
             Err(err) => Ok(warp::reply::with_status(warp::reply::json(&format!("{}", err)), warp::hyper::StatusCode::OK)),
         }
-    }
-
-    pub fn deliberation_handlers(this: Arc<Self>) -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
-        let exec_task = warp::post()
-            .and(warp::path!("execute-task"))
-            .and(Self::with_deliberation_api_auth(this.clone()))
-            .and(Self::with_self(this.clone()))
-            .and(warp::body::json())
-            .and_then(Self::handle_execute_task_request);
-
-        let access_data = warp::post()
-            .and(warp::path!("access-data"))
-            .and(Self::with_deliberation_api_auth(this.clone()))
-            .and(Self::with_self(this.clone()))
-            .and(warp::body::json())
-            .and_then(Self::handle_access_data_request);
-
-        let execute_workflow = warp::post()
-            .and(warp::path!("execute-workflow"))
-            .and(Self::with_deliberation_api_auth(this.clone()))
-            .and(Self::with_self(this.clone()))
-            .and(warp::body::json())
-            .and_then(Self::handle_validate_workflow_request);
-
-        warp::path("v1").and(warp::path("deliberation")).and(exec_task.or(access_data).or(execute_workflow))
     }
 
     pub fn with_deliberation_api_auth(this: Arc<Self>) -> impl Filter<Extract = (AuthContext,), Error = warp::Rejection> + Clone {

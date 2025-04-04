@@ -3,14 +3,18 @@ use std::sync::Arc;
 
 use audit_logger::AuditLogger;
 use auth_resolver::{AuthContext, AuthResolver};
+use axum::extract::{self, Request, State};
+use axum::middleware::Next;
+use axum::response::{IntoResponse, Response};
+use axum::routing::{delete, get, post, put};
+use axum::{Extension, Json, Router};
 use policy::{Context, PolicyDataAccess, PolicyDataError};
 use problem_details::ProblemDetails;
 use reasonerconn::ReasonerConnector;
 use serde::Serialize;
 use state_resolver::StateResolver;
-use warp::Filter;
 
-use crate::problem::Problem;
+use crate::problem::{ConfidentialError, Problem};
 use crate::{Srv, models};
 
 impl<L, C, P, S, PA, DA> Srv<L, C, P, S, PA, DA>
@@ -23,65 +27,81 @@ where
     DA: 'static + AuthResolver + Send + Sync,
     C::Context: Send + Sync + Debug + Serialize,
 {
-    // GET specific version
-    // GET /v1/policies/:version
-    // out:
-    // - 200 Policy
-    // - 404
+    /// Register the routes and return the corresponding (sub)router
+    ///
+    /// Note: This router does not contain any prefix and should probably be nested into a base
+    /// router
+    pub fn policy_routes(this: Arc<Self>) -> Router {
+        let authentication_middleware = axum::middleware::from_fn_with_state(this.clone(), Self::policy_auth_middleware);
+        let router = Router::new()
+            .route("/", get(Self::get_all_policies_handler))
+            .route("/", post(Self::add_policy_handler))
+            .route("/{version}", get(Self::get_policy_version_handler))
+            .route("/active", get(Self::get_active_policy_handler))
+            .route("/active", put(Self::set_active_policy_handler))
+            .route("/active", delete(Self::deactivate_policy_handler))
+            .layer(authentication_middleware)
+            .with_state(this);
 
-    async fn handle_get_policy_version(_auth_ctx: AuthContext, version: i64, this: Arc<Self>) -> Result<warp::reply::Json, warp::reject::Rejection> {
-        match this.policystore.get_version(version).await {
-            Ok(v) => Ok(warp::reply::json(&v)),
-            Err(err) => match err {
-                PolicyDataError::NotFound => {
-                    let p = ProblemDetails::new().with_status(warp::http::StatusCode::NOT_FOUND);
-                    Err(warp::reject::custom(Problem(p)))
-                },
-                PolicyDataError::GeneralError(msg) => {
-                    let p = ProblemDetails::new().with_status(warp::http::StatusCode::BAD_REQUEST).with_detail(msg);
-                    Err(warp::reject::custom(Problem(p)))
-                },
+        router
+    }
+
+    /// Get specific version
+    /// Associated endpoint: GET /v1/policies/:version
+    /// Response:
+    /// - 200 Policy
+    /// - 400 problem+json
+    /// - 404 problem+json
+    async fn get_policy_version_handler(
+        // Note: Should this really be an signed integer?
+        extract::Path(version): extract::Path<i64>,
+        State(state): State<Arc<Self>>,
+    ) -> Result<Json<policy::Policy>, Problem> {
+        match state.policystore.get_version(version).await {
+            Ok(v) => Ok(Json(v)),
+            Err(PolicyDataError::NotFound) => Err(ProblemDetails::new().with_status(axum::http::StatusCode::NOT_FOUND).into()),
+            Err(PolicyDataError::GeneralError(msg)) => {
+                Err(ProblemDetails::new().with_status(axum::http::StatusCode::BAD_REQUEST).with_detail(msg).into())
             },
         }
     }
 
-    // List policy's versions
-    // GET /v1/policies
-    // out:
-    // - 200 Vec<PolicyVersionDescription>
-
-    async fn handle_get_all_policies(_auth_ctx: AuthContext, this: Arc<Self>) -> Result<warp::reply::Json, warp::reject::Rejection> {
-        match this.policystore.get_versions().await {
-            Ok(v) => Ok(warp::reply::json(&v)),
-            Err(err) => match err {
-                PolicyDataError::NotFound => {
-                    let p = ProblemDetails::new().with_status(warp::http::StatusCode::NOT_FOUND);
-                    Err(warp::reject::custom(Problem(p)))
-                },
-                PolicyDataError::GeneralError(msg) => {
-                    let p = ProblemDetails::new().with_status(warp::http::StatusCode::BAD_REQUEST).with_detail(msg);
-                    Err(warp::reject::custom(Problem(p)))
-                },
+    /// List policy's versions
+    /// Associated endpoint: GET /v1/policies
+    /// Response:
+    /// - 200 Vec<PolicyVersionDescription>
+    /// - 400 problem+json
+    /// - 404 problem+json
+    async fn get_all_policies_handler(
+        Extension(_auth_ctx): Extension<AuthContext>,
+        State(state): State<Arc<Self>>,
+    ) -> Result<Json<Vec<policy::PolicyVersion>>, Problem> {
+        match state.policystore.get_versions().await {
+            Ok(v) => Ok(Json(v)),
+            Err(PolicyDataError::NotFound) => Err(ProblemDetails::new().with_status(axum::http::StatusCode::NOT_FOUND).into()),
+            Err(PolicyDataError::GeneralError(msg)) => {
+                Err(ProblemDetails::new().with_status(axum::http::StatusCode::BAD_REQUEST).with_detail(msg).into())
             },
         }
     }
 
-    // Create new version of policy
-    // POST /v1/policies
-    // in: Policy
-    // out:
-    //  - 201 Policy. version in body
-    //  - 400 problem+json
-
-    async fn handle_add_policy(
-        auth_ctx: AuthContext,
-        this: Arc<Self>,
-        body: models::AddPolicyPostModel,
-    ) -> Result<warp::reply::Json, warp::reject::Rejection> {
-        let t: Arc<Self> = this.clone();
+    /// Create new version of policy
+    /// Associated endpoint: POST /v1/policies
+    /// Request: Policy
+    /// Response:
+    ///  - 201 Policy
+    ///    Returned policy has version in body
+    ///  - 400 problem+json
+    ///  - 404 problem+json
+    async fn add_policy_handler(
+        Extension(auth_ctx): Extension<AuthContext>,
+        State(state): State<Arc<Self>>,
+        Json(body): Json<models::AddPolicyPostModel>,
+    ) -> Result<Json<policy::Policy>, Problem> {
+        let t: Arc<Self> = state.clone();
         let mut model = body.to_domain();
         model.version.reasoner_connector_context = C::hash();
-        match this
+        match state
             .policystore
             .add_version(model, Context { initiator: auth_ctx.initiator.clone() }, |policy| async move {
                 t.logger.log_add_policy_request::<C>(&auth_ctx, &policy).await.map_err(|err| match err {
@@ -90,67 +110,66 @@ where
             })
             .await
         {
-            Ok(policy) => Ok(warp::reply::json(&policy)),
-            Err(err) => match err {
-                PolicyDataError::NotFound => {
-                    let p = ProblemDetails::new().with_status(warp::http::StatusCode::NOT_FOUND);
-                    Err(warp::reject::custom(Problem(p)))
-                },
-                PolicyDataError::GeneralError(msg) => {
-                    let p = ProblemDetails::new().with_status(warp::http::StatusCode::BAD_REQUEST).with_detail(msg);
-                    Err(warp::reject::custom(Problem(p)))
-                },
+            Ok(policy) => Ok(Json(policy)),
+            Err(PolicyDataError::NotFound) => Err(ProblemDetails::new().with_status(axum::http::StatusCode::NOT_FOUND).into()),
+            Err(PolicyDataError::GeneralError(msg)) => {
+                Err(ProblemDetails::new().with_status(axum::http::StatusCode::BAD_REQUEST).with_detail(msg).into())
             },
         }
     }
 
-    // Show active policy
-    // GET /v1/policies/active
-    // out: 200 {version: string}
-
-    async fn handle_get_active_policy(_auth_ctx: AuthContext, this: Arc<Self>) -> Result<warp::reply::Json, warp::reject::Rejection> {
-        match this.policystore.get_active().await {
-            Ok(v) => Ok(warp::reply::json(&v)),
-            Err(err) => match err {
-                PolicyDataError::NotFound => {
-                    let p = ProblemDetails::new().with_status(warp::http::StatusCode::NOT_FOUND).with_detail("No version currently active");
-                    Err(warp::reject::custom(Problem(p)))
-                },
-                PolicyDataError::GeneralError(msg) => {
-                    let p = ProblemDetails::new().with_status(warp::http::StatusCode::BAD_REQUEST).with_detail(msg);
-                    Err(warp::reject::custom(Problem(p)))
-                },
+    /// Show active policy
+    /// Associated endpoint: GET /v1/policies/active
+    /// Response:
+    ///  - 200 {version: string}
+    ///  - 400 problem+json
+    ///  - 404 problem+json
+    async fn get_active_policy_handler(
+        Extension(_auth_ctx): Extension<AuthContext>,
+        State(state): State<Arc<Self>>,
+    ) -> Result<Json<policy::Policy>, Problem> {
+        match state.policystore.get_active().await {
+            Ok(v) => Ok(Json(v)),
+            Err(PolicyDataError::NotFound) => {
+                Err(ProblemDetails::new().with_status(axum::http::StatusCode::NOT_FOUND).with_detail("No version currently active").into())
+            },
+            Err(PolicyDataError::GeneralError(msg)) => {
+                Err(ProblemDetails::new().with_status(axum::http::StatusCode::BAD_REQUEST).with_detail(msg).into())
             },
         }
     }
 
-    // Set active policy
-    // PUT /v1/policies/active
-    // in: {version: string}
-    // out:
-    //  200 {version: string}
-    //  400 problem+json
-
-    async fn handle_set_active_policy(
-        auth_ctx: AuthContext,
-        this: Arc<Self>,
-        body: models::SetVersionPostModel,
-    ) -> Result<warp::reply::Json, warp::reject::Rejection> {
+    /// Set active policy
+    /// Associated endpoint: PUT /v1/policies/active
+    /// Request body: {version: string}
+    /// Response:
+    ///  - 200 {version: string}
+    ///  - 400 problem+json
+    async fn set_active_policy_handler<'a>(
+        Extension(auth_ctx): Extension<AuthContext>,
+        State(state): State<Arc<Self>>,
+        Json(body): Json<models::SetVersionPostModel>,
+        // FIXME: Cannot really return Json<Policy> as the copy is too expensive
+        // The vec inside policy should be Arc-ed to avoid unnecessarily deep cloning
+    ) -> Result<Json<policy::Policy>, Problem> {
         // Reject activation of policy with invalid base defs
         let conn_hash = C::hash();
-        if let Ok(policy) = this.policystore.get_version(body.version).await {
+
+        if let Ok(policy) = state.policystore.get_version(body.version).await {
             if policy.version.reasoner_connector_context != conn_hash {
-                let p = ProblemDetails::new().with_status(warp::http::StatusCode::BAD_REQUEST).with_detail(format!(
-                    "Cannot activate policy which has a different base policy than current the reasoners connector's base. Policy base defs hash is \
-                     '{}' and connector's base defs hash is '{}'",
-                    policy.version.reasoner_connector_context, conn_hash
-                ));
-                return Err(warp::reject::custom(Problem(p)));
+                return Err(ProblemDetails::new()
+                    .with_status(axum::http::StatusCode::BAD_REQUEST)
+                    .with_detail(format!(
+                        "Cannot activate policy which has a different base policy than current the reasoners connector's base. Policy base defs \
+                         hash is '{}' and connector's base defs hash is '{}'",
+                        policy.version.reasoner_connector_context, conn_hash
+                    ))
+                    .into());
             }
         }
 
-        let t = this.clone();
-        match this
+        let t = state.clone();
+        match state
             .policystore
             .set_active(body.version, Context { initiator: auth_ctx.initiator.clone() }, |policy| async move {
                 t.logger.log_set_active_version_policy(&auth_ctx, &policy).await.map_err(|err| match err {
@@ -159,31 +178,25 @@ where
             })
             .await
         {
-            Ok(policy) => Ok(warp::reply::json(&policy)),
-            Err(err) => match err {
-                PolicyDataError::NotFound => {
-                    let p = ProblemDetails::new()
-                        .with_status(warp::http::StatusCode::BAD_REQUEST)
-                        .with_detail(format!("Invalid version: {}", body.version));
-                    Err(warp::reject::custom(Problem(p)))
-                },
-                PolicyDataError::GeneralError(msg) => {
-                    let p = ProblemDetails::new().with_status(warp::http::StatusCode::BAD_REQUEST).with_detail(msg);
-                    Err(warp::reject::custom(Problem(p)))
-                },
+            Ok(policy) => Ok(Json(policy)),
+            Err(PolicyDataError::NotFound) => Err(ProblemDetails::new()
+                .with_status(axum::http::StatusCode::BAD_REQUEST)
+                .with_detail(format!("Invalid version: {}", body.version))
+                .into()),
+            Err(PolicyDataError::GeneralError(msg)) => {
+                Err(ProblemDetails::new().with_status(axum::http::StatusCode::BAD_REQUEST).with_detail(msg).into())
             },
         }
     }
 
-    // Set active policy
-    // DELETE /v1/policies/active
-    // out:
-    //  200
-    //  400 problem+json
-
-    async fn handle_deactivate_policy(auth_ctx: AuthContext, this: Arc<Self>) -> Result<warp::reply::Json, warp::reject::Rejection> {
-        let t = this.clone();
-        match this
+    /// Deactivate the current policy
+    /// Associated endpoint: DELETE /v1/policies/active
+    /// Response:
+    ///  - 200
+    ///  - 400 problem+json
+    async fn deactivate_policy_handler(Extension(auth_ctx): Extension<AuthContext>, State(state): State<Arc<Self>>) -> Result<Json<()>, Problem> {
+        let t = state.clone();
+        match state
             .policystore
             .deactivate_policy(Context { initiator: auth_ctx.initiator.clone() }, || async move {
                 t.logger.log_deactivate_policy(&auth_ctx).await.map_err(|err| match err {
@@ -192,71 +205,32 @@ where
             })
             .await
         {
-            Ok(policy) => Ok(warp::reply::json(&policy)),
-            Err(err) => match err {
-                PolicyDataError::NotFound => {
-                    let p = ProblemDetails::new().with_status(warp::http::StatusCode::BAD_REQUEST).with_detail("No active version to deactivate");
-                    Err(warp::reject::custom(Problem(p)))
-                },
-                PolicyDataError::GeneralError(msg) => {
-                    let p = ProblemDetails::new().with_status(warp::http::StatusCode::BAD_REQUEST).with_detail(msg);
-                    Err(warp::reject::custom(Problem(p)))
-                },
+            Ok(()) => Ok(Json(())),
+            Err(PolicyDataError::NotFound) => {
+                // TODO: Consider returning a 404 instead
+                Err(ProblemDetails::new().with_status(axum::http::StatusCode::BAD_REQUEST).with_detail("No active version to deactivate").into())
+            },
+            Err(PolicyDataError::GeneralError(msg)) => {
+                Err(ProblemDetails::new().with_status(axum::http::StatusCode::BAD_REQUEST).with_detail(msg).into())
             },
         }
     }
 
-    pub fn policy_handlers(this: Arc<Self>) -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
-        let add_version = warp::post()
-            .and(warp::path::end())
-            .and(Self::with_policy_api_auth(this.clone()))
-            .and(Self::with_self(this.clone()))
-            .and(warp::body::json())
-            .and_then(Self::handle_add_policy);
+    /// Authenitcation middleware
+    ///
+    /// This function checks if the
+    /// FIXME: Split out return type into a Result
+    /// But first we need to figure out the details of this ConfidentialError type
+    async fn policy_auth_middleware(State(state): State<Arc<Self>>, mut req: Request, next: Next) -> Response {
+        let headers = req.headers();
 
-        let get_version = warp::get()
-            .and(Self::with_policy_api_auth(this.clone()))
-            .and(warp::path!(i64))
-            .and(Self::with_self(this.clone()))
-            .and_then(Self::handle_get_policy_version);
+        let auth_ctx = match state.pauthresolver.authenticate(headers).await {
+            Ok(x) => x,
+            Err(source) => return ConfidentialError(Box::new(source)).into_response(),
+        };
 
-        let get_all = warp::get()
-            .and(warp::path::end())
-            .and(Self::with_policy_api_auth(this.clone()))
-            .and(Self::with_self(this.clone()))
-            .and_then(Self::handle_get_all_policies);
+        req.extensions_mut().insert(auth_ctx);
 
-        let get_active = warp::get()
-            .and(warp::path!("active"))
-            .and(Self::with_policy_api_auth(this.clone()))
-            .and(Self::with_self(this.clone()))
-            .and_then(Self::handle_get_active_policy);
-
-        let set_active = warp::put()
-            .and(warp::path!("active"))
-            .and(Self::with_policy_api_auth(this.clone()))
-            .and(Self::with_self(this.clone()))
-            .and(warp::body::json())
-            .and_then(Self::handle_set_active_policy);
-
-        let deactivate = warp::delete()
-            .and(warp::path!("active"))
-            .and(Self::with_policy_api_auth(this.clone()))
-            .and(Self::with_self(this.clone()))
-            .and_then(Self::handle_deactivate_policy);
-
-        warp::path("v1")
-            .and(warp::path("management"))
-            .and(warp::path("policies"))
-            .and(get_version.or(get_all).or(get_active).or(set_active).or(add_version).or(deactivate))
-    }
-
-    fn with_policy_api_auth(this: Arc<Self>) -> impl Filter<Extract = (AuthContext,), Error = warp::Rejection> + Clone {
-        Self::with_self(this.clone()).and(warp::header::headers_cloned()).and_then(|this: Arc<Self>, headers| async move {
-            match this.pauthresolver.authenticate(headers).await {
-                Ok(v) => Ok(v),
-                Err(err) => Err(warp::reject::custom(err)),
-            }
-        })
+        next.run(req).await
     }
 }

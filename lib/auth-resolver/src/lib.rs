@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize, Default)]
 pub struct AuthContext {
     pub initiator: String,
     pub system:    String,
@@ -21,9 +21,7 @@ impl std::fmt::Display for AuthResolverError {
 
 impl std::error::Error for AuthResolverError {}
 
-impl warp::reject::Reject for AuthResolverError {}
-
 #[async_trait::async_trait]
 pub trait AuthResolver {
-    async fn authenticate(&self, headers: warp::http::HeaderMap) -> Result<AuthContext, AuthResolverError>;
+    async fn authenticate(&self, headers: &http::HeaderMap) -> Result<AuthContext, AuthResolverError>;
 }

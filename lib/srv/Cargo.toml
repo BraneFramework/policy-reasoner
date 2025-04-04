@@ -11,12 +11,14 @@ license.workspace = true
 
 [dependencies]
 # Crates.io
+axum = { version = "0.8.3", features = ["macros"] }
 chrono = "0.4.35"
 http = "1.1.0"
 log = "0.4.22"
-problem_details = "0.5.1"
+problem_details = "0.8.0"
 serde = { version="1.0.204", features=["derive"] }
 serde_json = {version = "1.0.120" , features = ["raw_value"] }
+tracing = "0.1.0"
 tokio = { version = "1.38.0", features = ["full"] }
 uuid = { version="1.7.0", features = ["v4"] }
 warp = "0.3"
