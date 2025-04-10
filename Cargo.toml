@@ -26,7 +26,6 @@ dotenvy = "0.15.7"
 itertools = "0.14.0"
 jsonwebtoken = "9.2.0"
 log = "0.4.22"
-reqwest = { version = "0.12.0", features = ["json"] }
 serde = { version="1.0.204", features=["derive"]}
 serde_json = { version = "1.0.120" , features = ["raw_value"]}
 serde_yaml = { version = "0.0.11", package = "serde_yml" }
@@ -50,6 +49,8 @@ workflow = { path = "./lib/workflow" }
 enum-debug.workspace = true
 error-trace.workspace = true
 humanlog.workspace = true
+
+reqwest = { workspace = true, features = ["json"] }
 
 # GitLab
 eflint-json = { git = "https://gitlab.com/eflint/json-spec-rs", branch = "incorrect-is-invariant" }
@@ -110,6 +111,9 @@ error-trace = { git = "https://github.com/Lut99/error-trace-rs", tag = "v3.0.0" 
 humanlog = { git = "https://github.com/Lut99/humanlog-rs", tag = "v0.2.0" }
 names = { git = "https://github.com/Lut99/names-rs", tag = "v0.1.0", default-features = false, features = [ "rand", "three-lowercase", "three-usualcase" ]}
 transform = { git = "https://github.com/Lut99/transform-rs", tag = "v0.2.0" }
+
+# Not that this does not use a root store by default. It needs to be enabled *explicitly* by the workspace member
+reqwest = { version = "0.12.0", features = ["rustls-tls-manual-roots"], default-features = false }
 
 # Eflint
 eflint-json = { git = "https://gitlab.com/eflint/json-spec-rs", branch = "incorrect-is-invariant" }

@@ -18,7 +18,6 @@ hmac = "0.12"
 jwt = "0.16"
 log = "0.4.22"
 rand = "0.9.0"
-reqwest = { version = "0.12.0", features = ["blocking"] }
 serde_json = { version = "1.0.120", features = ["raw_value"] }
 sha2 = "0.10.6"
 
@@ -35,6 +34,8 @@ enum-debug.workspace = true
 error-trace.workspace = true
 humanlog.workspace = true
 names.workspace = true
+
+reqwest = { workspace = true, features = ["blocking"] }
 
 # Brane
 brane-ast = { git = "https://github.com/braneframework/brane" }
