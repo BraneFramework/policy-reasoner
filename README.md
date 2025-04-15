@@ -1,3 +1,9 @@
+[![Audit](https://github.com/BraneFramework/policy-reasoner/actions/workflows/audit.yml/badge.svg)](https://github.com/BraneFramework/policy-reasoner/actions/workflows/audit.yml)
+[![CI](https://github.com/BraneFramework/policy-reasoner/actions/workflows/ci.yml/badge.svg)](https://github.com/BraneFramework/policy-reasoner/actions/workflows/ci.yml)
+[![Coverage](https://codecov.io/github/BraneFramework/policy-reasoner/graph/badge.svg?token=HP09WOG59G)](https://codecov.io/github/BraneFramework/policy-reasoner)
+<!-- [![Release](https://img.shields.io/github/release/braneframework/policy-reasoner.svg)](https://github.com/braneframework/policy-reasoner/releases/latest) -->
+<!-- [![License: Apache-2.0](https://img.shields.io/github/license/braneframework/policy-reasoner.svg)](https://github.com/braneframework/policy-reasoner/blob/main/LICENSE) -->
+
 # policy-reasoner
 Implements the famous policy reasoner, known as `checker` in Brane terminology. Builds on top of reasoners like [eFLINT](https://gitlab.com/eflint) and meant to be queried by [Brane](https://github.com/braneframework/brane).
 
