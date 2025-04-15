@@ -138,19 +138,6 @@ dependencies = [
 
 [[package]]
 name = "async-compression"
-version = "0.3.15"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "942c7cd7ae39e91bde4820d74132e9862e62c2f386c3aa90ccf55949f5bad63a"
-dependencies = [
- "flate2",
- "futures-core",
- "memchr",
- "pin-project-lite",
- "tokio",
-]
-
-[[package]]
-name = "async-compression"
 version = "0.4.22"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "59a194f9d963d8099596278594b3107448656ba73831c9d8c783e613ce86da64"
@@ -232,7 +219,7 @@ dependencies = [
 [[package]]
 name = "audit-logger"
 version = "0.1.0"
-source = "git+https://github.com/braneframework/policy-reasoner#42261e9751c320914c89cf49641bf7477bd1c313"
+source = "git+https://github.com/braneframework/policy-reasoner#3313fee77ef773f2fd2e7703c5ce48e05443ffae"
 dependencies = [
  "async-trait",
  "auth-resolver 0.1.0 (git+https://github.com/braneframework/policy-reasoner)",
@@ -259,7 +246,7 @@ dependencies = [
 [[package]]
 name = "auth-resolver"
 version = "0.1.0"
-source = "git+https://github.com/braneframework/policy-reasoner#42261e9751c320914c89cf49641bf7477bd1c313"
+source = "git+https://github.com/braneframework/policy-reasoner#3313fee77ef773f2fd2e7703c5ce48e05443ffae"
 dependencies = [
  "async-trait",
  "serde",
@@ -274,40 +261,12 @@ checksum = "ace50bade8e6234aa140d9a2f552bbee1db4d353f69b8217bc503490fc1a9f26"
 
 [[package]]
 name = "axum"
-version = "0.6.20"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3b829e4e32b91e643de6eafe82b1d90675f5874230191a4ffbc1b336dec4d6bf"
-dependencies = [
- "async-trait",
- "axum-core 0.3.4",
- "bitflags 1.3.2",
- "bytes",
- "futures-util",
- "http 0.2.12",
- "http-body 0.4.6",
- "hyper 0.14.32",
- "itoa",
- "matchit",
- "memchr",
- "mime",
- "percent-encoding",
- "pin-project-lite",
- "rustversion",
- "serde",
- "sync_wrapper 0.1.2",
- "tower 0.4.13",
- "tower-layer",
- "tower-service",
-]
-
-[[package]]
-name = "axum"
 version = "0.7.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "edca88bc138befd0323b20752846e6587272d3b03b0343c8ea28a6f819e6e71f"
 dependencies = [
  "async-trait",
- "axum-core 0.4.5",
+ "axum-core",
  "bytes",
  "futures-util",
  "http 1.1.0",
@@ -323,23 +282,6 @@ dependencies = [
  "serde",
  "sync_wrapper 1.0.2",
  "tower 0.5.2",
- "tower-layer",
- "tower-service",
-]
-
-[[package]]
-name = "axum-core"
-version = "0.3.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "759fa577a247914fd3f7f76d62972792636412fbfd634cd452f6a385a74d2d2c"
-dependencies = [
- "async-trait",
- "bytes",
- "futures-util",
- "http 0.2.12",
- "http-body 0.4.6",
- "mime",
- "rustversion",
  "tower-layer",
  "tower-service",
 ]
@@ -477,10 +419,10 @@ dependencies = [
 [[package]]
 name = "brane-ast"
 version = "3.0.0"
-source = "git+https://github.com/braneframework/brane#9acf0eda6fd6c13efe0c198801d586e6478efffb"
+source = "git+https://github.com/braneframework/brane#c9aab67bc90e80869d45b1922ff9b814c96b5355"
 dependencies = [
- "brane-dsl 3.0.0 (git+https://github.com/braneframework/brane)",
- "brane-shr 3.0.0 (git+https://github.com/braneframework/brane)",
+ "brane-dsl",
+ "brane-shr",
  "console",
  "enum-debug",
  "lazy_static",
@@ -489,36 +431,16 @@ dependencies = [
  "rand 0.9.0",
  "serde",
  "serde_json_any_key",
- "specifications 3.0.0 (git+https://github.com/braneframework/brane)",
- "strum 0.27.1",
+ "specifications",
+ "strum",
  "thiserror 2.0.12",
- "uuid",
-]
-
-[[package]]
-name = "brane-ast"
-version = "3.0.0"
-source = "git+https://github.com/epi-project/brane#7524309001d9ff347c8063747f2535a474a73565"
-dependencies = [
- "brane-dsl 3.0.0 (git+https://github.com/epi-project/brane)",
- "brane-shr 3.0.0 (git+https://github.com/epi-project/brane)",
- "console",
- "enum-debug",
- "lazy_static",
- "log",
- "num-traits",
- "rand 0.8.5",
- "serde",
- "serde_json_any_key",
- "specifications 3.0.0 (git+https://github.com/epi-project/brane)",
- "strum 0.25.0",
  "uuid",
 ]
 
 [[package]]
 name = "brane-cfg"
 version = "3.0.0"
-source = "git+https://github.com/braneframework/brane#9acf0eda6fd6c13efe0c198801d586e6478efffb"
+source = "git+https://github.com/braneframework/brane#c9aab67bc90e80869d45b1922ff9b814c96b5355"
 dependencies = [
  "async-trait",
  "enum-debug",
@@ -527,7 +449,7 @@ dependencies = [
  "rustls-pemfile 1.0.4",
  "serde",
  "serde_yml 0.0.10",
- "specifications 3.0.0 (git+https://github.com/braneframework/brane)",
+ "specifications",
  "thiserror 2.0.12",
  "tokio",
  "x509-parser",
@@ -536,15 +458,14 @@ dependencies = [
 [[package]]
 name = "brane-ctl"
 version = "3.0.0"
-source = "git+https://github.com/braneframework/brane#9acf0eda6fd6c13efe0c198801d586e6478efffb"
+source = "git+https://github.com/braneframework/brane#c9aab67bc90e80869d45b1922ff9b814c96b5355"
 dependencies = [
  "base64ct",
  "bollard",
  "brane-cfg",
- "brane-shr 3.0.0 (git+https://github.com/braneframework/brane)",
+ "brane-shr",
  "brane-tsk",
  "clap",
- "clap_complete",
  "console",
  "dialoguer",
  "diesel",
@@ -570,7 +491,7 @@ dependencies = [
  "serde_json",
  "serde_yml 0.0.10",
  "shlex",
- "specifications 3.0.0 (git+https://github.com/braneframework/brane)",
+ "specifications",
  "srv 0.1.0 (git+https://github.com/braneframework/policy-reasoner)",
  "tempfile",
  "thiserror 2.0.12",
@@ -580,9 +501,9 @@ dependencies = [
 [[package]]
 name = "brane-dsl"
 version = "3.0.0"
-source = "git+https://github.com/braneframework/brane#9acf0eda6fd6c13efe0c198801d586e6478efffb"
+source = "git+https://github.com/braneframework/brane#c9aab67bc90e80869d45b1922ff9b814c96b5355"
 dependencies = [
- "brane-shr 3.0.0 (git+https://github.com/braneframework/brane)",
+ "brane-shr",
  "enum-debug",
  "log",
  "nom",
@@ -590,40 +511,20 @@ dependencies = [
  "rand 0.9.0",
  "regex",
  "serde",
- "specifications 3.0.0 (git+https://github.com/braneframework/brane)",
+ "specifications",
  "thiserror 2.0.12",
-]
-
-[[package]]
-name = "brane-dsl"
-version = "3.0.0"
-source = "git+https://github.com/epi-project/brane#7524309001d9ff347c8063747f2535a474a73565"
-dependencies = [
- "brane-shr 3.0.0 (git+https://github.com/epi-project/brane)",
- "bytes",
- "enum-debug",
- "log",
- "nom",
- "nom_locate",
- "rand 0.8.5",
- "regex",
- "semver",
- "serde",
- "serde_json",
- "specifications 3.0.0 (git+https://github.com/epi-project/brane)",
- "thiserror 1.0.69",
 ]
 
 [[package]]
 name = "brane-exe"
 version = "3.0.0"
-source = "git+https://github.com/braneframework/brane#9acf0eda6fd6c13efe0c198801d586e6478efffb"
+source = "git+https://github.com/braneframework/brane#c9aab67bc90e80869d45b1922ff9b814c96b5355"
 dependencies = [
  "async-recursion",
  "async-trait",
  "base64 0.22.1",
- "brane-ast 3.0.0 (git+https://github.com/braneframework/brane)",
- "brane-shr 3.0.0 (git+https://github.com/braneframework/brane)",
+ "brane-ast",
+ "brane-shr",
  "console",
  "enum-debug",
  "futures",
@@ -632,40 +533,17 @@ dependencies = [
  "num-traits",
  "serde",
  "serde_json",
- "specifications 3.0.0 (git+https://github.com/braneframework/brane)",
+ "specifications",
  "thiserror 2.0.12",
  "tokio",
-]
-
-[[package]]
-name = "brane-exe"
-version = "3.0.0"
-source = "git+https://github.com/epi-project/brane#7524309001d9ff347c8063747f2535a474a73565"
-dependencies = [
- "async-recursion",
- "async-trait",
- "base64 0.13.1",
- "brane-ast 3.0.0 (git+https://github.com/epi-project/brane)",
- "brane-shr 3.0.0 (git+https://github.com/epi-project/brane)",
- "console",
- "enum-debug",
- "futures",
- "lazy_static",
- "log",
- "num-traits",
- "serde",
- "serde_json",
- "specifications 3.0.0 (git+https://github.com/epi-project/brane)",
- "tokio",
- "uuid",
 ]
 
 [[package]]
 name = "brane-shr"
 version = "3.0.0"
-source = "git+https://github.com/braneframework/brane#9acf0eda6fd6c13efe0c198801d586e6478efffb"
+source = "git+https://github.com/braneframework/brane#c9aab67bc90e80869d45b1922ff9b814c96b5355"
 dependencies = [
- "async-compression 0.4.22",
+ "async-compression",
  "console",
  "dialoguer",
  "enum-debug",
@@ -677,34 +555,8 @@ dependencies = [
  "regex",
  "reqwest 0.12.15",
  "sha2",
- "specifications 3.0.0 (git+https://github.com/braneframework/brane)",
+ "specifications",
  "thiserror 2.0.12",
- "tokio",
- "tokio-stream",
- "tokio-tar",
- "url",
-]
-
-[[package]]
-name = "brane-shr"
-version = "3.0.0"
-source = "git+https://github.com/epi-project/brane#7524309001d9ff347c8063747f2535a474a73565"
-dependencies = [
- "async-compression 0.3.15",
- "console",
- "dialoguer",
- "enum-debug",
- "fs2",
- "futures-util",
- "hex",
- "humanlog",
- "indicatif",
- "log",
- "num-traits",
- "regex",
- "reqwest 0.11.27",
- "sha2",
- "specifications 3.0.0 (git+https://github.com/epi-project/brane)",
  "tokio",
  "tokio-stream",
  "tokio-tar",
@@ -714,16 +566,16 @@ dependencies = [
 [[package]]
 name = "brane-tsk"
 version = "3.0.0"
-source = "git+https://github.com/braneframework/brane#9acf0eda6fd6c13efe0c198801d586e6478efffb"
+source = "git+https://github.com/braneframework/brane#c9aab67bc90e80869d45b1922ff9b814c96b5355"
 dependencies = [
  "async-trait",
  "base64 0.22.1",
  "base64ct",
  "bollard",
- "brane-ast 3.0.0 (git+https://github.com/braneframework/brane)",
+ "brane-ast",
  "brane-cfg",
- "brane-exe 3.0.0 (git+https://github.com/braneframework/brane)",
- "brane-shr 3.0.0 (git+https://github.com/braneframework/brane)",
+ "brane-exe",
+ "brane-shr",
  "chrono",
  "console",
  "dialoguer",
@@ -739,12 +591,12 @@ dependencies = [
  "serde_json",
  "serde_yml 0.0.10",
  "sha2",
- "specifications 3.0.0 (git+https://github.com/braneframework/brane)",
+ "specifications",
  "thiserror 2.0.12",
  "tokio",
  "tokio-tar",
  "tokio-util",
- "tonic 0.12.3",
+ "tonic",
  "uuid",
 ]
 
@@ -798,8 +650,8 @@ name = "checker-client"
 version = "0.1.0"
 dependencies = [
  "audit-logger 0.1.0",
- "brane-ast 3.0.0 (git+https://github.com/braneframework/brane)",
- "brane-shr 3.0.0 (git+https://github.com/braneframework/brane)",
+ "brane-ast",
+ "brane-shr",
  "chrono",
  "clap",
  "console",
@@ -818,7 +670,7 @@ dependencies = [
  "reqwest 0.12.15",
  "serde_json",
  "sha2",
- "specifications 3.0.0 (git+https://github.com/braneframework/brane)",
+ "specifications",
  "srv 0.1.0",
 ]
 
@@ -857,15 +709,6 @@ dependencies = [
  "anstyle",
  "clap_lex",
  "strsim",
-]
-
-[[package]]
-name = "clap_complete"
-version = "4.5.47"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c06f5378ea264ad4f82bbc826628b5aad714a75abf6ece087e923010eb937fb6"
-dependencies = [
- "clap",
 ]
 
 [[package]]
@@ -1024,8 +867,8 @@ checksum = "575f75dfd25738df5b91b8e43e14d44bda14637a58fae779fd2b064f8bf3e010"
 name = "deliberation"
 version = "0.1.0"
 dependencies = [
- "brane-ast 3.0.0 (git+https://github.com/braneframework/brane)",
- "brane-exe 3.0.0 (git+https://github.com/braneframework/brane)",
+ "brane-ast",
+ "brane-exe",
  "clap",
  "enum-debug",
  "error-trace",
@@ -1039,10 +882,10 @@ dependencies = [
 [[package]]
 name = "deliberation"
 version = "0.1.0"
-source = "git+https://github.com/braneframework/policy-reasoner#42261e9751c320914c89cf49641bf7477bd1c313"
+source = "git+https://github.com/braneframework/policy-reasoner#3313fee77ef773f2fd2e7703c5ce48e05443ffae"
 dependencies = [
- "brane-ast 3.0.0 (git+https://github.com/epi-project/brane)",
- "brane-exe 3.0.0 (git+https://github.com/epi-project/brane)",
+ "brane-ast",
+ "brane-exe",
  "enum-debug",
  "log",
  "serde",
@@ -1239,7 +1082,7 @@ dependencies = [
 [[package]]
 name = "eflint-to-json"
 version = "0.1.0"
-source = "git+https://github.com/braneframework/policy-reasoner#42261e9751c320914c89cf49641bf7477bd1c313"
+source = "git+https://github.com/braneframework/policy-reasoner#3313fee77ef773f2fd2e7703c5ce48e05443ffae"
 dependencies = [
  "async-recursion",
  "console",
@@ -1863,18 +1706,7 @@ dependencies = [
  "tokio",
  "tokio-rustls",
  "tower-service",
-]
-
-[[package]]
-name = "hyper-timeout"
-version = "0.4.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bbb958482e8c7be4bc3cf272a766a2b0bf1a6755e7a6ae777f017a31d11b13b1"
-dependencies = [
- "hyper 0.14.32",
- "pin-project-lite",
- "tokio",
- "tokio-io-timeout",
+ "webpki-roots",
 ]
 
 [[package]]
@@ -2169,15 +2001,6 @@ name = "is_terminal_polyfill"
 version = "1.70.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7943c866cc5cd64cbc25b2e01621d07fa8eb2a1a23160ee81ce38704e97b8ecf"
-
-[[package]]
-name = "itertools"
-version = "0.12.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ba291022dbbd398a455acf126c1e341954079855bc60dfdda641363bd6922569"
-dependencies = [
- "either",
-]
 
 [[package]]
 name = "itertools"
@@ -2696,7 +2519,7 @@ dependencies = [
 [[package]]
 name = "policy"
 version = "0.1.0"
-source = "git+https://github.com/braneframework/policy-reasoner#42261e9751c320914c89cf49641bf7477bd1c313"
+source = "git+https://github.com/braneframework/policy-reasoner#3313fee77ef773f2fd2e7703c5ce48e05443ffae"
 dependencies = [
  "async-trait",
  "chrono",
@@ -2728,7 +2551,7 @@ dependencies = [
  "base16ct",
  "base64ct",
  "brane-cfg",
- "brane-shr 3.0.0 (git+https://github.com/braneframework/brane)",
+ "brane-shr",
  "chrono",
  "clap",
  "deliberation 0.1.0",
@@ -2752,7 +2575,7 @@ dependencies = [
  "serde_json",
  "serde_yml 0.0.11",
  "sha2",
- "specifications 3.0.0 (git+https://github.com/braneframework/brane)",
+ "specifications",
  "srv 0.1.0",
  "state-resolver 0.1.0",
  "thiserror 2.0.12",
@@ -2805,35 +2628,12 @@ dependencies = [
 
 [[package]]
 name = "prost"
-version = "0.12.6"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "deb1435c188b76130da55f17a466d252ff7b1418b2ad3e037d127b94e3411f29"
-dependencies = [
- "bytes",
- "prost-derive 0.12.6",
-]
-
-[[package]]
-name = "prost"
 version = "0.13.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2796faa41db3ec313a31f7624d9286acf277b52de526150b7e69f3debf891ee5"
 dependencies = [
  "bytes",
- "prost-derive 0.13.5",
-]
-
-[[package]]
-name = "prost-derive"
-version = "0.12.6"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "81bddcdb20abf9501610992b6759a4c888aef7d1a7247ef75e2404275ac24af1"
-dependencies = [
- "anyhow",
- "itertools 0.12.1",
- "proc-macro2",
- "quote",
- "syn 2.0.100",
+ "prost-derive",
 ]
 
 [[package]]
@@ -3014,7 +2814,7 @@ dependencies = [
 [[package]]
 name = "reasonerconn"
 version = "0.1.0"
-source = "git+https://github.com/braneframework/policy-reasoner#42261e9751c320914c89cf49641bf7477bd1c313"
+source = "git+https://github.com/braneframework/policy-reasoner#3313fee77ef773f2fd2e7703c5ce48e05443ffae"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -3181,6 +2981,7 @@ dependencies = [
  "wasm-bindgen-futures",
  "wasm-streams",
  "web-sys",
+ "webpki-roots",
  "windows-registry",
 ]
 
@@ -3617,7 +3418,7 @@ dependencies = [
 [[package]]
 name = "specifications"
 version = "3.0.0"
-source = "git+https://github.com/braneframework/brane#9acf0eda6fd6c13efe0c198801d586e6478efffb"
+source = "git+https://github.com/braneframework/brane#c9aab67bc90e80869d45b1922ff9b814c96b5355"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -3630,7 +3431,7 @@ dependencies = [
  "jsonwebtoken",
  "log",
  "parking_lot",
- "prost 0.13.5",
+ "prost",
  "reqwest 0.12.15",
  "semver",
  "serde",
@@ -3638,41 +3439,10 @@ dependencies = [
  "serde_test",
  "serde_with",
  "serde_yml 0.0.10",
- "strum 0.27.1",
- "strum_macros 0.27.1",
+ "strum",
+ "strum_macros",
  "thiserror 2.0.12",
- "tonic 0.12.3",
- "uuid",
-]
-
-[[package]]
-name = "specifications"
-version = "3.0.0"
-source = "git+https://github.com/epi-project/brane#7524309001d9ff347c8063747f2535a474a73565"
-dependencies = [
- "anyhow",
- "async-trait",
- "base64 0.21.7",
- "base64ct",
- "chrono",
- "const_format",
- "enum-debug",
- "futures",
- "jsonwebtoken",
- "log",
- "num-traits",
- "parking_lot",
- "prost 0.12.6",
- "reqwest 0.11.27",
- "semver",
- "serde",
- "serde_json",
- "serde_test",
- "serde_with",
- "serde_yml 0.0.10",
- "strum 0.24.1",
- "strum_macros 0.24.3",
- "tonic 0.11.0",
+ "tonic",
  "uuid",
 ]
 
@@ -3688,8 +3458,8 @@ version = "0.1.0"
 dependencies = [
  "audit-logger 0.1.0",
  "auth-resolver 0.1.0",
- "brane-ast 3.0.0 (git+https://github.com/braneframework/brane)",
- "brane-exe 3.0.0 (git+https://github.com/braneframework/brane)",
+ "brane-ast",
+ "brane-exe",
  "chrono",
  "deliberation 0.1.0",
  "error-trace",
@@ -3710,12 +3480,12 @@ dependencies = [
 [[package]]
 name = "srv"
 version = "0.1.0"
-source = "git+https://github.com/braneframework/policy-reasoner#42261e9751c320914c89cf49641bf7477bd1c313"
+source = "git+https://github.com/braneframework/policy-reasoner#3313fee77ef773f2fd2e7703c5ce48e05443ffae"
 dependencies = [
  "audit-logger 0.1.0 (git+https://github.com/braneframework/policy-reasoner)",
  "auth-resolver 0.1.0 (git+https://github.com/braneframework/policy-reasoner)",
- "brane-ast 3.0.0 (git+https://github.com/epi-project/brane)",
- "brane-exe 3.0.0 (git+https://github.com/epi-project/brane)",
+ "brane-ast",
+ "brane-exe",
  "chrono",
  "deliberation 0.1.0 (git+https://github.com/braneframework/policy-reasoner)",
  "error-trace",
@@ -3751,7 +3521,7 @@ dependencies = [
 [[package]]
 name = "state-resolver"
 version = "0.1.0"
-source = "git+https://github.com/braneframework/policy-reasoner#42261e9751c320914c89cf49641bf7477bd1c313"
+source = "git+https://github.com/braneframework/policy-reasoner#3313fee77ef773f2fd2e7703c5ce48e05443ffae"
 dependencies = [
  "async-trait",
  "serde",
@@ -3766,52 +3536,11 @@ checksum = "7da8b5736845d9f2fcb837ea5d9e2628564b3b043a70948a3f0b778838c5fb4f"
 
 [[package]]
 name = "strum"
-version = "0.24.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "063e6045c0e62079840579a7e47a355ae92f60eb74daaf156fb1e84ba164e63f"
-
-[[package]]
-name = "strum"
-version = "0.25.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "290d54ea6f91c969195bdbcd7442c8c2a2ba87da8bf60a7ee86a235d4bc1e125"
-dependencies = [
- "strum_macros 0.25.3",
-]
-
-[[package]]
-name = "strum"
 version = "0.27.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f64def088c51c9510a8579e3c5d67c65349dcf755e5479ad3d010aa6454e2c32"
 dependencies = [
- "strum_macros 0.27.1",
-]
-
-[[package]]
-name = "strum_macros"
-version = "0.24.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1e385be0d24f186b4ce2f9982191e7101bb737312ad61c1f2f984f34bcf85d59"
-dependencies = [
- "heck 0.4.1",
- "proc-macro2",
- "quote",
- "rustversion",
- "syn 1.0.109",
-]
-
-[[package]]
-name = "strum_macros"
-version = "0.25.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "23dc1fa9ac9c169a78ba62f0b841814b7abae11bdd047b9c58f893439e309ea0"
-dependencies = [
- "heck 0.4.1",
- "proc-macro2",
- "quote",
- "rustversion",
- "syn 2.0.100",
+ "strum_macros",
 ]
 
 [[package]]
@@ -4051,16 +3780,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "tokio-io-timeout"
-version = "1.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "30b74022ada614a1b4834de765f9bb43877f910cc8ce4be40e89042c9223a8bf"
-dependencies = [
- "pin-project-lite",
- "tokio",
-]
-
-[[package]]
 name = "tokio-macros"
 version = "2.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4178,40 +3897,13 @@ dependencies = [
 
 [[package]]
 name = "tonic"
-version = "0.11.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "76c4eb7a4e9ef9d4763600161f12f5070b92a578e1b634db88a6887844c91a13"
-dependencies = [
- "async-stream",
- "async-trait",
- "axum 0.6.20",
- "base64 0.21.7",
- "bytes",
- "h2 0.3.26",
- "http 0.2.12",
- "http-body 0.4.6",
- "hyper 0.14.32",
- "hyper-timeout 0.4.1",
- "percent-encoding",
- "pin-project",
- "prost 0.12.6",
- "tokio",
- "tokio-stream",
- "tower 0.4.13",
- "tower-layer",
- "tower-service",
- "tracing",
-]
-
-[[package]]
-name = "tonic"
 version = "0.12.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "877c5b330756d856ffcc4553ab34a5684481ade925ecc54bcd1bf02b1d0d4d52"
 dependencies = [
  "async-stream",
  "async-trait",
- "axum 0.7.9",
+ "axum",
  "base64 0.22.1",
  "bytes",
  "h2 0.4.8",
@@ -4219,11 +3911,11 @@ dependencies = [
  "http-body 1.0.1",
  "http-body-util",
  "hyper 1.6.0",
- "hyper-timeout 0.5.2",
+ "hyper-timeout",
  "hyper-util",
  "percent-encoding",
  "pin-project",
- "prost 0.13.5",
+ "prost",
  "socket2",
  "tokio",
  "tokio-stream",
@@ -4426,7 +4118,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "458f7a779bf54acc9f347480ac654f68407d3aab21269a6e3c9f922acd9e2da9"
 dependencies = [
  "getrandom 0.3.2",
- "rand 0.9.0",
  "serde",
 ]
 
@@ -4597,6 +4288,15 @@ checksum = "5a6580f308b1fad9207618087a65c04e7a10bc77e02c8e84e9b00dd4b12fa0bb"
 dependencies = [
  "js-sys",
  "wasm-bindgen",
+]
+
+[[package]]
+name = "webpki-roots"
+version = "0.26.8"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2210b291f7ea53617fbafcc4939f10914214ec15aace5ba62293a668f322c5c9"
+dependencies = [
+ "rustls-pki-types",
 ]
 
 [[package]]
@@ -4944,9 +4644,9 @@ dependencies = [
 name = "workflow"
 version = "0.1.0"
 dependencies = [
- "brane-ast 3.0.0 (git+https://github.com/braneframework/brane)",
- "brane-exe 3.0.0 (git+https://github.com/braneframework/brane)",
- "brane-shr 3.0.0 (git+https://github.com/braneframework/brane)",
+ "brane-ast",
+ "brane-exe",
+ "brane-shr",
  "clap",
  "eflint-json",
  "enum-debug",
@@ -4958,24 +4658,24 @@ dependencies = [
  "rand 0.9.0",
  "serde",
  "serde_json",
- "specifications 3.0.0 (git+https://github.com/braneframework/brane)",
+ "specifications",
  "transform",
 ]
 
 [[package]]
 name = "workflow"
 version = "0.1.0"
-source = "git+https://github.com/braneframework/policy-reasoner#42261e9751c320914c89cf49641bf7477bd1c313"
+source = "git+https://github.com/braneframework/policy-reasoner#3313fee77ef773f2fd2e7703c5ce48e05443ffae"
 dependencies = [
- "brane-ast 3.0.0 (git+https://github.com/epi-project/brane)",
- "brane-exe 3.0.0 (git+https://github.com/epi-project/brane)",
+ "brane-ast",
+ "brane-exe",
  "eflint-json",
  "enum-debug",
  "log",
  "num-traits",
- "rand 0.8.5",
+ "rand 0.9.0",
  "serde",
- "specifications 3.0.0 (git+https://github.com/epi-project/brane)",
+ "specifications",
  "transform",
 ]
 
