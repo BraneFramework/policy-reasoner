@@ -1,0 +1,26 @@
+[package]
+name = "eflint-haskell-reasoner"
+description = "Wraps the infamous Haskell interpreter to supply an eFLINT DSL backend."
+edition = "2021"
+authors = [ "Tim Müller" ]
+version = "0.1.0"
+repository.workspace = true
+license.workspace = true
+
+
+[dependencies]
+# reqwest = { version = "0.12.0", features = ["json"] }
+serde = { version = "1.0.204", features = ["derive"] }
+# serde_json = "1.0.120"
+thiserror = "2.0.12"
+tokio = { version = "1.44.2", default-features = false, features = [] }
+tracing = "0.1.40"
+
+# eflint-json = { git = "https://gitlab.com/eflint/json-spec-rs", branch = "incorrect-is-invariant" }
+error-trace = { git = "https://github.com/Lut99/error-trace-rs", tag = "v3.1.0" }
+
+spec = { path = "../../spec", package = "specifications" }
+
+
+[features]
+default = []
