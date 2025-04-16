@@ -2,6 +2,7 @@
 resolver = "2"
 members = [
     # Implementations
+    "lib/reasoners/eflint-haskell",
     "lib/reasoners/eflint-json",
     "lib/reasoners/no-op",
     "lib/reasoners/posix",
@@ -13,6 +14,7 @@ members = [
     "lib/eflint-to-json",
 
     # Specifications
+    "lib/eflint-spec",
     "lib/spec",
     "lib/workflow"
 ]
@@ -49,6 +51,7 @@ required-features = ["no-op-reasoner", "file-logger"]
 
 
 [dependencies]
+eflint-haskell-reasoner = { path = "./lib/reasoners/eflint-haskell", optional = true }
 eflint-json-reasoner = { path = "./lib/reasoners/eflint-json", optional = true }
 no-op-reasoner = { path = "./lib/reasoners/no-op", optional = true }
 posix-reasoner = { path = "./lib/reasoners/posix", optional = true }
@@ -61,13 +64,13 @@ workflow       = { path = "./lib/workflow", optional = true }
 
 
 [dev-dependencies]
-clap = { version = "4.5.20", features = ["derive"] }
-console = "0.15.8"
+clap = { version = "4.5.36", features = ["derive"] }
+console = "0.15.11"
 error-trace = { git = "https://github.com/Lut99/error-trace-rs", tag = "v3.0.0" }
-serde_json = "1.0.120"
-tracing = "0.1.40"
-tracing-subscriber = { version = "0.3.18", features = ["env-filter"] }
-tokio = { version = "1.40.0", default-features = false, features = ["fs", "io-std", "macros", "rt"] }
+serde_json = "1.0.140"
+tracing = "0.1.41"
+tracing-subscriber = { version = "0.3.19", features = ["env-filter"] }
+tokio = { version = "1.44.2", default-features = false, features = ["fs", "io-std", "macros", "rt"] }
 
 
 [features]
@@ -75,8 +78,9 @@ default = []
 
 all = ["reasoners", "loggers", "resolvers", "auxillary"]
 
-reasoners = ["eflint-json-reasoner", "no-op-reasoner", "posix-reasoner"]
+reasoners = ["eflint-haskell-reasoner", "eflint-json-reasoner", "no-op-reasoner", "posix-reasoner"]
 # reasoners = ["eflint-json-reasoner", "no-op-reasoner"]
+eflint-haskell-reasoner = ["dep:eflint-haskell-reasoner"]
 eflint-json-reasoner = ["dep:eflint-json-reasoner"]
 no-op-reasoner = ["dep:no-op-reasoner"]
 posix-reasoner = ["dep:posix-reasoner"]
