@@ -1,0 +1,12 @@
+New type x
+New type y
+New type z
++x("hey")
++x("hi")
++x("ho")
++x("woo")
++y(x("hey"),x("ho"))
++z(x("hi"),y(x("hey"),x("ho")),y(x("ho"),x("woo")))
++y(x("ho"),x("woo"))
++x("wah")
++y(x("wah"),x("ho"))

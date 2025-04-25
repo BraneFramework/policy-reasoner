@@ -1,0 +1,9 @@
+violations:
+  violated duty!: d(string("foo"),string("foo"))
+New type d
++string("foo")
++d(string("foo"),string("foo"))
+violations:
+  violated duty!: d(string("foo"),string("bar"))
+  violated duty!: d(string("foo"),string("foo"))
++d(string("foo"),string("bar"))

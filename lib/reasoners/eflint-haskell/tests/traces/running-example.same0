@@ -1,0 +1,13 @@
+New type access
+New type controls
+New type dataset
+New type elapsed
+New type instant
+New type must_notify
+New type notify
+New type user
++user("Amy")
++instant(9)
++dataset("X-Rays")
++controls(user("Amy"),dataset("X-Rays"))
++access(user("Amy"),dataset("X-Rays"),instant(9))

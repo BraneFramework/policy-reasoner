@@ -4,7 +4,7 @@
 //  Created:
 //    16 Apr 2025, 23:09:26
 //  Last edited:
-//    17 Apr 2025, 00:04:49
+//    25 Apr 2025, 16:40:44
 //  Auto updated?
 //    Yes
 //
@@ -17,8 +17,9 @@ use std::borrow::Cow;
 use std::future::Future;
 use std::marker::PhantomData;
 use std::process::{ExitStatus, Stdio};
+use std::str::FromStr as _;
 
-use error_trace::{ErrorTrace as _, Trace};
+use error_trace::ErrorTrace as _;
 use serde::{Deserialize, Serialize};
 use spec::auditlogger::SessionedAuditLogger;
 use spec::reasonerconn::{ReasonerContext, ReasonerResponse};
@@ -26,9 +27,11 @@ use spec::{AuditLogger, ReasonerConnector};
 use thiserror::Error;
 use tokio::io::AsyncWriteExt;
 use tokio::process::Command;
-use tracing::debug;
+use tracing::{debug, warn};
 
+use crate::reasons::{Problem, ReasonHandler};
 use crate::spec::{EFlintable, EFlintableExt as _};
+use crate::trace::{Delta, Trace};
 
 
 /***** ERRORS *****/
@@ -40,14 +43,14 @@ pub enum Error {
     LogContext {
         to:  &'static str,
         #[source]
-        err: Trace,
+        err: error_trace::Trace,
     },
     /// Failed to log the question to the given logger.
     #[error("Failed to log the question to {to}")]
     LogQuestion {
         to:  &'static str,
         #[source]
-        err: Trace,
+        err: error_trace::Trace,
     },
 
     #[error("Empty REPL-command given")]
@@ -72,6 +75,12 @@ pub enum Error {
     },
     #[error("Command {:?} failed with exit code {}\n\nstdout:\n{}\n{}\n{}\n\nstderr:\n{}\n{}\n{}\n", cmd, status.code().unwrap_or(-1), "-".repeat(80), stdout, "-".repeat(80), "-".repeat(80), stderr, "-".repeat(80))]
     CommandFailure { cmd: Command, status: ExitStatus, stdout: String, stderr: String },
+    #[error("Failed to parse reasoner output\n\nstdout:\n{}\n{}\n{}\n", "-".repeat(80), output, "-".repeat(80))]
+    IllegalReasonerResponse {
+        output: String,
+        #[source]
+        err:    crate::trace::Error,
+    },
 }
 
 
@@ -185,14 +194,14 @@ impl<R, S, Q> EFlintHaskellReasonerConnector<R, S, Q> {
 }
 impl<R, S, Q> ReasonerConnector for EFlintHaskellReasonerConnector<R, S, Q>
 where
-    R: Sync,
+    R: Sync + ReasonHandler,
     S: Send + Sync + EFlintable + Serialize,
     Q: Send + Sync + EFlintable + Serialize,
 {
     type Context = EFlintHaskellReasonerContext;
     type Error = Error;
     type Question = Q;
-    type Reason = R;
+    type Reason = R::Reason;
     type State = S;
 
     #[inline]
@@ -256,8 +265,32 @@ where
             // Attempt to parse the output
             let output: Cow<str> = String::from_utf8_lossy(&output.stdout);
             debug!("Reasoner output:\n{}\n{}\n{}\n", "-".repeat(80), output, "-".repeat(80));
+            let trace: Trace = match Trace::from_str(output.as_ref()) {
+                Ok(trace) => trace,
+                Err(err) => return Err(Error::IllegalReasonerResponse { output: output.into(), err }),
+            };
+            debug!("Reasoner trace:\n{}\n{}\n{}\n", "-".repeat(80), trace, "-".repeat(80));
 
-            todo!()
+            // Analyze the output to find violations
+            // The rule is:
+            // 1. Check the last delta
+            //    a. If it's a query, then it must succeed; or
+            //    b. If it's not a query, it must not be a violation.
+            // 2. If there is no last delta, then we default to **success**.
+            Ok(trace
+                .deltas
+                .into_iter()
+                .last()
+                .map(|delta| match delta {
+                    Delta::Query(query) if query.is_succes() => ReasonerResponse::Success,
+                    Delta::Query(_) => ReasonerResponse::Violated(self.handler.handle(Problem::QueryFailed)),
+                    Delta::Violation(viol) => ReasonerResponse::Violated(self.handler.handle(Problem::Violation(viol))),
+                    delta => {
+                        warn!("Got non-query, non-violation delta as last delta ({delta:?}); assuming OK");
+                        ReasonerResponse::Success
+                    },
+                })
+                .unwrap_or(ReasonerResponse::Success))
         }
     }
 }

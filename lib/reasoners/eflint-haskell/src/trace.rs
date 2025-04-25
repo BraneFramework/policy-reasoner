@@ -4,7 +4,7 @@
 //  Created:
 //    17 Apr 2025, 00:06:39
 //  Last edited:
-//    25 Apr 2025, 16:26:47
+//    25 Apr 2025, 17:26:06
 //  Auto updated?
 //    Yes
 //
@@ -24,6 +24,7 @@ use thiserror::Error;
 /***** CONSTANTS *****/
 const DISABLED_ACTION: &'static str = "disabled action:";
 const EXEC_TRANS: &'static str = "executed transition:";
+const NEW_INVARIANT: &'static str = "New invariant";
 const NEW_TYPE: &'static str = "New type";
 const TRANS_ENABLED: &'static str = "(ENABLED)";
 const TRANS_DISABLED: &'static str = "(DISABLED)";
@@ -51,6 +52,8 @@ pub enum Error {
     ExpectedInstanceAfterViolatedDuty { s: String },
     #[error("Expected \"-\" to follow \"`\" while parsing transition trees at {s:?}")]
     ExpectedPipeAfterHook { s: String },
+    #[error("Expected type name to follow \"New invariant\" at {s:?}")]
+    ExpectedTypeNameAfterNewInvariant { s: String },
     #[error("Expected type name to follow \"New type\" at {s:?}")]
     ExpectedTypeNameAfterNewType { s: String },
     #[error("Expected type name to follow \"violated invariant!\" at {s:?}")]
@@ -111,6 +114,16 @@ pub struct Trace {
     /// The deltas emitted by eFLINT.
     pub deltas: Vec<Delta>,
 }
+impl Display for Trace {
+    #[inline]
+    fn fmt(&self, f: &mut Formatter) -> FResult {
+        for delta in &self.deltas {
+            delta.fmt(f)?;
+            writeln!(f)?;
+        }
+        Ok(())
+    }
+}
 impl FromStr for Trace {
     type Err = Error;
 
@@ -142,6 +155,8 @@ impl FromStrHead for Trace {
 /// Defines a delta, which is like the toplevel instance of the trace.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum Delta {
+    /// A type is marked as an invariant.
+    NewInvariant(NewInvariant),
     /// A type definition.
     NewType(NewType),
     /// It's a postulation - i.e., a database update.
@@ -152,12 +167,30 @@ pub enum Delta {
     Query(Query),
     /// It's a trigger - i.e., a transition.
     Trigger(Trigger),
+    /// It's a violation - i.e., an illegal state.
+    Violation(Violation),
+}
+impl Display for Delta {
+    #[inline]
+    fn fmt(&self, f: &mut Formatter<'_>) -> FResult {
+        match self {
+            Self::NewInvariant(ni) => ni.fmt(f),
+            Self::NewType(nt) => nt.fmt(f),
+            Self::Postulation(p) => p.fmt(f),
+            Self::Query(q) => q.fmt(f),
+            Self::Trigger(t) => t.fmt(f),
+            Self::Violation(v) => v.fmt(f),
+        }
+    }
 }
 impl FromStrHead for Vec<Delta> {
     type Error = Error;
 
     #[inline]
     fn from_str_head(s: &str) -> Result<Option<(&str, Self)>, Self::Error> {
+        if let Some((rem, nin)) = NewInvariant::from_str_head(s)? {
+            return Ok(Some((rem, vec![Delta::NewInvariant(nin)])));
+        }
         if let Some((rem, nty)) = NewType::from_str_head(s)? {
             return Ok(Some((rem, vec![Delta::NewType(nty)])));
         }
@@ -170,7 +203,39 @@ impl FromStrHead for Vec<Delta> {
         if let Some((rem, trigs)) = Vec::<Trigger>::from_str_head(s)? {
             return Ok(Some((rem, trigs.into_iter().map(Delta::Trigger).collect())));
         }
+        if let Some((rem, viols)) = Vec::<Violation>::from_str_head(s)? {
+            return Ok(Some((rem, viols.into_iter().map(Delta::Violation).collect())));
+        }
         Ok(None)
+    }
+}
+
+/// Defines an invariant definition.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct NewInvariant {
+    /// The name of the newly defined invariant.
+    pub name: String,
+}
+impl Display for NewInvariant {
+    #[inline]
+    fn fmt(&self, f: &mut Formatter<'_>) -> FResult { write!(f, "Marked \"{}\" as invariant", self.name) }
+}
+impl FromStrHead for NewInvariant {
+    type Error = Error;
+
+    #[inline]
+    fn from_str_head(s: &str) -> Result<Option<(&str, Self)>, Self::Error> {
+        // Parse the magic first
+        if !s.starts_with(NEW_INVARIANT) {
+            return Ok(None);
+        }
+        let rem = s[NEW_INVARIANT.len()..].trim_start();
+
+        // Then parse the type name
+        match TypeName::from_str_head(rem)? {
+            Some((rem, TypeName(name))) => Ok(Some((rem, Self { name }))),
+            None => Err(Error::ExpectedTypeNameAfterNewInvariant { s: rem.into() }),
+        }
     }
 }
 
@@ -179,6 +244,10 @@ impl FromStrHead for Vec<Delta> {
 pub struct NewType {
     /// The name of the newly defined type.
     pub name: String,
+}
+impl Display for NewType {
+    #[inline]
+    fn fmt(&self, f: &mut Formatter<'_>) -> FResult { write!(f, "New type \"{}\"", self.name) }
 }
 impl FromStrHead for NewType {
     type Error = Error;
@@ -209,6 +278,18 @@ pub enum Query {
     /// The answer is no
     Fail,
 }
+impl Query {
+    /// Returns true if this query was a success.
+    ///
+    /// # Returns
+    /// True if this is a [`Query::Succes`], or false otherwise.
+    #[inline]
+    pub const fn is_succes(&self) -> bool { matches!(self, Self::Succes) }
+}
+impl Display for Query {
+    #[inline]
+    fn fmt(&self, f: &mut Formatter<'_>) -> FResult { if self.is_succes() { write!(f, "Query succes") } else { write!(f, "Query failed") } }
+}
 impl FromStrHead for Query {
     type Error = Infallible;
 
@@ -233,6 +314,16 @@ pub struct Postulation {
     pub op:   PostulationOp,
     /// The instance that was postulated.
     pub inst: Instance,
+}
+impl Display for Postulation {
+    #[inline]
+    fn fmt(&self, f: &mut Formatter<'_>) -> FResult {
+        match self.op {
+            PostulationOp::Create => write!(f, "Created {}", self.inst),
+            PostulationOp::Terminate => write!(f, "Terminated {}", self.inst),
+            PostulationOp::Obfuscate => write!(f, "Obfuscated {}", self.inst),
+        }
+    }
 }
 impl FromStrHead for Postulation {
     type Error = Error;
@@ -299,6 +390,16 @@ pub struct Trigger {
     ///
     /// Not given for events.
     pub enabled: Option<bool>,
+}
+impl Display for Trigger {
+    #[inline]
+    fn fmt(&self, f: &mut Formatter<'_>) -> FResult {
+        write!(f, "Triggered {}{}", self.inst, match self.enabled {
+            Some(true) => " (ENABLED)",
+            Some(false) => " (DISABLED)",
+            None => "",
+        })
+    }
 }
 impl FromStrHead for Vec<Trigger> {
     type Error = Error;
@@ -377,6 +478,16 @@ pub enum Violation {
     /// An invariant has been violated.
     Invariant(InvariantViolation),
 }
+impl Display for Violation {
+    #[inline]
+    fn fmt(&self, f: &mut Formatter<'_>) -> FResult {
+        match self {
+            Self::Act(a) => a.fmt(f),
+            Self::Duty(d) => d.fmt(f),
+            Self::Invariant(i) => i.fmt(f),
+        }
+    }
+}
 impl FromStrHead for Vec<Violation> {
     type Error = Error;
 
@@ -411,7 +522,11 @@ impl FromStrHead for Vec<Violation> {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ActViolation {
     /// The violated instance.
-    pub inst: Instance,
+    pub inst: Composite,
+}
+impl Display for ActViolation {
+    #[inline]
+    fn fmt(&self, f: &mut Formatter<'_>) -> FResult { write!(f, "Violated action {}", self.inst) }
 }
 impl FromStrHead for ActViolation {
     type Error = Error;
@@ -425,7 +540,7 @@ impl FromStrHead for ActViolation {
         let rem = s[DISABLED_ACTION.len()..].trim_start();
 
         // Then parse the instance that was violated
-        match Instance::from_str_head(rem)? {
+        match Composite::from_str_head(rem)? {
             Some((rem, inst)) => Ok(Some((rem, ActViolation { inst }))),
             None => Err(Error::ExpectedInstanceAfterDisabledAction { s: rem.into() }),
         }
@@ -436,7 +551,11 @@ impl FromStrHead for ActViolation {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct DutyViolation {
     /// The violated instance.
-    pub inst: Instance,
+    pub inst: Composite,
+}
+impl Display for DutyViolation {
+    #[inline]
+    fn fmt(&self, f: &mut Formatter<'_>) -> FResult { write!(f, "Violated duty {}", self.inst) }
 }
 impl FromStrHead for DutyViolation {
     type Error = Error;
@@ -450,7 +569,7 @@ impl FromStrHead for DutyViolation {
         let rem = s[VIOLATED_DUTY.len()..].trim_start();
 
         // Then parse the instance that was violated
-        match Instance::from_str_head(rem)? {
+        match Composite::from_str_head(rem)? {
             Some((rem, inst)) => Ok(Some((rem, DutyViolation { inst }))),
             None => Err(Error::ExpectedInstanceAfterViolatedDuty { s: rem.into() }),
         }
@@ -462,6 +581,10 @@ impl FromStrHead for DutyViolation {
 pub struct InvariantViolation {
     /// The violated invariant.
     pub name: String,
+}
+impl Display for InvariantViolation {
+    #[inline]
+    fn fmt(&self, f: &mut Formatter<'_>) -> FResult { write!(f, "Violated invariant {}", self.name) }
 }
 impl FromStrHead for InvariantViolation {
     type Error = Error;
@@ -494,6 +617,16 @@ pub enum Instance {
     /// A composite type.
     Composite(Composite),
 }
+impl Display for Instance {
+    #[inline]
+    fn fmt(&self, f: &mut Formatter<'_>) -> FResult {
+        match self {
+            Self::StringLit(sl) => sl.fmt(f),
+            Self::IntLit(il) => il.fmt(f),
+            Self::Composite(c) => c.fmt(f),
+        }
+    }
+}
 impl FromStrHead for Instance {
     type Error = Error;
 
@@ -515,6 +648,10 @@ impl FromStrHead for Instance {
 /// Defines a string literal.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct StringLit(pub String);
+impl Display for StringLit {
+    #[inline]
+    fn fmt(&self, f: &mut Formatter<'_>) -> FResult { write!(f, "{:?}", self.0) }
+}
 impl FromStrHead for StringLit {
     type Error = Error;
 
@@ -568,6 +705,10 @@ impl FromStrHead for StringLit {
 /// Defines an integer literal.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct IntLit(pub i64);
+impl Display for IntLit {
+    #[inline]
+    fn fmt(&self, f: &mut Formatter<'_>) -> FResult { write!(f, "{}", self.0) }
+}
 impl FromStrHead for IntLit {
     type Error = Error;
 
@@ -625,6 +766,12 @@ pub struct Composite {
     pub name: String,
     /// The arguments of the type.
     pub args: Vec<Instance>,
+}
+impl Display for Composite {
+    #[inline]
+    fn fmt(&self, f: &mut Formatter<'_>) -> FResult {
+        write!(f, "{}({})", self.name, self.args.iter().map(Instance::to_string).collect::<Vec<String>>().join(", "))
+    }
 }
 impl FromStrHead for Composite {
     type Error = Error;
@@ -881,20 +1028,20 @@ mod tests {
     fn test_parse_violation() {
         assert_eq!(
             Vec::<Violation>::from_str_head("violations:disabled action:foo()"),
-            Ok(Some(("", vec![Violation::Act(ActViolation { inst: Instance::Composite(Composite { name: "foo".into(), args: vec![] }) })])))
+            Ok(Some(("", vec![Violation::Act(ActViolation { inst: Composite { name: "foo".into(), args: vec![] } })])))
         );
         assert_eq!(
             Vec::<Violation>::from_str_head("violations:    disabled action:\n\n\nfoo()violated duty!:bar()"),
             Ok(Some(("", vec![
-                Violation::Act(ActViolation { inst: Instance::Composite(Composite { name: "foo".into(), args: vec![] }) }),
-                Violation::Duty(DutyViolation { inst: Instance::Composite(Composite { name: "bar".into(), args: vec![] }) })
+                Violation::Act(ActViolation { inst: Composite { name: "foo".into(), args: vec![] } }),
+                Violation::Duty(DutyViolation { inst: Composite { name: "bar".into(), args: vec![] } })
             ])))
         );
         assert_eq!(
             Vec::<Violation>::from_str_head("violations:disabled action:foo()violated duty!:bar()violated invariant!:baz"),
             Ok(Some(("", vec![
-                Violation::Act(ActViolation { inst: Instance::Composite(Composite { name: "foo".into(), args: vec![] }) }),
-                Violation::Duty(DutyViolation { inst: Instance::Composite(Composite { name: "bar".into(), args: vec![] }) }),
+                Violation::Act(ActViolation { inst: Composite { name: "foo".into(), args: vec![] } }),
+                Violation::Duty(DutyViolation { inst: Composite { name: "bar".into(), args: vec![] } }),
                 Violation::Invariant(InvariantViolation { name: "baz".into() })
             ])))
         );
@@ -904,7 +1051,7 @@ mod tests {
     fn test_parse_act_violation() {
         assert_eq!(
             ActViolation::from_str_head("disabled action: foo()"),
-            Ok(Some(("", ActViolation { inst: Instance::Composite(Composite { name: "foo".into(), args: vec![] }) })))
+            Ok(Some(("", ActViolation { inst: Composite { name: "foo".into(), args: vec![] } })))
         );
         assert_eq!(ActViolation::from_str_head("disabled action: foo"), Err(Error::ExpectedInstanceAfterDisabledAction { s: "foo".into() }));
         assert_eq!(ActViolation::from_str_head("disabled actio: foo()"), Ok(None));
@@ -914,7 +1061,7 @@ mod tests {
     fn test_parse_duty_violation() {
         assert_eq!(
             DutyViolation::from_str_head("violated duty!: foo()"),
-            Ok(Some(("", DutyViolation { inst: Instance::Composite(Composite { name: "foo".into(), args: vec![] }) })))
+            Ok(Some(("", DutyViolation { inst: Composite { name: "foo".into(), args: vec![] } })))
         );
         assert_eq!(DutyViolation::from_str_head("violated duty!: foo"), Err(Error::ExpectedInstanceAfterViolatedDuty { s: "foo".into() }));
         assert_eq!(DutyViolation::from_str_head("violated duty! foo()"), Ok(None));

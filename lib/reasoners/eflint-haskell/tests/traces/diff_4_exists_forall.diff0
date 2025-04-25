@@ -1,0 +1,14 @@
+New type meta
+New type no_dubs
+New type some
+New type x
++meta("")
++no_dubs("")
++some("")
++x(2)
+~no_dubs("")
++x(3)
+~x(2)
++no_dubs("")
+~some("")
+~x(3)
