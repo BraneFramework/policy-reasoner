@@ -4,7 +4,7 @@
 //  Created:
 //    16 Apr 2025, 23:09:00
 //  Last edited:
-//    16 Apr 2025, 23:43:01
+//    25 Apr 2025, 09:08:47
 //  Auto updated?
 //    Yes
 //
@@ -16,3 +16,4 @@
 // Define the submodules
 pub mod reasonerconn;
 pub mod spec;
+pub mod trace;
