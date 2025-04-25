@@ -4,7 +4,7 @@
 //  Created:
 //    17 Apr 2025, 00:06:39
 //  Last edited:
-//    25 Apr 2025, 15:45:13
+//    25 Apr 2025, 16:26:47
 //  Auto updated?
 //    Yes
 //
@@ -22,11 +22,16 @@ use thiserror::Error;
 
 
 /***** CONSTANTS *****/
+const DISABLED_ACTION: &'static str = "disabled action:";
 const EXEC_TRANS: &'static str = "executed transition:";
+const NEW_TYPE: &'static str = "New type";
 const TRANS_ENABLED: &'static str = "(ENABLED)";
 const TRANS_DISABLED: &'static str = "(DISABLED)";
 const QUERY_SUCCESS: &'static str = "query successful";
 const QUERY_FAILED: &'static str = "query failed";
+const VIOLATIONS: &'static str = "violations:";
+const VIOLATED_DUTY: &'static str = "violated duty!:";
+const VIOLATED_INVARIANT: &'static str = "violated invariant!:";
 
 
 
@@ -40,8 +45,16 @@ pub enum Error {
     ExpectedComma { s: String },
     #[error("Expected \"`\" to follow \"|\" while parsing transition trees at {s:?}")]
     ExpectedHookAfterBar { s: String },
+    #[error("Expected instance to follow \"disabled action\" at {s:?}")]
+    ExpectedInstanceAfterDisabledAction { s: String },
+    #[error("Expected instance to follow \"violated duty!\" at {s:?}")]
+    ExpectedInstanceAfterViolatedDuty { s: String },
     #[error("Expected \"-\" to follow \"`\" while parsing transition trees at {s:?}")]
     ExpectedPipeAfterHook { s: String },
+    #[error("Expected type name to follow \"New type\" at {s:?}")]
+    ExpectedTypeNameAfterNewType { s: String },
+    #[error("Expected type name to follow \"violated invariant!\" at {s:?}")]
+    ExpectedTypeNameAfterViolatedInvariant { s: String },
     #[error("Expected instance after magic 'executed transition' keyword at {s:?}")]
     MissingInstanceAfterExecuted { s: String },
     #[error("Out-of-range integer at {s:?}")]
@@ -50,6 +63,8 @@ pub enum Error {
     PostulationOpWithoutInstance { op: PostulationOp, s: String },
     #[error("Unparsable input at {s:?}")]
     UnparsableInput { s: String },
+    #[error("Expected closing delimiter {delim:?} for opening delimiter starting at {s:?}")]
+    UnterminatedDelim { delim: char, s: String },
     #[error("Expected closing parenthesis at {s:?}")]
     UnterminatedParen { s: String },
     #[error("Unterminated string at {s:?}")]
@@ -127,6 +142,8 @@ impl FromStrHead for Trace {
 /// Defines a delta, which is like the toplevel instance of the trace.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum Delta {
+    /// A type definition.
+    NewType(NewType),
     /// It's a postulation - i.e., a database update.
     Postulation(Postulation),
     /// It's a query - i.e., the answer to a question.
@@ -141,6 +158,9 @@ impl FromStrHead for Vec<Delta> {
 
     #[inline]
     fn from_str_head(s: &str) -> Result<Option<(&str, Self)>, Self::Error> {
+        if let Some((rem, nty)) = NewType::from_str_head(s)? {
+            return Ok(Some((rem, vec![Delta::NewType(nty)])));
+        }
         if let Some((rem, pos)) = Postulation::from_str_head(s)? {
             return Ok(Some((rem, vec![Delta::Postulation(pos)])));
         }
@@ -151,6 +171,31 @@ impl FromStrHead for Vec<Delta> {
             return Ok(Some((rem, trigs.into_iter().map(Delta::Trigger).collect())));
         }
         Ok(None)
+    }
+}
+
+/// Defines a type definition.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct NewType {
+    /// The name of the newly defined type.
+    pub name: String,
+}
+impl FromStrHead for NewType {
+    type Error = Error;
+
+    #[inline]
+    fn from_str_head(s: &str) -> Result<Option<(&str, Self)>, Self::Error> {
+        // Parse the magic first
+        if !s.starts_with(NEW_TYPE) {
+            return Ok(None);
+        }
+        let rem = s[NEW_TYPE.len()..].trim_start();
+
+        // Then parse the type name
+        match TypeName::from_str_head(rem)? {
+            Some((rem, TypeName(name))) => Ok(Some((rem, Self { name }))),
+            None => Err(Error::ExpectedTypeNameAfterNewType { s: rem.into() }),
+        }
     }
 }
 
@@ -322,6 +367,121 @@ impl FromStrHead for Vec<Trigger> {
     }
 }
 
+/// Defines any violation.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum Violation {
+    /// An action has been violated.
+    Act(ActViolation),
+    /// A duty has been violated.
+    Duty(DutyViolation),
+    /// An invariant has been violated.
+    Invariant(InvariantViolation),
+}
+impl FromStrHead for Vec<Violation> {
+    type Error = Error;
+
+    #[inline]
+    fn from_str_head(s: &str) -> Result<Option<(&str, Self)>, Self::Error> {
+        // Parse the initial magic
+        if !s.starts_with(VIOLATIONS) {
+            return Ok(None);
+        }
+        let mut rem = s[VIOLATIONS.len()..].trim_start();
+
+        // Now keep popping violations
+        let mut res: Vec<Violation> = Vec::new();
+        loop {
+            if let Some((newrem, act)) = ActViolation::from_str_head(rem)? {
+                res.push(Violation::Act(act));
+                rem = newrem.trim_start();
+            } else if let Some((newrem, duty)) = DutyViolation::from_str_head(rem)? {
+                res.push(Violation::Duty(duty));
+                rem = newrem.trim_start();
+            } else if let Some((newrem, inv)) = InvariantViolation::from_str_head(rem)? {
+                res.push(Violation::Invariant(inv));
+                rem = newrem.trim_start();
+            } else {
+                return Ok(Some((rem, res)));
+            }
+        }
+    }
+}
+
+/// Defines the violation of an act.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ActViolation {
+    /// The violated instance.
+    pub inst: Instance,
+}
+impl FromStrHead for ActViolation {
+    type Error = Error;
+
+    #[inline]
+    fn from_str_head(s: &str) -> Result<Option<(&str, Self)>, Self::Error> {
+        // Parse the prompt first
+        if !s.starts_with(DISABLED_ACTION) {
+            return Ok(None);
+        }
+        let rem = s[DISABLED_ACTION.len()..].trim_start();
+
+        // Then parse the instance that was violated
+        match Instance::from_str_head(rem)? {
+            Some((rem, inst)) => Ok(Some((rem, ActViolation { inst }))),
+            None => Err(Error::ExpectedInstanceAfterDisabledAction { s: rem.into() }),
+        }
+    }
+}
+
+/// Defines the violation of a duty.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct DutyViolation {
+    /// The violated instance.
+    pub inst: Instance,
+}
+impl FromStrHead for DutyViolation {
+    type Error = Error;
+
+    #[inline]
+    fn from_str_head(s: &str) -> Result<Option<(&str, Self)>, Self::Error> {
+        // Parse the prompt first
+        if !s.starts_with(VIOLATED_DUTY) {
+            return Ok(None);
+        }
+        let rem = s[VIOLATED_DUTY.len()..].trim_start();
+
+        // Then parse the instance that was violated
+        match Instance::from_str_head(rem)? {
+            Some((rem, inst)) => Ok(Some((rem, DutyViolation { inst }))),
+            None => Err(Error::ExpectedInstanceAfterViolatedDuty { s: rem.into() }),
+        }
+    }
+}
+
+/// Defines the violation of an invariant.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct InvariantViolation {
+    /// The violated invariant.
+    pub name: String,
+}
+impl FromStrHead for InvariantViolation {
+    type Error = Error;
+
+    #[inline]
+    fn from_str_head(s: &str) -> Result<Option<(&str, Self)>, Self::Error> {
+        // Parse the prompt first
+        if !s.starts_with(VIOLATED_INVARIANT) {
+            return Ok(None);
+        }
+        let rem = s[VIOLATED_INVARIANT.len()..].trim_start();
+
+        // Then parse the invariant that was violated
+        match TypeName::from_str_head(rem)? {
+            Some((rem, TypeName(name))) => Ok(Some((rem, InvariantViolation { name }))),
+            None => Err(Error::ExpectedTypeNameAfterViolatedInvariant { s: rem.into() }),
+        }
+    }
+}
+
 
 
 /// Defines an instance.
@@ -472,7 +632,7 @@ impl FromStrHead for Composite {
     #[inline]
     fn from_str_head(s: &str) -> Result<Option<(&str, Self)>, Self::Error> {
         // Parse an identifier type first
-        let (rem, name): (&str, String) = match TypeName::from_str_head(s).unwrap() {
+        let (rem, name): (&str, String) = match TypeName::from_str_head(s)? {
             Some((rem, TypeName(name))) => (rem, name),
             None => return Ok(None),
         };
@@ -517,7 +677,7 @@ impl FromStrHead for Composite {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct TypeName(pub String);
 impl FromStrHead for TypeName {
-    type Error = Infallible;
+    type Error = Error;
 
     #[inline]
     fn from_str_head(s: &str) -> Result<Option<(&str, Self)>, Self::Error> {
@@ -570,7 +730,13 @@ impl FromStrHead for TypeName {
         }
 
         // No input
-        Ok(None)
+        if matches!(kind, Kind::Plain) {
+            Ok(Some((&s[s.len()..], Self(s.into()))))
+        } else if matches!(kind, Kind::Uninit) {
+            Ok(None)
+        } else {
+            Err(Error::UnterminatedDelim { delim: (if matches!(kind, Kind::Brackets) { ']' } else { '>' }), s: s.into() })
+        }
     }
 }
 
@@ -582,6 +748,16 @@ impl FromStrHead for TypeName {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_parse_newtype() {
+        assert_eq!(NewType::from_str_head("New type foo"), Ok(Some(("", NewType { name: "foo".into() }))));
+        assert_eq!(NewType::from_str_head("New type a"), Ok(Some(("", NewType { name: "a".into() }))));
+        assert_eq!(NewType::from_str_head("New type a a"), Ok(Some((" a", NewType { name: "a".into() }))));
+        assert_eq!(NewType::from_str_head("New type"), Err(Error::ExpectedTypeNameAfterNewType { s: "".into() }));
+        assert_eq!(NewType::from_str_head("ew type foo"), Ok(None));
+        assert_eq!(NewType::from_str_head(""), Ok(None));
+    }
 
     #[test]
     fn test_parse_query() {
@@ -701,6 +877,60 @@ mod tests {
         );
     }
 
+    #[test]
+    fn test_parse_violation() {
+        assert_eq!(
+            Vec::<Violation>::from_str_head("violations:disabled action:foo()"),
+            Ok(Some(("", vec![Violation::Act(ActViolation { inst: Instance::Composite(Composite { name: "foo".into(), args: vec![] }) })])))
+        );
+        assert_eq!(
+            Vec::<Violation>::from_str_head("violations:    disabled action:\n\n\nfoo()violated duty!:bar()"),
+            Ok(Some(("", vec![
+                Violation::Act(ActViolation { inst: Instance::Composite(Composite { name: "foo".into(), args: vec![] }) }),
+                Violation::Duty(DutyViolation { inst: Instance::Composite(Composite { name: "bar".into(), args: vec![] }) })
+            ])))
+        );
+        assert_eq!(
+            Vec::<Violation>::from_str_head("violations:disabled action:foo()violated duty!:bar()violated invariant!:baz"),
+            Ok(Some(("", vec![
+                Violation::Act(ActViolation { inst: Instance::Composite(Composite { name: "foo".into(), args: vec![] }) }),
+                Violation::Duty(DutyViolation { inst: Instance::Composite(Composite { name: "bar".into(), args: vec![] }) }),
+                Violation::Invariant(InvariantViolation { name: "baz".into() })
+            ])))
+        );
+    }
+
+    #[test]
+    fn test_parse_act_violation() {
+        assert_eq!(
+            ActViolation::from_str_head("disabled action: foo()"),
+            Ok(Some(("", ActViolation { inst: Instance::Composite(Composite { name: "foo".into(), args: vec![] }) })))
+        );
+        assert_eq!(ActViolation::from_str_head("disabled action: foo"), Err(Error::ExpectedInstanceAfterDisabledAction { s: "foo".into() }));
+        assert_eq!(ActViolation::from_str_head("disabled actio: foo()"), Ok(None));
+    }
+
+    #[test]
+    fn test_parse_duty_violation() {
+        assert_eq!(
+            DutyViolation::from_str_head("violated duty!: foo()"),
+            Ok(Some(("", DutyViolation { inst: Instance::Composite(Composite { name: "foo".into(), args: vec![] }) })))
+        );
+        assert_eq!(DutyViolation::from_str_head("violated duty!: foo"), Err(Error::ExpectedInstanceAfterViolatedDuty { s: "foo".into() }));
+        assert_eq!(DutyViolation::from_str_head("violated duty! foo()"), Ok(None));
+    }
+
+    #[test]
+    fn test_parse_invariant_violation() {
+        assert_eq!(InvariantViolation::from_str_head("violated invariant!: foo"), Ok(Some(("", InvariantViolation { name: "foo".into() }))));
+        assert_eq!(InvariantViolation::from_str_head("violated invariant!: foo()"), Ok(Some(("()", InvariantViolation { name: "foo".into() }))));
+        assert_eq!(
+            InvariantViolation::from_str_head("violated invariant!: AMY"),
+            Err(Error::ExpectedTypeNameAfterViolatedInvariant { s: "AMY".into() })
+        );
+        assert_eq!(InvariantViolation::from_str_head("violated invariant! foo"), Ok(None));
+    }
+
 
 
     #[test]
@@ -778,5 +1008,32 @@ mod tests {
         assert_eq!(Composite::from_str_head("foo("), Err(Error::UnterminatedParen { s: "".into() }));
         assert_eq!(Composite::from_str_head("foo(quz"), Err(Error::UnterminatedParen { s: "quz".into() }));
         assert_eq!(Composite::from_str_head("foo(quz() bar())"), Err(Error::ExpectedComma { s: " bar())".into() }));
+    }
+
+
+
+    #[test]
+    fn test_parse_type_name() {
+        assert_eq!(TypeName::from_str_head("foo"), Ok(Some(("", TypeName("foo".into())))));
+        assert_eq!(TypeName::from_str_head("a"), Ok(Some(("", TypeName("a".into())))));
+        assert_eq!(TypeName::from_str_head("camelCase"), Ok(Some(("", TypeName("camelCase".into())))));
+        assert_eq!(TypeName::from_str_head("kebab-case"), Ok(Some(("", TypeName("kebab-case".into())))));
+        assert_eq!(TypeName::from_str_head("snake_case"), Ok(Some(("", TypeName("snake_case".into())))));
+        assert_eq!(TypeName::from_str_head("mixCase-es_es"), Ok(Some(("", TypeName("mixCase-es_es".into())))));
+        assert_eq!(
+            TypeName::from_str_head("[everything goes in <> square BRACKAETS]"),
+            Ok(Some(("", TypeName("[everything goes in <> square BRACKAETS]".into()))))
+        );
+        assert_eq!(
+            TypeName::from_str_head("<everything goes in [] triangular BRACKAETS>"),
+            Ok(Some(("", TypeName("<everything goes in [] triangular BRACKAETS>".into()))))
+        );
+        assert_eq!(TypeName::from_str_head("[[nested brackets]]"), Ok(Some(("", TypeName("[[nested brackets]]".into())))));
+        assert_eq!(TypeName::from_str_head("<<nested brackets>>"), Ok(Some(("", TypeName("<<nested brackets>>".into())))));
+        assert_eq!(TypeName::from_str_head("Foo"), Ok(None));
+        assert_eq!(TypeName::from_str_head("[unterminated"), Err(Error::UnterminatedDelim { delim: ']', s: "[unterminated".into() }));
+        assert_eq!(TypeName::from_str_head("[[unterminated]"), Err(Error::UnterminatedDelim { delim: ']', s: "[[unterminated]".into() }));
+        assert_eq!(TypeName::from_str_head("<unterminated"), Err(Error::UnterminatedDelim { delim: '>', s: "<unterminated".into() }));
+        assert_eq!(TypeName::from_str_head("<<unterminated>"), Err(Error::UnterminatedDelim { delim: '>', s: "<<unterminated>".into() }));
     }
 }
