@@ -4,7 +4,7 @@
 //  Created:
 //    17 Apr 2025, 00:06:39
 //  Last edited:
-//    25 Apr 2025, 10:15:44
+//    25 Apr 2025, 15:45:13
 //  Auto updated?
 //    Yes
 //
@@ -16,8 +16,20 @@
 use std::convert::Infallible;
 use std::error;
 use std::fmt::{Display, Formatter, Result as FResult};
+use std::str::FromStr;
 
 use thiserror::Error;
+
+
+/***** CONSTANTS *****/
+const EXEC_TRANS: &'static str = "executed transition:";
+const TRANS_ENABLED: &'static str = "(ENABLED)";
+const TRANS_DISABLED: &'static str = "(DISABLED)";
+const QUERY_SUCCESS: &'static str = "query successful";
+const QUERY_FAILED: &'static str = "query failed";
+
+
+
 
 
 /***** ERRORS *****/
@@ -26,10 +38,18 @@ use thiserror::Error;
 pub enum Error {
     #[error("Expected a comma at {s:?}")]
     ExpectedComma { s: String },
+    #[error("Expected \"`\" to follow \"|\" while parsing transition trees at {s:?}")]
+    ExpectedHookAfterBar { s: String },
+    #[error("Expected \"-\" to follow \"`\" while parsing transition trees at {s:?}")]
+    ExpectedPipeAfterHook { s: String },
+    #[error("Expected instance after magic 'executed transition' keyword at {s:?}")]
+    MissingInstanceAfterExecuted { s: String },
     #[error("Out-of-range integer at {s:?}")]
     OutOfRangeInt { s: String },
     #[error("Failed to parse instance following postulation op {op} at {s:?}")]
     PostulationOpWithoutInstance { op: PostulationOp, s: String },
+    #[error("Unparsable input at {s:?}")]
+    UnparsableInput { s: String },
     #[error("Expected closing parenthesis at {s:?}")]
     UnterminatedParen { s: String },
     #[error("Unterminated string at {s:?}")]
@@ -70,6 +90,95 @@ pub trait FromStrHead {
 
 
 /***** LIBRARY *****/
+/// Defines a trace as a whole.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct Trace {
+    /// The deltas emitted by eFLINT.
+    pub deltas: Vec<Delta>,
+}
+impl FromStr for Trace {
+    type Err = Error;
+
+    #[inline]
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        // Ensure all of the input is consumed this time
+        // SAFETY: Note that `Self::from_str_head()` actually never yields `None`
+        let (rem, this): (&str, Self) = Self::from_str_head(s)?.unwrap();
+        if rem.trim().is_empty() { Ok(this) } else { Err(Error::UnparsableInput { s: rem.into() }) }
+    }
+}
+impl FromStrHead for Trace {
+    type Error = Error;
+
+    #[inline]
+    fn from_str_head(s: &str) -> Result<Option<(&str, Self)>, Self::Error> {
+        let mut deltas: Vec<Delta> = Vec::new();
+        let mut rem = s.trim_start();
+        while let Some((newrem, newdeltas)) = Vec::<Delta>::from_str_head(rem)? {
+            deltas.extend(newdeltas);
+            rem = newrem.trim_start();
+        }
+        Ok(Some((rem, Self { deltas })))
+    }
+}
+
+
+
+/// Defines a delta, which is like the toplevel instance of the trace.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum Delta {
+    /// It's a postulation - i.e., a database update.
+    Postulation(Postulation),
+    /// It's a query - i.e., the answer to a question.
+    ///
+    /// Note we wouldn't know the question itself, actually.
+    Query(Query),
+    /// It's a trigger - i.e., a transition.
+    Trigger(Trigger),
+}
+impl FromStrHead for Vec<Delta> {
+    type Error = Error;
+
+    #[inline]
+    fn from_str_head(s: &str) -> Result<Option<(&str, Self)>, Self::Error> {
+        if let Some((rem, pos)) = Postulation::from_str_head(s)? {
+            return Ok(Some((rem, vec![Delta::Postulation(pos)])));
+        }
+        if let Some((rem, quer)) = Query::from_str_head(s).unwrap() {
+            return Ok(Some((rem, vec![Delta::Query(quer)])));
+        }
+        if let Some((rem, trigs)) = Vec::<Trigger>::from_str_head(s)? {
+            return Ok(Some((rem, trigs.into_iter().map(Delta::Trigger).collect())));
+        }
+        Ok(None)
+    }
+}
+
+/// Defines the answer to a query.
+///
+/// Note this is just the answer. The rest we wouldn't know.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum Query {
+    /// The answer is yes
+    Succes,
+    /// The answer is no
+    Fail,
+}
+impl FromStrHead for Query {
+    type Error = Infallible;
+
+    #[inline]
+    fn from_str_head(s: &str) -> Result<Option<(&str, Self)>, Self::Error> {
+        if s.starts_with(QUERY_SUCCESS) {
+            return Ok(Some((&s[QUERY_SUCCESS.len()..], Self::Succes)));
+        }
+        if s.starts_with(QUERY_FAILED) {
+            return Ok(Some((&s[QUERY_FAILED.len()..], Self::Fail)));
+        }
+        Ok(None)
+    }
+}
+
 /// Defines a postulation delta.
 ///
 /// This means that a new fact has been created, terminated or obfuscated.
@@ -133,6 +242,83 @@ impl FromStrHead for PostulationOp {
             Some('~') => Ok(Some((&s[1..], Self::Obfuscate))),
             _ => Ok(None),
         }
+    }
+}
+
+/// Defines a triggered instance.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct Trigger {
+    /// The triggered instance.
+    pub inst:    Instance,
+    /// Whether it was enabled or not.
+    ///
+    /// Not given for events.
+    pub enabled: Option<bool>,
+}
+impl FromStrHead for Vec<Trigger> {
+    type Error = Error;
+
+    #[inline]
+    fn from_str_head(s: &str) -> Result<Option<(&str, Self)>, Self::Error> {
+        // Parse the magic prefix first
+        if !s.starts_with(EXEC_TRANS) {
+            return Ok(None);
+        }
+        let rem = s[EXEC_TRANS.len()..].trim_start();
+
+        // Now parse the triggered instance
+        let (rem, inst): (&str, Instance) = match Instance::from_str_head(rem)? {
+            Some(res) => res,
+            None => return Err(Error::MissingInstanceAfterExecuted { s: rem.into() }),
+        };
+
+        // Parse the optional 'ENABLED|DISABLED' bizz
+        let rem = rem.trim_start();
+        let (mut rem, enabled): (&str, Option<bool>) = if rem.starts_with(TRANS_ENABLED) {
+            (rem[TRANS_ENABLED.len()..].trim_start(), Some(true))
+        } else if rem.starts_with(TRANS_DISABLED) {
+            (rem[TRANS_DISABLED.len()..].trim_start(), Some(false))
+        } else {
+            (rem, None)
+        };
+
+        // Now we will parse an optional tree of triggered instances, if `Syncs with` is used.
+        let mut result: Vec<Trigger> = vec![Trigger { inst, enabled }];
+        while rem.starts_with('|') {
+            // Pop the rest of the tree symbol
+            let newrem = rem[1..].trim_start();
+            if !newrem.starts_with('`') {
+                return Err(Error::ExpectedHookAfterBar { s: newrem.into() });
+            }
+            let newrem = newrem[1..].trim_start();
+            if !newrem.starts_with('-') {
+                return Err(Error::ExpectedPipeAfterHook { s: newrem.into() });
+            }
+            let newrem = newrem[1..].trim_start();
+
+            // Now parse a new instance / enabled pair
+            let (newrem, inst): (&str, Instance) = match Instance::from_str_head(newrem)? {
+                Some(res) => res,
+                None => return Err(Error::MissingInstanceAfterExecuted { s: newrem.into() }),
+            };
+
+            // Parse the optional 'ENABLED|DISABLED' bizz
+            let newrem = newrem.trim_start();
+            let (newrem, enabled): (&str, Option<bool>) = if newrem.starts_with(TRANS_ENABLED) {
+                (newrem[TRANS_ENABLED.len()..].trim_start(), Some(true))
+            } else if newrem.starts_with(TRANS_DISABLED) {
+                (newrem[TRANS_DISABLED.len()..].trim_start(), Some(false))
+            } else {
+                (newrem, None)
+            };
+
+            // Try again
+            result.push(Trigger { inst, enabled });
+            rem = newrem;
+        }
+
+        // Done!
+        Ok(Some((rem, result)))
     }
 }
 
@@ -396,6 +582,136 @@ impl FromStrHead for TypeName {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_parse_query() {
+        assert_eq!(Query::from_str_head("query successful"), Ok(Some(("", Query::Succes))));
+        assert_eq!(Query::from_str_head("query failed"), Ok(Some(("", Query::Fail))));
+        assert_eq!(Query::from_str_head("query successfulAND MORE"), Ok(Some(("AND MORE", Query::Succes))));
+        assert_eq!(Query::from_str_head("query successfu"), Ok(None));
+        assert_eq!(Query::from_str_head("aquery failed"), Ok(None));
+        assert_eq!(Query::from_str_head(""), Ok(None));
+    }
+
+    #[test]
+    fn test_parse_postulation() {
+        assert_eq!(Postulation::from_str_head("+42"), Ok(Some(("", Postulation { op: PostulationOp::Create, inst: Instance::IntLit(IntLit(42)) }))));
+        assert_eq!(
+            Postulation::from_str_head("+-42"),
+            Ok(Some(("", Postulation { op: PostulationOp::Create, inst: Instance::IntLit(IntLit(-42)) })))
+        );
+        assert_eq!(
+            Postulation::from_str_head("---42"),
+            Ok(Some(("", Postulation { op: PostulationOp::Terminate, inst: Instance::IntLit(IntLit(42)) })))
+        );
+        assert_eq!(
+            Postulation::from_str_head("+foo(\"Amy\")"),
+            Ok(Some(("", Postulation {
+                op:   PostulationOp::Create,
+                inst: Instance::Composite(Composite { name: "foo".into(), args: vec![Instance::StringLit(StringLit("Amy".into()))] }),
+            })))
+        );
+        assert_eq!(
+            Postulation::from_str_head("-bar()"),
+            Ok(Some(("", Postulation { op: PostulationOp::Terminate, inst: Instance::Composite(Composite { name: "bar".into(), args: vec![] }) })))
+        );
+        assert_eq!(
+            Postulation::from_str_head("~baz(foo(\"Bob\"), 42)"),
+            Ok(Some(("", Postulation {
+                op:   PostulationOp::Obfuscate,
+                inst: Instance::Composite(Composite {
+                    name: "baz".into(),
+                    args: vec![
+                        Instance::Composite(Composite { name: "foo".into(), args: vec![Instance::StringLit(StringLit("Bob".into()))] }),
+                        Instance::IntLit(IntLit(42))
+                    ],
+                }),
+            })))
+        );
+        assert_eq!(Postulation::from_str_head("foo(\"Amy\")"), Ok(None));
+        assert_eq!(Postulation::from_str_head(""), Ok(None));
+    }
+
+    #[test]
+    fn test_parse_postulation_op() {
+        assert_eq!(PostulationOp::from_str_head("+"), Ok(Some(("", PostulationOp::Create))));
+        assert_eq!(PostulationOp::from_str_head("-"), Ok(Some(("", PostulationOp::Terminate))));
+        assert_eq!(PostulationOp::from_str_head("~"), Ok(Some(("", PostulationOp::Obfuscate))));
+        assert_eq!(PostulationOp::from_str_head("+a"), Ok(Some(("a", PostulationOp::Create))));
+        assert_eq!(PostulationOp::from_str_head("a"), Ok(None));
+        assert_eq!(PostulationOp::from_str_head(""), Ok(None));
+    }
+
+    #[test]
+    fn test_parse_trigger() {
+        assert_eq!(
+            Vec::<Trigger>::from_str_head("executed transition:\ngo(string(\"y\"))"),
+            Ok(Some(("", vec![Trigger {
+                inst:    Instance::Composite(Composite {
+                    name: "go".into(),
+                    args: vec![Instance::Composite(Composite { name: "string".into(), args: vec![Instance::StringLit(StringLit("y".into()))] })],
+                }),
+                enabled: None,
+            }])))
+        );
+        assert_eq!(
+            Vec::<Trigger>::from_str_head("executed transition: \ngo(string(\"y\")) (ENABLED)"),
+            Ok(Some(("", vec![Trigger {
+                inst:    Instance::Composite(Composite {
+                    name: "go".into(),
+                    args: vec![Instance::Composite(Composite { name: "string".into(), args: vec![Instance::StringLit(StringLit("y".into()))] })],
+                }),
+                enabled: Some(true),
+            }])))
+        );
+        assert_eq!(
+            Vec::<Trigger>::from_str_head("executed transition: go(string(\"y\")) (DISABLED)"),
+            Ok(Some(("", vec![Trigger {
+                inst:    Instance::Composite(Composite {
+                    name: "go".into(),
+                    args: vec![Instance::Composite(Composite { name: "string".into(), args: vec![Instance::StringLit(StringLit("y".into()))] })],
+                }),
+                enabled: Some(false),
+            }])))
+        );
+        assert_eq!(
+            Vec::<Trigger>::from_str_head(
+                r#"executed transition: 
+                go(string("y")) (DISABLED)
+                |
+                `- go(string("x")) (DISABLED)
+                "#
+            ),
+            Ok(Some(("", vec![
+                Trigger {
+                    inst:    Instance::Composite(Composite {
+                        name: "go".into(),
+                        args: vec![Instance::Composite(Composite { name: "string".into(), args: vec![Instance::StringLit(StringLit("y".into()))] })],
+                    }),
+                    enabled: Some(false),
+                },
+                Trigger {
+                    inst:    Instance::Composite(Composite {
+                        name: "go".into(),
+                        args: vec![Instance::Composite(Composite { name: "string".into(), args: vec![Instance::StringLit(StringLit("x".into()))] })],
+                    }),
+                    enabled: Some(false),
+                }
+            ])))
+        );
+    }
+
+
+
+    #[test]
+    fn test_parse_instance() {
+        assert_eq!(Instance::from_str_head("\"Hello, world!\""), Ok(Some(("", Instance::StringLit(StringLit("Hello, world!".into()))))));
+        assert_eq!(Instance::from_str_head("\"Hello, world!\\n\""), Ok(Some(("", Instance::StringLit(StringLit("Hello, world!\n".into()))))));
+        assert_eq!(Instance::from_str_head("42"), Ok(Some(("", Instance::IntLit(IntLit(42))))));
+        assert_eq!(Instance::from_str_head("-42"), Ok(Some(("", Instance::IntLit(IntLit(-42))))));
+        assert_eq!(Instance::from_str_head("foo()"), Ok(Some(("", Instance::Composite(Composite { name: "foo".into(), args: vec![] })))));
+        assert_eq!(Instance::from_str_head("+42"), Ok(None));
+    }
 
     #[test]
     fn test_parse_string_lit() {
