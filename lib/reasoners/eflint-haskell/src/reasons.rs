@@ -4,7 +4,7 @@
 //  Created:
 //    25 Apr 2025, 16:36:41
 //  Last edited:
-//    25 Apr 2025, 16:55:09
+//    29 Apr 2025, 15:42:50
 //  Auto updated?
 //    Yes
 //
@@ -84,7 +84,7 @@ pub trait ReasonHandler {
 
 /***** LIBRARY *****/
 /// Reason handler that doesn't report anything.
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct SilentHandler;
 impl ReasonHandler for SilentHandler {
     type Reason = NoReason;
@@ -96,7 +96,7 @@ impl ReasonHandler for SilentHandler {
 
 
 /// Reason handler reports only violations with a specific prefix.
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct PrefixedHandler<'s> {
     prefix: &'s str,
 }
@@ -135,7 +135,7 @@ impl<'s> ReasonHandler for PrefixedHandler<'s> {
 
 
 /// Reason handler reports everything.
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct VerboseHandler;
 impl ReasonHandler for VerboseHandler {
     type Reason = Problem;
