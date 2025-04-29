@@ -4,7 +4,7 @@
 //  Created:
 //    16 Apr 2025, 23:09:00
 //  Last edited:
-//    25 Apr 2025, 16:37:24
+//    29 Apr 2025, 15:38:06
 //  Auto updated?
 //    Yes
 //
@@ -18,3 +18,6 @@ pub mod reasonerconn;
 pub mod reasons;
 pub mod spec;
 pub mod trace;
+
+// Use some of that
+pub use reasonerconn::*;
