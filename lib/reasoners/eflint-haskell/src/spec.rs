@@ -4,7 +4,7 @@
 //  Created:
 //    16 Apr 2025, 23:43:13
 //  Last edited:
-//    16 Apr 2025, 23:51:25
+//    29 Apr 2025, 15:48:13
 //  Auto updated?
 //    Yes
 //
@@ -52,6 +52,10 @@ pub trait EFlintable {
 impl EFlintable for () {
     #[inline]
     fn eflint_fmt(&self, _f: &mut Formatter<'_>) -> FResult { Ok(()) }
+}
+impl EFlintable for String {
+    #[inline]
+    fn eflint_fmt(&self, f: &mut Formatter<'_>) -> FResult { self.fmt(f) }
 }
 
 // Pointer impls
