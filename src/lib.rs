@@ -4,7 +4,7 @@
 //  Created:
 //    08 Oct 2024, 16:13:30
 //  Last edited:
-//    17 Oct 2024, 12:02:50
+//    29 Apr 2025, 15:15:34
 //  Auto updated?
 //    Yes
 //
@@ -15,6 +15,8 @@
 
 /// Contains the backend reasoners.
 pub mod reasoners {
+    #[cfg(feature = "eflint-haskell-reasoner")]
+    pub use eflint_haskell_reasoner as eflint_haskell;
     #[cfg(feature = "eflint-json-reasoner")]
     pub use eflint_json_reasoner as eflint_json;
     #[cfg(feature = "no-op-reasoner")]
