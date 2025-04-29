@@ -4,7 +4,7 @@
 //  Created:
 //    25 Apr 2025, 16:36:41
 //  Last edited:
-//    29 Apr 2025, 15:42:50
+//    29 Apr 2025, 23:43:33
 //  Auto updated?
 //    Yes
 //
@@ -98,7 +98,19 @@ impl ReasonHandler for SilentHandler {
 /// Reason handler reports only violations with a specific prefix.
 #[derive(Clone, Debug)]
 pub struct PrefixedHandler<'s> {
-    prefix: &'s str,
+    pub prefix: &'s str,
+}
+impl<'s> PrefixedHandler<'s> {
+    /// Constructor for the PrefixedHandler.
+    ///
+    /// # Arguments
+    /// - `prefix`: The prefix to match violations on.
+    ///
+    /// # Returns
+    /// A new PrefixedHandler that will only pass violations to the user that violate something
+    /// starting with the given prefix.
+    #[inline]
+    pub const fn new(prefix: &'s str) -> Self { Self { prefix } }
 }
 impl<'s> ReasonHandler for PrefixedHandler<'s> {
     type Reason = OptReason<Violation>;
