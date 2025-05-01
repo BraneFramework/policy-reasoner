@@ -4,7 +4,7 @@
 //  Created:
 //    01 May 2025, 14:33:06
 //  Last edited:
-//    01 May 2025, 15:54:30
+//    01 May 2025, 16:30:43
 //  Auto updated?
 //    Yes
 //
@@ -214,17 +214,17 @@ async fn find_deps_of(mut handle: File, path: &Path, base_path: &Path, include_d
                         found = true;
 
                         // If we haven't added it yet, add it
-                        if !files.contains(path) {
+                        if !files.contains(imppath.as_ref()) {
+                            files.insert(imppath.to_owned().into_owned());
                             Box::pin(find_deps_of(
-                                File::open(path).await.map_err(|source| Error::FileOpen { path: path.into(), source })?,
-                                path,
+                                File::open(imppath).await.map_err(|source| Error::FileOpen { path: imppath.to_owned().into_owned(), source })?,
+                                imppath.as_ref(),
                                 base_path,
                                 include_dirs,
                                 files,
                             ))
                             .await?;
                         }
-                        files.insert(path.into());
                         break;
                     }
                     if !found {
