@@ -4,7 +4,7 @@
 //  Created:
 //    09 Oct 2024, 13:35:41
 //  Last edited:
-//    02 Dec 2024, 14:21:21
+//    01 May 2025, 16:48:24
 //  Auto updated?
 //    Yes
 //
@@ -14,6 +14,7 @@
 
 use std::borrow::Cow;
 use std::error::Error;
+use std::fmt::{Display, Formatter, Result as FResult};
 use std::future::Future;
 
 use serde::{Deserialize, Serialize};
@@ -62,6 +63,19 @@ pub enum ReasonerResponse<R> {
     Success,
     /// The state is _not_ compliant to the policy w.r.t. the question.
     Violated(R),
+}
+impl<R: Display> Display for ReasonerResponse<R> {
+    #[inline]
+    fn fmt(&self, f: &mut Formatter<'_>) -> FResult {
+        match self {
+            Self::Success => write!(f, "SUCCESS"),
+            Self::Violated(r) => {
+                write!(f, "VIOLATION(")?;
+                r.fmt(f)?;
+                write!(f, ")")
+            },
+        }
+    }
 }
 
 

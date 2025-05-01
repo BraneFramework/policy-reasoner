@@ -4,7 +4,7 @@
 //  Created:
 //    16 Apr 2025, 23:09:26
 //  Last edited:
-//    01 May 2025, 16:43:10
+//    01 May 2025, 16:46:12
 //  Auto updated?
 //    Yes
 //
@@ -357,7 +357,7 @@ where
             //    a. If it's a query, then it must succeed; or
             //    b. If it's not a query, it must not be a violation.
             // 2. If there is no last delta, then we default to **success**.
-            Ok(trace
+            let res: ReasonerResponse<_> = trace
                 .deltas
                 .into_iter()
                 .last()
@@ -370,7 +370,9 @@ where
                         ReasonerResponse::Success
                     },
                 })
-                .unwrap_or(ReasonerResponse::Success))
+                .unwrap_or(ReasonerResponse::Success);
+            debug!("Reasoner verdict: {res}");
+            Ok(res)
         }
     }
 }
