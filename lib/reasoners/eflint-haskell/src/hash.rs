@@ -4,7 +4,7 @@
 //  Created:
 //    01 May 2025, 14:33:06
 //  Last edited:
-//    01 May 2025, 16:30:43
+//    01 May 2025, 16:33:30
 //  Auto updated?
 //    Yes
 //
@@ -189,7 +189,7 @@ async fn find_deps_of(mut handle: File, path: &Path, base_path: &Path, include_d
                     // Attempt to resolve the path if it's relative
                     let imppaths: Vec<Cow<Path>> = if imppath.is_relative() {
                         let mut imppaths = Vec::with_capacity(3 + include_dirs.len());
-                        imppaths.push(Cow::Owned(std::env::current_dir().map_err(|source| Error::GetCwd { source })?));
+                        imppaths.push(Cow::Owned(std::env::current_dir().map_err(|source| Error::GetCwd { source })?.join(imppath)));
                         if let Some(parent) = base_path.parent() {
                             imppaths.push(Cow::Owned(parent.join(imppath)));
                         }
