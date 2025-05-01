@@ -4,7 +4,7 @@
 //  Created:
 //    16 Apr 2025, 23:09:26
 //  Last edited:
-//    25 Apr 2025, 16:40:44
+//    01 May 2025, 15:24:48
 //  Auto updated?
 //    Yes
 //
@@ -16,6 +16,7 @@
 use std::borrow::Cow;
 use std::future::Future;
 use std::marker::PhantomData;
+use std::path::PathBuf;
 use std::process::{ExitStatus, Stdio};
 use std::str::FromStr as _;
 
@@ -29,6 +30,7 @@ use tokio::io::AsyncWriteExt;
 use tokio::process::Command;
 use tracing::{debug, warn};
 
+use crate::hash::compute_policy_hash;
 use crate::reasons::{Problem, ReasonHandler};
 use crate::spec::{EFlintable, EFlintableExt as _};
 use crate::trace::{Delta, Trace};
@@ -52,6 +54,9 @@ pub enum Error {
         #[source]
         err: error_trace::Trace,
     },
+    /// Failed to hash the input policy.
+    #[error("Failed to hash the input policy {:?}", path.display())]
+    PolicyHash { path: PathBuf, source: crate::hash::Error },
 
     #[error("Empty REPL-command given")]
     EmptyReplCommand,
@@ -135,6 +140,10 @@ pub struct EFlintHaskellReasonerContextFull {
     // The private part
     /// A command to call the eFLINT reasoner.
     pub cmd: (String, Vec<String>),
+    /// The base policy to provide to the eFLINT reasoner.
+    pub base_policy: PathBuf,
+    /// A hash of the base policy calculated at construction time.
+    pub base_policy_hash: [u8; 32],
 }
 impl ReasonerContext for EFlintHaskellReasonerContextFull {
     #[inline]
@@ -170,6 +179,9 @@ impl<R, S, Q> EFlintHaskellReasonerConnector<R, S, Q> {
     ///
     /// # Arguments
     /// - `cmd`: Some command that is used to call the eFLINT reasoner.
+    /// - `base_policy_path`: A path to an eFLINT file containing the base policy to load. We load
+    ///   this as a file instead of a string since that is MUCH more efficient than feeding large
+    ///   files to eFLINT by pipe.
     /// - `handler`: Some [`ReasonHandler`] that can be used to determine what information to return to the user upon failure.
     /// - `logger`: An [`AuditLogger`] for logging the reasoning context with.
     ///
@@ -178,14 +190,26 @@ impl<R, S, Q> EFlintHaskellReasonerConnector<R, S, Q> {
     ///
     /// # Errors
     /// This function can error if it failed to log the initial context to the given `logger`.
-    pub async fn new_async<'l, L: AuditLogger>(cmd: impl IntoIterator<Item = String>, handler: R, logger: &'l L) -> Result<Self, Error> {
+    pub async fn new_async<'l, L: AuditLogger>(
+        cmd: impl IntoIterator<Item = String>,
+        base_policy_path: impl Into<PathBuf>,
+        handler: R,
+        logger: &'l L,
+    ) -> Result<Self, Error> {
+        let base_policy: PathBuf = base_policy_path.into();
+
         // Get the command and split it in a program and arguments
         let mut cmd: Vec<String> = cmd.into_iter().collect();
         let exec: Option<String> = cmd.pop();
         let cmd: (String, Vec<String>) = (exec.ok_or(Error::EmptyReplCommand)?, cmd);
 
+        // Compute the hash of the input policy
+        let base_policy_hash: [u8; 32] =
+            compute_policy_hash(&base_policy, &[]).await.map_err(|source| Error::PolicyHash { path: base_policy.clone(), source })?;
+
         // Build the context & log it
-        let context: EFlintHaskellReasonerContextFull = EFlintHaskellReasonerContextFull { public: EFlintHaskellReasonerContext::default(), cmd };
+        let context: EFlintHaskellReasonerContextFull =
+            EFlintHaskellReasonerContextFull { public: EFlintHaskellReasonerContext::default(), cmd, base_policy, base_policy_hash };
         logger.log_context(&context).await.map_err(|err| Error::LogContext { to: std::any::type_name::<L>(), err: err.freeze() })?;
 
         // OK, return ourselves
@@ -230,6 +254,7 @@ where
             // Prepare the command to execute
             let mut cmd = Command::new(&self.context.cmd.0);
             cmd.args(&self.context.cmd.1);
+            cmd.arg(&self.context.base_policy);
             cmd.stdin(Stdio::piped());
             cmd.stdout(Stdio::piped());
             cmd.stderr(Stdio::piped());

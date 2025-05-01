@@ -4,7 +4,7 @@
 //  Created:
 //    16 Apr 2025, 23:09:00
 //  Last edited:
-//    29 Apr 2025, 15:38:06
+//    01 May 2025, 14:33:35
 //  Auto updated?
 //    Yes
 //
@@ -14,6 +14,7 @@
 //
 
 // Define the submodules
+pub mod hash;
 pub mod reasonerconn;
 pub mod reasons;
 pub mod spec;
