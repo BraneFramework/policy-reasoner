@@ -4,7 +4,7 @@
 //  Created:
 //    25 Apr 2025, 16:36:41
 //  Last edited:
-//    01 May 2025, 16:46:45
+//    01 May 2025, 16:56:22
 //  Auto updated?
 //    Yes
 //
@@ -16,34 +16,12 @@ use std::borrow::Cow;
 use std::fmt::{Display, Formatter, Result as FResult};
 
 use serde::{Deserialize, Serialize};
+use spec::reasons::{ManyReason, NoReason};
 
 use crate::trace::Violation;
 
 
 /***** AUXILLARY *****/
-/// Defines an empty reason.
-#[derive(Clone, Copy, Debug, Deserialize, Eq, Hash, PartialEq, Serialize)]
-pub struct NoReason;
-impl Display for NoReason {
-    #[inline]
-    fn fmt(&self, f: &mut Formatter<'_>) -> FResult { write!(f, "<REDACTED>") }
-}
-
-/// Defines an optional reason.
-#[derive(Clone, Copy, Debug, Deserialize, Eq, Hash, PartialEq, Serialize)]
-pub struct OptReason<R>(pub Option<R>);
-impl<R: Display> Display for OptReason<R> {
-    #[inline]
-    fn fmt(&self, f: &mut Formatter<'_>) -> FResult {
-        match &self.0 {
-            Some(r) => r.fmt(f),
-            None => write!(f, "<REDACTED>"),
-        }
-    }
-}
-
-
-
 /// Defines either a [`Query`] or a [`Violation`].
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub enum Problem {
@@ -73,12 +51,12 @@ pub trait ReasonHandler {
     /// Maps a query/violation to a reason.
     ///
     /// # Arguments
-    /// - `problem`: A [`Problem::QueryFailed`] or a [`Problem::Violation`] that describes the
-    ///   reason.
+    /// - `problems`: A sequence of [`Problem::QueryFailed`]s and/or [`Problem::Violation`]s that
+    ///   describes the reasons.
     ///
     /// # Returns
     /// A [`Self::Reason`](ReasonHandler::Reason) that represents the outputted reason.
-    fn handle(&self, problem: Problem) -> Self::Reason;
+    fn handle(&self, problems: impl IntoIterator<Item = Problem>) -> Self::Reason;
 }
 
 
@@ -93,7 +71,7 @@ impl ReasonHandler for SilentHandler {
     type Reason = NoReason;
 
     #[inline]
-    fn handle(&self, _problem: Problem) -> Self::Reason { NoReason }
+    fn handle(&self, _problems: impl IntoIterator<Item = Problem>) -> Self::Reason { NoReason }
 }
 
 
@@ -116,34 +94,32 @@ impl<'s> PrefixedHandler<'s> {
     pub fn new(prefix: impl Into<Cow<'s, str>>) -> Self { Self { prefix: prefix.into() } }
 }
 impl<'s> ReasonHandler for PrefixedHandler<'s> {
-    type Reason = OptReason<Violation>;
+    type Reason = ManyReason<String>;
 
     #[inline]
-    fn handle(&self, problem: Problem) -> Self::Reason {
-        match problem {
-            Problem::QueryFailed => OptReason(None),
-            Problem::Violation(Violation::Act(a)) => {
-                if a.inst.name.starts_with(self.prefix.as_ref()) {
-                    OptReason(Some(Violation::Act(a)))
-                } else {
-                    OptReason(None)
-                }
-            },
-            Problem::Violation(Violation::Duty(d)) => {
-                if d.inst.name.starts_with(self.prefix.as_ref()) {
-                    OptReason(Some(Violation::Duty(d)))
-                } else {
-                    OptReason(None)
-                }
-            },
-            Problem::Violation(Violation::Invariant(i)) => {
-                if i.name.starts_with(self.prefix.as_ref()) {
-                    OptReason(Some(Violation::Invariant(i)))
-                } else {
-                    OptReason(None)
-                }
-            },
+    fn handle(&self, problems: impl IntoIterator<Item = Problem>) -> Self::Reason {
+        let mut reason = ManyReason::new();
+        for problem in problems {
+            match problem {
+                Problem::QueryFailed => continue,
+                Problem::Violation(Violation::Act(a)) => {
+                    if a.inst.name.starts_with(self.prefix.as_ref()) {
+                        reason.push(Violation::Act(a).to_string());
+                    }
+                },
+                Problem::Violation(Violation::Duty(d)) => {
+                    if d.inst.name.starts_with(self.prefix.as_ref()) {
+                        reason.push(Violation::Duty(d).to_string());
+                    }
+                },
+                Problem::Violation(Violation::Invariant(i)) => {
+                    if i.name.starts_with(self.prefix.as_ref()) {
+                        reason.push(Violation::Invariant(i).to_string());
+                    }
+                },
+            }
         }
+        reason
     }
 }
 
@@ -153,8 +129,8 @@ impl<'s> ReasonHandler for PrefixedHandler<'s> {
 #[derive(Clone, Debug)]
 pub struct VerboseHandler;
 impl ReasonHandler for VerboseHandler {
-    type Reason = Problem;
+    type Reason = ManyReason<String>;
 
     #[inline]
-    fn handle(&self, problem: Problem) -> Self::Reason { problem }
+    fn handle(&self, problems: impl IntoIterator<Item = Problem>) -> Self::Reason { ManyReason::from(problems.into_iter().map(|p| p.to_string())) }
 }

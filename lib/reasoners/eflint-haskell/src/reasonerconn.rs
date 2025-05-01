@@ -4,7 +4,7 @@
 //  Created:
 //    16 Apr 2025, 23:09:26
 //  Last edited:
-//    01 May 2025, 16:46:12
+//    01 May 2025, 16:59:00
 //  Auto updated?
 //    Yes
 //
@@ -357,14 +357,23 @@ where
             //    a. If it's a query, then it must succeed; or
             //    b. If it's not a query, it must not be a violation.
             // 2. If there is no last delta, then we default to **success**.
+            let problems: Vec<Problem> = trace
+                .deltas
+                .iter()
+                .filter_map(|delta| match delta {
+                    Delta::Query(query) if query.is_succes() => Some(Problem::QueryFailed),
+                    Delta::Violation(viol) => Some(Problem::Violation(viol.clone())),
+                    _ => None,
+                })
+                .collect();
             let res: ReasonerResponse<_> = trace
                 .deltas
                 .into_iter()
                 .last()
                 .map(|delta| match delta {
                     Delta::Query(query) if query.is_succes() => ReasonerResponse::Success,
-                    Delta::Query(_) => ReasonerResponse::Violated(self.handler.handle(Problem::QueryFailed)),
-                    Delta::Violation(viol) => ReasonerResponse::Violated(self.handler.handle(Problem::Violation(viol))),
+                    Delta::Query(_) => ReasonerResponse::Violated(self.handler.handle(problems)),
+                    Delta::Violation(_) => ReasonerResponse::Violated(self.handler.handle(problems)),
                     delta => {
                         warn!("Got non-query, non-violation delta as last delta ({delta:?}); assuming OK");
                         ReasonerResponse::Success
