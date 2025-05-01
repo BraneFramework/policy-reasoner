@@ -4,7 +4,7 @@
 //  Created:
 //    25 Apr 2025, 16:36:41
 //  Last edited:
-//    01 May 2025, 10:17:09
+//    01 May 2025, 10:21:21
 //  Auto updated?
 //    Yes
 //
@@ -12,6 +12,7 @@
 //!   Defines reason handlers for the haskell interpreter.
 //
 
+use std::borrow::Cow;
 use std::fmt::{Display, Formatter, Result as FResult};
 
 use serde::{Deserialize, Serialize};
@@ -100,7 +101,7 @@ impl ReasonHandler for SilentHandler {
 /// Reason handler reports only violations with a specific prefix.
 #[derive(Clone, Debug)]
 pub struct PrefixedHandler<'s> {
-    pub prefix: &'s str,
+    pub prefix: Cow<'s, str>,
 }
 impl<'s> PrefixedHandler<'s> {
     /// Constructor for the PrefixedHandler.
@@ -112,7 +113,7 @@ impl<'s> PrefixedHandler<'s> {
     /// A new PrefixedHandler that will only pass violations to the user that violate something
     /// starting with the given prefix.
     #[inline]
-    pub const fn new(prefix: &'s str) -> Self { Self { prefix } }
+    pub fn new(prefix: impl Into<Cow<'s, str>>) -> Self { Self { prefix: prefix.into() } }
 }
 impl<'s> ReasonHandler for PrefixedHandler<'s> {
     type Reason = OptReason<Violation>;
@@ -122,21 +123,21 @@ impl<'s> ReasonHandler for PrefixedHandler<'s> {
         match problem {
             Problem::QueryFailed => OptReason(None),
             Problem::Violation(Violation::Act(a)) => {
-                if a.inst.name.starts_with(self.prefix) {
+                if a.inst.name.starts_with(self.prefix.as_ref()) {
                     OptReason(Some(Violation::Act(a)))
                 } else {
                     OptReason(None)
                 }
             },
             Problem::Violation(Violation::Duty(d)) => {
-                if d.inst.name.starts_with(self.prefix) {
+                if d.inst.name.starts_with(self.prefix.as_ref()) {
                     OptReason(Some(Violation::Duty(d)))
                 } else {
                     OptReason(None)
                 }
             },
             Problem::Violation(Violation::Invariant(i)) => {
-                if i.name.starts_with(self.prefix) {
+                if i.name.starts_with(self.prefix.as_ref()) {
                     OptReason(Some(Violation::Invariant(i)))
                 } else {
                     OptReason(None)
