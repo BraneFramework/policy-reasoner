@@ -4,7 +4,7 @@
 //  Created:
 //    16 Apr 2025, 23:09:26
 //  Last edited:
-//    01 May 2025, 15:55:27
+//    01 May 2025, 16:06:12
 //  Auto updated?
 //    Yes
 //
@@ -106,17 +106,8 @@ pub struct EFlintHaskellReasonerContext {
     pub language: String,
     /// The version identifier of the language targeted by this reasoner.
     pub language_version: String,
-}
-impl Default for EFlintHaskellReasonerContext {
-    #[inline]
-    fn default() -> Self {
-        Self {
-            version: env!("CARGO_PKG_VERSION").into(),
-            language: "eflint".into(),
-            // NOTE: This really needn't be accurate, but it's kind of hard to check the eFLINT version from the Haskell version atm.
-            language_version: "4.0.0.1".into(),
-        }
-    }
+    /// A hash of the base policy calculated at construction time.
+    pub base_policy_hash: [u8; 32],
 }
 impl ReasonerContext for EFlintHaskellReasonerContext {
     #[inline]
@@ -142,8 +133,6 @@ pub struct EFlintHaskellReasonerContextFull {
     pub cmd: (String, Vec<String>),
     /// The base policy to provide to the eFLINT reasoner.
     pub base_policy: PathBuf,
-    /// A hash of the base policy calculated at construction time.
-    pub base_policy_hash: [u8; 32],
 }
 impl ReasonerContext for EFlintHaskellReasonerContextFull {
     #[inline]
@@ -208,8 +197,17 @@ impl<R, S, Q> EFlintHaskellReasonerConnector<R, S, Q> {
             compute_policy_hash(&base_policy, &[]).await.map_err(|source| Error::PolicyHash { path: base_policy.clone(), source })?;
 
         // Build the context & log it
-        let context: EFlintHaskellReasonerContextFull =
-            EFlintHaskellReasonerContextFull { public: EFlintHaskellReasonerContext::default(), cmd, base_policy, base_policy_hash };
+        let context: EFlintHaskellReasonerContextFull = EFlintHaskellReasonerContextFull {
+            public: EFlintHaskellReasonerContext {
+                version: env!("CARGO_PKG_VERSION").into(),
+                language: "eflint".into(),
+                // NOTE: This really needn't be accurate, but it's kind of hard to check the eFLINT version from the Haskell version atm.
+                language_version: "4.0.0.1".into(),
+                base_policy_hash,
+            },
+            cmd,
+            base_policy,
+        };
         logger.log_context(&context).await.map_err(|err| Error::LogContext { to: std::any::type_name::<L>(), err: err.freeze() })?;
 
         // OK, return ourselves
@@ -232,15 +230,6 @@ impl<R, S, Q> EFlintHaskellReasonerConnector<R, S, Q> {
     /// A [`Path`] representing this file.
     #[inline]
     pub const fn base_policy(&self) -> &PathBuf { &self.context.base_policy }
-
-    /// Returns the hash of the base policy provided to every reasoner call.
-    ///
-    /// # Returns
-    /// A binary string of 32 bytes (256-bit) that represents a secure SHA256 hash.
-    ///
-    /// Note: hashing the file and any file it depends on manually
-    #[inline]
-    pub const fn base_policy_hash(&self) -> &[u8; 32] { &self.context.base_policy_hash }
 }
 impl<R, S, Q> ReasonerConnector for EFlintHaskellReasonerConnector<R, S, Q>
 where
