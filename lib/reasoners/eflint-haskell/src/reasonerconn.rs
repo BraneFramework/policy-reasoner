@@ -4,7 +4,7 @@
 //  Created:
 //    16 Apr 2025, 23:09:26
 //  Last edited:
-//    01 May 2025, 16:06:12
+//    01 May 2025, 16:43:10
 //  Auto updated?
 //    Yes
 //
@@ -302,12 +302,52 @@ where
                 });
             }
 
-            // Attempt to parse the output
+            // Stript the prompts from the eFLINT output
             let output: Cow<str> = String::from_utf8_lossy(&output.stdout);
-            debug!("Reasoner output:\n{}\n{}\n{}\n", "-".repeat(80), output, "-".repeat(80));
-            let trace: Trace = match Trace::from_str(output.as_ref()) {
+            let mut clean_output: String = String::with_capacity(output.len());
+            let mut buf: String = String::new();
+            let mut state: usize = 0;
+            for c in output.chars() {
+                // Loop exists to be able to examine some chars again
+                loop {
+                    match state {
+                        // Finding pounds
+                        0 if c == '#' => {
+                            buf.push('#');
+                            state = 1;
+                            break;
+                        },
+                        0 => {
+                            clean_output.push(c);
+                            break;
+                        },
+
+                        // Parsing numbers & whitespace
+                        1 if c.is_ascii_digit() || c.is_whitespace() => {
+                            buf.push(c);
+                            break;
+                        },
+                        1 if c == '>' => {
+                            state = 0;
+                            break;
+                        },
+                        1 => {
+                            clean_output.push_str(&buf);
+                            buf.clear();
+                            state = 0;
+                            // Don't break, re-try this character
+                        },
+
+                        _ => unreachable!(),
+                    }
+                }
+            }
+
+            // Attempt to parse the output
+            debug!("Reasoner output:\n{}\n{}\n{}\n", "-".repeat(80), clean_output, "-".repeat(80));
+            let trace: Trace = match Trace::from_str(clean_output.as_ref()) {
                 Ok(trace) => trace,
-                Err(err) => return Err(Error::IllegalReasonerResponse { output: output.into(), err }),
+                Err(err) => return Err(Error::IllegalReasonerResponse { output: clean_output, err }),
             };
             debug!("Reasoner trace:\n{}\n{}\n{}\n", "-".repeat(80), trace, "-".repeat(80));
 
