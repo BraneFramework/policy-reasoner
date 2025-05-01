@@ -4,7 +4,7 @@
 //  Created:
 //    17 Apr 2025, 00:06:39
 //  Last edited:
-//    25 Apr 2025, 17:26:06
+//    01 May 2025, 10:18:38
 //  Auto updated?
 //    Yes
 //
@@ -18,6 +18,7 @@ use std::error;
 use std::fmt::{Display, Formatter, Result as FResult};
 use std::str::FromStr;
 
+use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 
@@ -109,7 +110,7 @@ pub trait FromStrHead {
 
 /***** LIBRARY *****/
 /// Defines a trace as a whole.
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct Trace {
     /// The deltas emitted by eFLINT.
     pub deltas: Vec<Delta>,
@@ -153,7 +154,7 @@ impl FromStrHead for Trace {
 
 
 /// Defines a delta, which is like the toplevel instance of the trace.
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub enum Delta {
     /// A type is marked as an invariant.
     NewInvariant(NewInvariant),
@@ -211,7 +212,7 @@ impl FromStrHead for Vec<Delta> {
 }
 
 /// Defines an invariant definition.
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct NewInvariant {
     /// The name of the newly defined invariant.
     pub name: String,
@@ -240,7 +241,7 @@ impl FromStrHead for NewInvariant {
 }
 
 /// Defines a type definition.
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct NewType {
     /// The name of the newly defined type.
     pub name: String,
@@ -271,7 +272,7 @@ impl FromStrHead for NewType {
 /// Defines the answer to a query.
 ///
 /// Note this is just the answer. The rest we wouldn't know.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub enum Query {
     /// The answer is yes
     Succes,
@@ -308,7 +309,7 @@ impl FromStrHead for Query {
 /// Defines a postulation delta.
 ///
 /// This means that a new fact has been created, terminated or obfuscated.
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct Postulation {
     /// The operation applied.
     pub op:   PostulationOp,
@@ -348,7 +349,7 @@ impl FromStrHead for Postulation {
 }
 
 /// Defines the possible kinds of postulation.
-#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub enum PostulationOp {
     /// Transitioning a fact to be true (`+`).
     Create,
@@ -382,7 +383,7 @@ impl FromStrHead for PostulationOp {
 }
 
 /// Defines a triggered instance.
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct Trigger {
     /// The triggered instance.
     pub inst:    Instance,
@@ -469,7 +470,7 @@ impl FromStrHead for Vec<Trigger> {
 }
 
 /// Defines any violation.
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub enum Violation {
     /// An action has been violated.
     Act(ActViolation),
@@ -519,7 +520,7 @@ impl FromStrHead for Vec<Violation> {
 }
 
 /// Defines the violation of an act.
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct ActViolation {
     /// The violated instance.
     pub inst: Composite,
@@ -548,7 +549,7 @@ impl FromStrHead for ActViolation {
 }
 
 /// Defines the violation of a duty.
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct DutyViolation {
     /// The violated instance.
     pub inst: Composite,
@@ -577,7 +578,7 @@ impl FromStrHead for DutyViolation {
 }
 
 /// Defines the violation of an invariant.
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct InvariantViolation {
     /// The violated invariant.
     pub name: String,
@@ -608,7 +609,7 @@ impl FromStrHead for InvariantViolation {
 
 
 /// Defines an instance.
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub enum Instance {
     /// A naked string literal.
     StringLit(StringLit),
@@ -646,7 +647,7 @@ impl FromStrHead for Instance {
 }
 
 /// Defines a string literal.
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct StringLit(pub String);
 impl Display for StringLit {
     #[inline]
@@ -703,7 +704,7 @@ impl FromStrHead for StringLit {
 }
 
 /// Defines an integer literal.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct IntLit(pub i64);
 impl Display for IntLit {
     #[inline]
@@ -760,7 +761,7 @@ impl FromStrHead for IntLit {
 }
 
 /// Defines a composite type.
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct Composite {
     /// The name of the type.
     pub name: String,
@@ -821,7 +822,7 @@ impl FromStrHead for Composite {
 
 
 /// Parses an eFLINT type name.
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct TypeName(pub String);
 impl FromStrHead for TypeName {
     type Error = Error;

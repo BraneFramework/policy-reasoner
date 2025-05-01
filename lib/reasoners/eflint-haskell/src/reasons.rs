@@ -4,7 +4,7 @@
 //  Created:
 //    25 Apr 2025, 16:36:41
 //  Last edited:
-//    29 Apr 2025, 23:43:33
+//    01 May 2025, 10:17:09
 //  Auto updated?
 //    Yes
 //
@@ -14,12 +14,14 @@
 
 use std::fmt::{Display, Formatter, Result as FResult};
 
+use serde::{Deserialize, Serialize};
+
 use crate::trace::Violation;
 
 
 /***** AUXILLARY *****/
 /// Defines an empty reason.
-#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+#[derive(Clone, Copy, Debug, Deserialize, Eq, Hash, PartialEq, Serialize)]
 pub struct NoReason;
 impl Display for NoReason {
     #[inline]
@@ -27,7 +29,7 @@ impl Display for NoReason {
 }
 
 /// Defines an optional reason.
-#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+#[derive(Clone, Copy, Debug, Deserialize, Eq, Hash, PartialEq, Serialize)]
 pub struct OptReason<R>(pub Option<R>);
 impl<R: Display> Display for OptReason<R> {
     #[inline]
@@ -42,7 +44,7 @@ impl<R: Display> Display for OptReason<R> {
 
 
 /// Defines either a [`Query`] or a [`Violation`].
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub enum Problem {
     QueryFailed,
     Violation(Violation),
