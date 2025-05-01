@@ -4,7 +4,7 @@
 //  Created:
 //    16 Apr 2025, 23:09:26
 //  Last edited:
-//    01 May 2025, 15:24:48
+//    01 May 2025, 15:55:27
 //  Auto updated?
 //    Yes
 //
@@ -215,6 +215,32 @@ impl<R, S, Q> EFlintHaskellReasonerConnector<R, S, Q> {
         // OK, return ourselves
         Ok(Self { context, handler, _state: PhantomData, _question: PhantomData })
     }
+
+    /// Returns the command used to call the `eflint-repl` binary.
+    ///
+    /// # Returns
+    /// A pair of the executable and a list of arguments that represents the command.
+    #[inline]
+    pub const fn cmd(&self) -> &(String, Vec<String>) { &self.context.cmd }
+
+    /// Returns the path of the base policy provided to every reasoner call.
+    ///
+    /// Note that the given file may depend on other eFLINT files. If you want to find all files,
+    /// then call [`find_deps()`](crate::hash::find_deps()) on the resulting file.
+    ///
+    /// # Returns
+    /// A [`Path`] representing this file.
+    #[inline]
+    pub const fn base_policy(&self) -> &PathBuf { &self.context.base_policy }
+
+    /// Returns the hash of the base policy provided to every reasoner call.
+    ///
+    /// # Returns
+    /// A binary string of 32 bytes (256-bit) that represents a secure SHA256 hash.
+    ///
+    /// Note: hashing the file and any file it depends on manually
+    #[inline]
+    pub const fn base_policy_hash(&self) -> &[u8; 32] { &self.context.base_policy_hash }
 }
 impl<R, S, Q> ReasonerConnector for EFlintHaskellReasonerConnector<R, S, Q>
 where
