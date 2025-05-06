@@ -167,7 +167,7 @@ impl<'a> EFlintJsonReasonerContextFull<'a> {
     #[inline]
     pub fn new(addr: &'a str) -> Self { Self { context: EFlintJsonReasonerContext::default(), addr } }
 }
-impl<'a> ReasonerContext for EFlintJsonReasonerContextFull<'a> {
+impl ReasonerContext for EFlintJsonReasonerContextFull<'_> {
     #[inline]
     fn version(&self) -> Cow<str> { Cow::Borrowed(&self.context.version) }
 
@@ -212,11 +212,11 @@ impl<R, S, Q> EFlintJsonReasonerConnector<R, S, Q> {
     /// # Errors
     /// This function may error if it failed to log to the given `logger`.
     #[inline]
-    pub fn new_async<'l, L: AuditLogger>(
+    pub async fn new_async<'l, L: AuditLogger>(
         addr: impl 'l + Into<String>,
         handler: R,
         logger: &'l L,
-    ) -> impl 'l + Future<Output = Result<Self, Error<R::Error, S::Error, Q::Error>>>
+    ) -> Result<Self, Error<R::Error, S::Error, Q::Error>>
     where
         R: 'l + ReasonHandler,
         R::Reason: Display,
@@ -226,14 +226,12 @@ impl<R, S, Q> EFlintJsonReasonerConnector<R, S, Q> {
         Q: EFlintable,
         Q::Error: 'static,
     {
-        async move {
-            let addr: String = addr.into();
-            logger
-                .log_context(&EFlintJsonReasonerContextFull::new(&addr))
-                .await
-                .map_err(|err| Error::LogContext { to: std::any::type_name::<L>(), err: err.freeze() })?;
-            Ok(Self { addr, reason_handler: handler, _state: PhantomData, _question: PhantomData })
-        }
+        let addr: String = addr.into();
+        logger
+            .log_context(&EFlintJsonReasonerContextFull::new(&addr))
+            .await
+            .map_err(|err| Error::LogContext { to: std::any::type_name::<L>(), err: err.freeze() })?;
+        Ok(Self { addr, reason_handler: handler, _state: PhantomData, _question: PhantomData })
     }
 }
 impl<R, S, Q> ReasonerConnector for EFlintJsonReasonerConnector<R, S, Q>

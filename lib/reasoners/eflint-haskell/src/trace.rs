@@ -4,7 +4,7 @@
 //  Created:
 //    17 Apr 2025, 00:06:39
 //  Last edited:
-//    01 May 2025, 10:18:38
+//    06 May 2025, 12:55:32
 //  Auto updated?
 //    Yes
 //
@@ -23,17 +23,17 @@ use thiserror::Error;
 
 
 /***** CONSTANTS *****/
-const DISABLED_ACTION: &'static str = "disabled action:";
-const EXEC_TRANS: &'static str = "executed transition:";
-const NEW_INVARIANT: &'static str = "New invariant";
-const NEW_TYPE: &'static str = "New type";
-const TRANS_ENABLED: &'static str = "(ENABLED)";
-const TRANS_DISABLED: &'static str = "(DISABLED)";
-const QUERY_SUCCESS: &'static str = "query successful";
-const QUERY_FAILED: &'static str = "query failed";
-const VIOLATIONS: &'static str = "violations:";
-const VIOLATED_DUTY: &'static str = "violated duty!:";
-const VIOLATED_INVARIANT: &'static str = "violated invariant!:";
+const DISABLED_ACTION: &str = "disabled action:";
+const EXEC_TRANS: &str = "executed transition:";
+const NEW_INVARIANT: &str = "New invariant";
+const NEW_TYPE: &str = "New type";
+const TRANS_ENABLED: &str = "(ENABLED)";
+const TRANS_DISABLED: &str = "(DISABLED)";
+const QUERY_SUCCESS: &str = "query successful";
+const QUERY_FAILED: &str = "query failed";
+const VIOLATIONS: &str = "violations:";
+const VIOLATED_DUTY: &str = "violated duty!:";
+const VIOLATED_INVARIANT: &str = "violated invariant!:";
 
 
 
@@ -296,11 +296,11 @@ impl FromStrHead for Query {
 
     #[inline]
     fn from_str_head(s: &str) -> Result<Option<(&str, Self)>, Self::Error> {
-        if s.starts_with(QUERY_SUCCESS) {
-            return Ok(Some((&s[QUERY_SUCCESS.len()..], Self::Succes)));
+        if let Some(rem) = s.strip_prefix(QUERY_SUCCESS) {
+            return Ok(Some((rem, Self::Succes)));
         }
-        if s.starts_with(QUERY_FAILED) {
-            return Ok(Some((&s[QUERY_FAILED.len()..], Self::Fail)));
+        if let Some(rem) = s.strip_prefix(QUERY_FAILED) {
+            return Ok(Some((rem, Self::Fail)));
         }
         Ok(None)
     }
@@ -421,10 +421,10 @@ impl FromStrHead for Vec<Trigger> {
 
         // Parse the optional 'ENABLED|DISABLED' bizz
         let rem = rem.trim_start();
-        let (mut rem, enabled): (&str, Option<bool>) = if rem.starts_with(TRANS_ENABLED) {
-            (rem[TRANS_ENABLED.len()..].trim_start(), Some(true))
-        } else if rem.starts_with(TRANS_DISABLED) {
-            (rem[TRANS_DISABLED.len()..].trim_start(), Some(false))
+        let (mut rem, enabled): (&str, Option<bool>) = if let Some(rem) = rem.strip_prefix(TRANS_ENABLED) {
+            (rem.trim_start(), Some(true))
+        } else if let Some(rem) = rem.strip_prefix(TRANS_DISABLED) {
+            (rem.trim_start(), Some(false))
         } else {
             (rem, None)
         };
@@ -451,10 +451,10 @@ impl FromStrHead for Vec<Trigger> {
 
             // Parse the optional 'ENABLED|DISABLED' bizz
             let newrem = newrem.trim_start();
-            let (newrem, enabled): (&str, Option<bool>) = if newrem.starts_with(TRANS_ENABLED) {
-                (newrem[TRANS_ENABLED.len()..].trim_start(), Some(true))
-            } else if newrem.starts_with(TRANS_DISABLED) {
-                (newrem[TRANS_DISABLED.len()..].trim_start(), Some(false))
+            let (newrem, enabled): (&str, Option<bool>) = if let Some(rem) = newrem.strip_prefix(TRANS_ENABLED) {
+                (rem.trim_start(), Some(true))
+            } else if let Some(rem) = newrem.strip_prefix(TRANS_DISABLED) {
+                (rem.trim_start(), Some(false))
             } else {
                 (newrem, None)
             };
@@ -728,7 +728,7 @@ impl FromStrHead for IntLit {
         let mut value: i64 = 0;
         let mut seen_one: bool = false;
         for (i, c) in next.into_iter().chain(chars) {
-            if c >= '0' && c <= '9' {
+            if c.is_ascii_digit() {
                 // Multiply the existing value by 10 to "move them left"
                 if modifier > 0 && value > i64::MAX / 10 || modifier < 0 && value < i64::MIN / 10 {
                     return Err(Error::OutOfRangeInt { s: s.into() });
@@ -752,11 +752,7 @@ impl FromStrHead for IntLit {
         }
 
         // If we got here, then there were 0 digits
-        if seen_one {
-            return Ok(Some((&s[s.len()..], IntLit(value))));
-        } else {
-            return Ok(None);
-        }
+        if seen_one { Ok(Some((&s[s.len()..], IntLit(value)))) } else { Ok(None) }
     }
 }
 
@@ -812,7 +808,7 @@ impl FromStrHead for Composite {
 
         // If we got here, not enough time to find closing parenthesis
         if matches!(rem.chars().next(), Some(')')) {
-            return Ok(Some((&rem[1..], Self { name, args })));
+            Ok(Some((&rem[1..], Self { name, args })))
         } else {
             Err(Error::UnterminatedParen { s: rem.into() })
         }
@@ -840,7 +836,7 @@ impl FromStrHead for TypeName {
         let mut depth: usize = 1;
         for (i, c) in s.char_indices() {
             if i == 0 {
-                if (c >= 'a' && c <= 'z') || c == '_' || c == '-' {
+                if c.is_ascii_lowercase() || c == '_' || c == '-' {
                     kind = Kind::Plain;
                 } else if c == '[' {
                     kind = Kind::Brackets;
@@ -851,7 +847,7 @@ impl FromStrHead for TypeName {
                 }
             } else if matches!(kind, Kind::Plain) {
                 // Stop when we find a non-valid character
-                if (c < 'a' || c > 'z') && (c < 'A' || c > 'Z') && c != '-' && c != '_' {
+                if !c.is_ascii_lowercase() && !c.is_ascii_uppercase() && c != '-' && c != '_' {
                     return Ok(Some((&s[i..], Self(s[..i].into()))));
                 }
             } else if matches!(kind, Kind::Brackets) {

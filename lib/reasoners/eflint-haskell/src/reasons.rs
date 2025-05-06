@@ -93,7 +93,7 @@ impl<'s> PrefixedHandler<'s> {
     #[inline]
     pub fn new(prefix: impl Into<Cow<'s, str>>) -> Self { Self { prefix: prefix.into() } }
 }
-impl<'s> ReasonHandler for PrefixedHandler<'s> {
+impl ReasonHandler for PrefixedHandler<'_> {
     type Reason = ManyReason<String>;
 
     #[inline]

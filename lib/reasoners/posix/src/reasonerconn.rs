@@ -4,7 +4,7 @@
 //  Created:
 //    11 Oct 2024, 16:54:51
 //  Last edited:
-//    02 Dec 2024, 15:48:38
+//    06 May 2025, 12:52:13
 //  Auto updated?
 //    Yes
 //
@@ -193,7 +193,7 @@ impl PosixFilePermission {
     /// # Returns
     /// A [`PosixFilePermissions`] representing the ste.
     #[inline]
-    fn to_set(&self) -> PosixFilePermissions { PosixFilePermissions(self.to_mode_bit() as u8) }
+    fn to_set(self) -> PosixFilePermissions { PosixFilePermissions(self.to_mode_bit() as u8) }
 }
 impl BitOr<Self> for PosixFilePermission {
     type Output = PosixFilePermissions;
@@ -259,14 +259,12 @@ impl PosixReasonerConnector {
     /// # Errors
     /// This function may error if it failed to log to the given `logger`.
     #[inline]
-    pub fn new_async<'l, L: AuditLogger>(logger: &'l mut L) -> impl 'l + Future<Output = Result<Self, Error>> {
-        async move {
-            logger
-                .log_context(&PosixReasonerContext::default())
-                .await
-                .map_err(|err| Error::LogContext { to: std::any::type_name::<L>(), err: err.freeze() })?;
-            Ok(Self)
-        }
+    pub async fn new_async<L: AuditLogger>(logger: &mut L) -> Result<Self, Error> {
+        logger
+            .log_context(&PosixReasonerContext::default())
+            .await
+            .map_err(|err| Error::LogContext { to: std::any::type_name::<L>(), err: err.freeze() })?;
+        Ok(Self)
     }
 }
 impl ReasonerConnector for PosixReasonerConnector {
@@ -310,7 +308,7 @@ impl ReasonerConnector for PosixReasonerConnector {
 
                 // Find the location of the dataset in the list
                 let policy: &DataPolicy = match state.config.data.get(&dataset.id) {
-                    Some(data) => &data,
+                    Some(data) => data,
                     None => return Err(Error::UnknownDataset { data: dataset.id.clone() }),
                 };
 

@@ -197,7 +197,7 @@ pub trait Visitor<'w> {
     #[inline]
     fn visit_stop(&mut self) -> Result<(), Self::Error> { Ok(()) }
 }
-impl<'a, 'w, T: Visitor<'w>> Visitor<'w> for &'a mut T {
+impl<'w, T: Visitor<'w>> Visitor<'w> for &mut T {
     type Error = T::Error;
 
     #[inline]
@@ -414,7 +414,7 @@ pub trait VisitorMut<'w> {
     #[inline]
     fn visit_stop(&mut self) -> Result<(), Self::Error> { Ok(()) }
 }
-impl<'a, 'w, T: VisitorMut<'w>> VisitorMut<'w> for &'a mut T {
+impl<'w, T: VisitorMut<'w>> VisitorMut<'w> for &mut T {
     type Error = T::Error;
 
     #[inline]
@@ -625,7 +625,7 @@ pub trait VisitorOwned {
     #[inline]
     fn visit_stop(&mut self) -> Result<Elem, Self::Error> { Ok(Elem::Stop) }
 }
-impl<'a, T: VisitorOwned> VisitorOwned for &'a mut T {
+impl<T: VisitorOwned> VisitorOwned for &mut T {
     type Error = T::Error;
 
     #[inline]

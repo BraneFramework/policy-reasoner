@@ -4,7 +4,7 @@
 //  Created:
 //    10 Oct 2024, 16:21:09
 //  Last edited:
-//    06 May 2025, 11:31:04
+//    06 May 2025, 12:51:00
 //  Auto updated?
 //    Yes
 //
@@ -104,14 +104,12 @@ impl<Q> NoOpReasonerConnector<Q> {
     /// # Errors
     /// This function may error if it failed to log to the given `logger`.
     #[inline]
-    pub fn new_async<'l, L: AuditLogger>(logger: &'l mut L) -> impl 'l + Future<Output = Result<Self, Error>> {
-        async move {
-            logger
-                .log_context(&NoOpReasonerContext::default())
-                .await
-                .map_err(|err| Error::LogContext { to: std::any::type_name::<L>(), err: err.freeze() })?;
-            Ok(Self { _question: PhantomData })
-        }
+    pub async fn new_async<L: AuditLogger>(logger: &mut L) -> Result<Self, Error> {
+        logger
+            .log_context(&NoOpReasonerContext::default())
+            .await
+            .map_err(|err| Error::LogContext { to: std::any::type_name::<L>(), err: err.freeze() })?;
+        Ok(Self { _question: PhantomData })
     }
 }
 impl<Q> ReasonerConnector for NoOpReasonerConnector<Q>

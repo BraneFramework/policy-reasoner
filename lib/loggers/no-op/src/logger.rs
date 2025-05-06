@@ -14,7 +14,6 @@
 
 use std::convert::Infallible;
 use std::fmt::Display;
-use std::future::Future;
 
 use serde::Serialize;
 use spec::auditlogger::AuditLogger;
@@ -40,41 +39,30 @@ impl AuditLogger for MockLogger {
     type Error = Infallible;
 
     #[inline]
-    fn log_context<'a, C>(&'a self, _context: &'a C) -> impl 'a + Future<Output = Result<(), Self::Error>>
+    async fn log_context<'a, C>(&'a self, _context: &'a C) -> Result<(), Self::Error>
     where
         C: ?Sized + ReasonerContext,
     {
-        async move {
-            println!("AUDIT LOG: log_context");
-            Ok(())
-        }
+        println!("AUDIT LOG: log_context");
+        Ok(())
     }
 
     #[inline]
-    fn log_response<'a, R>(
-        &'a self,
-        _reference: &'a str,
-        _response: &'a ReasonerResponse<R>,
-        _raw: Option<&'a str>,
-    ) -> impl 'a + Future<Output = Result<(), Self::Error>>
+    async fn log_response<'a, R>(&'a self, _reference: &'a str, _response: &'a ReasonerResponse<R>, _raw: Option<&'a str>) -> Result<(), Self::Error>
     where
         R: Display,
     {
-        async move {
-            println!("AUDIT LOG: log_response");
-            Ok(())
-        }
+        println!("AUDIT LOG: log_response");
+        Ok(())
     }
 
     #[inline]
-    fn log_question<'a, S, Q>(&'a self, _reference: &'a str, _state: &'a S, _question: &'a Q) -> impl 'a + Future<Output = Result<(), Self::Error>>
+    async fn log_question<'a, S, Q>(&'a self, _reference: &'a str, _state: &'a S, _question: &'a Q) -> Result<(), Self::Error>
     where
         S: Serialize,
         Q: Serialize,
     {
-        async move {
-            println!("AUDIT LOG: log_question");
-            Ok(())
-        }
+        println!("AUDIT LOG: log_question");
+        Ok(())
     }
 }

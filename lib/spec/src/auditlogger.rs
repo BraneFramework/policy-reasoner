@@ -173,7 +173,7 @@ pub trait AuditLogger {
 }
 
 // Standard impls
-impl<'a, T: AuditLogger> AuditLogger for &'a T {
+impl<T: AuditLogger> AuditLogger for &T {
     type Error = T::Error;
 
     #[inline]
@@ -211,7 +211,7 @@ impl<'a, T: AuditLogger> AuditLogger for &'a T {
         <T as AuditLogger>::log_question(self, reference, state, question)
     }
 }
-impl<'a, T: AuditLogger> AuditLogger for &'a mut T {
+impl<T: AuditLogger> AuditLogger for &mut T {
     type Error = T::Error;
 
     #[inline]

@@ -71,19 +71,19 @@ impl EFlintable for Phrase {
 }
 
 // Pointer impls
-impl<'a, T: ?Sized + EFlintable> EFlintable for &'a T {
+impl<T: ?Sized + EFlintable> EFlintable for &T {
     type Error = T::Error;
 
     #[inline]
     fn to_eflint(&self) -> Result<Vec<Phrase>, Self::Error> { <T as EFlintable>::to_eflint(self) }
 }
-impl<'a, T: ?Sized + EFlintable> EFlintable for &'a mut T {
+impl<T: ?Sized + EFlintable> EFlintable for &mut T {
     type Error = T::Error;
 
     #[inline]
     fn to_eflint(&self) -> Result<Vec<Phrase>, Self::Error> { <T as EFlintable>::to_eflint(self) }
 }
-impl<'a, T: ?Sized + EFlintable + ToOwned> EFlintable for Cow<'a, T> {
+impl<T: ?Sized + EFlintable + ToOwned> EFlintable for Cow<'_, T> {
     type Error = T::Error;
 
     #[inline]

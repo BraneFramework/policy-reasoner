@@ -4,7 +4,7 @@
 //  Created:
 //    11 Oct 2024, 16:35:23
 //  Last edited:
-//    06 May 2025, 11:43:36
+//    06 May 2025, 12:50:19
 //  Auto updated?
 //    Yes
 //
@@ -98,42 +98,42 @@
 //! # Future work
 //!
 //! - Support file creation: This requires us to look at the permissions of the parent directory of the potential
-//! dataset, but this might be tricky considering the fact that the policy reasoner also needs to be able to access the
-//! directory in order to check the file permissions.
+//!   dataset, but this might be tricky considering the fact that the policy reasoner also needs to be able to access the
+//!   directory in order to check the file permissions.
 //!
 //! - Support multiple user mappings per location: Right now there is support in the code for multiple locations with
-//! each their own user mapping, as different sites will often comprise of different network shares. But as it is
-//! unclear right now how the volumes will be mounted on the reasoner container, it is hard to tell how such an
-//! implementation is best designed.
+//!   each their own user mapping, as different sites will often comprise of different network shares. But as it is
+//!   unclear right now how the volumes will be mounted on the reasoner container, it is hard to tell how such an
+//!   implementation is best designed.
 //!
 //! - Right now, this reasoner is both a module and a binary, but it should probably just be a binary. At this moment
-//! however, documenting binaries is tricky in rust. As soon as we find a better solution, this documentation should be
-//! moved to the binary itself. This might be useful in general, but particularly it is important to document reference
-//! implementations.
+//!   however, documenting binaries is tricky in rust. As soon as we find a better solution, this documentation should be
+//!   moved to the binary itself. This might be useful in general, but particularly it is important to document reference
+//!   implementations.
 //!
 //! - LDAP / Active Directory support: Currently the Brane user to uid / gid mapping is embedded in the policy that is
-//! loaded at the moment the reasoner is started. The idea of mapping users to uid and gids is not unique though, these
-//! mappings can be sythesized from all sorts of resources. The most straightforward variant would be the loading of a
-//! `passwd(5)` file, but since we are aiming at distributed file systems this would probably be of limited use. In
-//! situations where file systems like NFS are often used, the users are store in Active Directory and accessed using
-//! LDAP. Writing such an adapter to function as the user map seems so be a valuable addition to this reasoner, as this
-//! would complete the picture of current existing systems and would allow a user of the reasoner to attach their
-//! already existing and managed file systems with the correct access control. This would significantly reduce the
-//! required investment of introducing policies in new Brane users.
+//!   loaded at the moment the reasoner is started. The idea of mapping users to uid and gids is not unique though, these
+//!   mappings can be sythesized from all sorts of resources. The most straightforward variant would be the loading of a
+//!   `passwd(5)` file, but since we are aiming at distributed file systems this would probably be of limited use. In
+//!   situations where file systems like NFS are often used, the users are store in Active Directory and accessed using
+//!   LDAP. Writing such an adapter to function as the user map seems so be a valuable addition to this reasoner, as this
+//!   would complete the picture of current existing systems and would allow a user of the reasoner to attach their
+//!   already existing and managed file systems with the correct access control. This would significantly reduce the
+//!   required investment of introducing policies in new Brane users.
 //!
 //! - ACL support: Besides regular POSIX file permissions, many file systems also support [POSIX
-//! ACL](https://web.archive.org/web/20240210045229/https://www.usenix.org/legacy/publications/library/proceedings/usenix03/tech/freenix03/full_papers/gruenbacher/gruenbacher_html/main.html).
-//! This would be an obvious and very useful extension to this reasoner. Usage of these ACLs is by far less common that
-//! the regular POSIX permission it attempts to extend, but usage is also far from uncommon and potenial users of Brane,
-//! and more specifically the policy reasoner, could have used these ACLs on their existing file systems.
+//!   ACL](https://web.archive.org/web/20240210045229/https://www.usenix.org/legacy/publications/library/proceedings/usenix03/tech/freenix03/full_papers/gruenbacher/gruenbacher_html/main.html).
+//!   This would be an obvious and very useful extension to this reasoner. Usage of these ACLs is by far less common that
+//!   the regular POSIX permission it attempts to extend, but usage is also far from uncommon and potenial users of Brane,
+//!   and more specifically the policy reasoner, could have used these ACLs on their existing file systems.
 //!
 //! - The last point of future work is not specific to the POSIX reasoner, but more to the policy reasoner repository.
-//! There is a desperate need for more elaborate documentation. We attempted to create a nice start with this reasoner,
-//! but it can be quite daunting to figure out how every part of this system works. The author made a good effort to
-//! improve the documentation during the running of this project, and that helped a lot. That combined with the already
-//! existing implementation of the eFlint reasoner made this project possible. We hope that the POSIX (and
-//! `no_op` reasoner can help guide future contributors in either extension of the current reasoners or
-//! the addition of new reasoner types.
+//!   There is a desperate need for more elaborate documentation. We attempted to create a nice start with this reasoner,
+//!   but it can be quite daunting to figure out how every part of this system works. The author made a good effort to
+//!   improve the documentation during the running of this project, and that helped a lot. That combined with the already
+//!   existing implementation of the eFlint reasoner made this project possible. We hope that the POSIX (and
+//!   `no_op` reasoner can help guide future contributors in either extension of the current reasoners or
+//!   the addition of new reasoner types.
 //
 
 // Declare the modules

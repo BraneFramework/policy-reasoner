@@ -132,7 +132,7 @@ existing implementation of the eFlint reasoner made this project possible. We ho
 the addition of new reasoner types.
 """
 edition = "2021"
-rust-version = "1.75.0"
+rust-version = "1.80.0"
 authors = [ "Daniel Voogsgerd", "Tim Müller" ]
 version = "0.2.0"
 repository.workspace = true

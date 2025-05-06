@@ -4,7 +4,7 @@
 //  Created:
 //    08 Oct 2024, 16:16:26
 //  Last edited:
-//    22 Oct 2024, 10:35:57
+//    06 May 2025, 12:48:36
 //  Auto updated?
 //    Yes
 //
@@ -48,9 +48,6 @@ impl Hash for Dataset {
 impl PartialEq for Dataset {
     #[inline]
     fn eq(&self, other: &Self) -> bool { self.id == other.id }
-
-    #[inline]
-    fn ne(&self, other: &Self) -> bool { self.id != other.id }
 }
 
 /// Represents a user/site that can compute, store data, do neither or do both.
@@ -71,9 +68,6 @@ impl Hash for Entity {
 impl PartialEq for Entity {
     #[inline]
     fn eq(&self, other: &Self) -> bool { self.id == other.id }
-
-    #[inline]
-    fn ne(&self, other: &Self) -> bool { self.id != other.id }
 }
 
 /// Represents a "tag" and everything we need to know.

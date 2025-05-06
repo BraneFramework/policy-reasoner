@@ -4,7 +4,7 @@
 //  Created:
 //    16 Apr 2025, 23:43:13
 //  Last edited:
-//    29 Apr 2025, 15:48:13
+//    06 May 2025, 12:53:46
 //  Auto updated?
 //    Yes
 //
@@ -24,7 +24,7 @@ pub struct EFlintableFormatter<'o, E: ?Sized> {
     /// Some object implementing [`EFlintable`].
     obj: &'o E,
 }
-impl<'o, E: ?Sized + EFlintable> Display for EFlintableFormatter<'o, E> {
+impl<E: ?Sized + EFlintable> Display for EFlintableFormatter<'_, E> {
     #[inline]
     fn fmt(&self, f: &mut Formatter<'_>) -> FResult { self.obj.eflint_fmt(f) }
 }
@@ -59,15 +59,15 @@ impl EFlintable for String {
 }
 
 // Pointer impls
-impl<'a, T: ?Sized + EFlintable> EFlintable for &'a T {
+impl<T: ?Sized + EFlintable> EFlintable for &T {
     #[inline]
     fn eflint_fmt(&self, f: &mut Formatter<'_>) -> FResult { <T as EFlintable>::eflint_fmt(self, f) }
 }
-impl<'a, T: ?Sized + EFlintable> EFlintable for &'a mut T {
+impl<T: ?Sized + EFlintable> EFlintable for &mut T {
     #[inline]
     fn eflint_fmt(&self, f: &mut Formatter<'_>) -> FResult { <T as EFlintable>::eflint_fmt(self, f) }
 }
-impl<'a, T: ?Sized + Clone + EFlintable> EFlintable for Cow<'a, T> {
+impl<T: Clone + EFlintable> EFlintable for Cow<'_, T> {
     #[inline]
     fn eflint_fmt(&self, f: &mut Formatter<'_>) -> FResult { <T as EFlintable>::eflint_fmt(self, f) }
 }

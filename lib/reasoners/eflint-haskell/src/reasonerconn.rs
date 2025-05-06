@@ -4,7 +4,7 @@
 //  Created:
 //    16 Apr 2025, 23:09:26
 //  Last edited:
-//    06 May 2025, 11:20:38
+//    06 May 2025, 12:53:34
 //  Auto updated?
 //    Yes
 //
@@ -179,11 +179,11 @@ impl<R, S, Q> EFlintHaskellReasonerConnector<R, S, Q> {
     ///
     /// # Errors
     /// This function can error if it failed to log the initial context to the given `logger`.
-    pub async fn new_async<'l, L: AuditLogger>(
+    pub async fn new_async<L: AuditLogger>(
         cmd: impl IntoIterator<Item = String>,
         base_policy_path: impl Into<PathBuf>,
         handler: R,
-        logger: &'l L,
+        logger: &L,
     ) -> Result<Self, Error> {
         let base_policy: PathBuf = base_policy_path.into();
 
@@ -369,7 +369,7 @@ where
             let res: ReasonerResponse<_> = trace
                 .deltas
                 .into_iter()
-                .last()
+                .next_back()
                 .map(|delta| match delta {
                     Delta::Query(query) if query.is_succes() => ReasonerResponse::Success,
                     Delta::Query(_) => ReasonerResponse::Violated(self.handler.handle(problems)),

@@ -4,7 +4,7 @@
 //  Created:
 //    01 May 2025, 14:33:06
 //  Last edited:
-//    01 May 2025, 16:33:30
+//    06 May 2025, 12:53:18
 //  Auto updated?
 //    Yes
 //
@@ -28,13 +28,13 @@ use tracing::{Level, debug, span};
 /***** ERRORS *****/
 /// Formats a list but like, prettily.
 struct PrettyPathListFormatter<'l>(&'l [PathBuf]);
-impl<'l> Display for PrettyPathListFormatter<'l> {
+impl Display for PrettyPathListFormatter<'_> {
     #[inline]
     fn fmt(&self, f: &mut Formatter<'_>) -> FResult {
         if self.0.is_empty() {
             return write!(f, "<none>");
         }
-        for (i, path) in self.0.into_iter().enumerate() {
+        for (i, path) in self.0.iter().enumerate() {
             if i > 0 && i < self.0.len() - 1 {
                 write!(f, ", ")?;
             } else if i > 0 {
@@ -215,9 +215,9 @@ async fn find_deps_of(mut handle: File, path: &Path, base_path: &Path, include_d
 
                         // If we haven't added it yet, add it
                         if !files.contains(imppath.as_ref()) {
-                            files.insert(imppath.to_owned().into_owned());
+                            files.insert(imppath.clone().into_owned());
                             Box::pin(find_deps_of(
-                                File::open(imppath).await.map_err(|source| Error::FileOpen { path: imppath.to_owned().into_owned(), source })?,
+                                File::open(imppath).await.map_err(|source| Error::FileOpen { path: imppath.clone().into_owned(), source })?,
                                 imppath.as_ref(),
                                 base_path,
                                 include_dirs,
@@ -280,8 +280,7 @@ pub async fn find_deps(path: impl AsRef<Path>, include_dirs: &[&Path]) -> Result
 
     // Delegate to the recursive function
     let mut res: HashSet<PathBuf> = HashSet::with_capacity(16);
-    find_deps_of(File::open(path).await.map_err(|source| Error::FileOpen { path: path.into(), source })?, path, path, &include_dirs, &mut res)
-        .await?;
+    find_deps_of(File::open(path).await.map_err(|source| Error::FileOpen { path: path.into(), source })?, path, path, include_dirs, &mut res).await?;
 
     // Done
     Ok(res)
