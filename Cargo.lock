@@ -179,9 +179,9 @@ checksum = "baf1de4339761588bc0619e3cbc0120ee582ebb74b53b4efbf79117bd2da40fd"
 
 [[package]]
 name = "chrono"
-version = "0.4.40"
+version = "0.4.41"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1a7964611d71df112cb1730f2ee67324fcf4d0fc6606acbbe9bfe06df124637c"
+checksum = "c469d952047f47f91b68d1cba3f10d63c11d73e4636f24f08daf0278abf01c4d"
 dependencies = [
  "android-tzdata",
  "iana-time-zone",
@@ -310,7 +310,7 @@ dependencies = [
 name = "eflint-haskell-reasoner"
 version = "0.1.0"
 dependencies = [
- "error-trace 3.1.0",
+ "error-trace",
  "serde",
  "sha2",
  "specifications",
@@ -322,7 +322,7 @@ dependencies = [
 [[package]]
 name = "eflint-json"
 version = "0.1.0"
-source = "git+https://gitlab.com/eflint/json-spec-rs?branch=incorrect-is-invariant#a77ae8c5050fcbeb36340ec86f353099d6c51182"
+source = "git+https://gitlab.com/eflint/json-spec-rs.git?branch=incorrect-is-invariant#a77ae8c5050fcbeb36340ec86f353099d6c51182"
 dependencies = [
  "enum-debug",
  "serde",
@@ -333,7 +333,7 @@ name = "eflint-json-reasoner"
 version = "0.2.0"
 dependencies = [
  "eflint-json",
- "error-trace 3.1.0",
+ "error-trace",
  "reqwest",
  "serde",
  "serde_json",
@@ -410,11 +410,6 @@ dependencies = [
  "libc",
  "windows-sys 0.59.0",
 ]
-
-[[package]]
-name = "error-trace"
-version = "3.0.0"
-source = "git+https://github.com/Lut99/error-trace-rs?tag=v3.0.0#a026dc304b5bcc40bc68574f21459d2f1b6cad90"
 
 [[package]]
 name = "error-trace"
@@ -1053,7 +1048,7 @@ dependencies = [
 name = "no-op-reasoner"
 version = "0.2.0"
 dependencies = [
- "error-trace 3.1.0",
+ "error-trace",
  "serde",
  "specifications",
  "thiserror 1.0.69",
@@ -1189,7 +1184,7 @@ dependencies = [
  "eflint-haskell-reasoner",
  "eflint-json-reasoner",
  "eflint-to-json",
- "error-trace 3.0.0",
+ "error-trace",
  "file-logger",
  "file-resolver",
  "no-op-logger",
@@ -1213,7 +1208,7 @@ checksum = "350e9b48cbc6b0e028b0473b114454c6316e57336ee184ceab6e53f72c178b3e"
 name = "posix-reasoner"
 version = "0.2.0"
 dependencies = [
- "error-trace 3.1.0",
+ "error-trace",
  "serde",
  "serde_json",
  "specifications",

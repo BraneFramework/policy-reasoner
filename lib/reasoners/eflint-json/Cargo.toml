@@ -15,10 +15,9 @@ serde_json = "1.0.120"
 thiserror = "1.0.61"
 tracing = "0.1.40"
 
-eflint-json = { git = "https://gitlab.com/eflint/json-spec-rs", branch = "incorrect-is-invariant" }
-error-trace = { git = "https://github.com/Lut99/error-trace-rs", tag = "v3.1.0" }
+eflint-json.workspace = true
+error-trace.workspace = true
 
-# workflow = { path = "../../../reasoner-workflow", package = "policy-reasoner-workflow" }
 spec = { path = "../../spec", package = "specifications" }
 
 
