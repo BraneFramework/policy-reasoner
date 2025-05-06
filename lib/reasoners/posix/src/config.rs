@@ -4,7 +4,7 @@
 //  Created:
 //    15 Oct 2024, 14:17:44
 //  Last edited:
-//    15 Oct 2024, 14:37:11
+//    06 May 2025, 11:42:26
 //  Auto updated?
 //    Yes
 //
@@ -47,8 +47,7 @@ pub struct DataPolicy {
 }
 
 /// The local identity defines a user id and a list of group ids. The local identity is used on the machine on which a
-/// dataset resides to check the local file permissions. For more about this permissions check see
-/// [`validate_dataset_permissions`].
+/// dataset resides to check the local file permissions.
 ///
 /// This identity is defined in the POSIX policy file. Global usernames in the POSIX policy map to these local
 /// identities.

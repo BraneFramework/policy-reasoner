@@ -4,7 +4,7 @@
 //  Created:
 //    11 Oct 2024, 16:35:23
 //  Last edited:
-//    15 Oct 2024, 14:18:42
+//    06 May 2025, 11:43:36
 //  Auto updated?
 //    Yes
 //
@@ -33,26 +33,22 @@
 //!
 //! First, it checks the `DATA_INDEX` environment variable or the .env file for the location of the data index. We
 //! imagine this points towards a mounted distributed file system like NFS. Then, it scans the directories for data
-//! index files. From these files a [DataIndex] is created which is passed on to the [PosixReasonerConnector].
+//! index files. From these files a Brane `DataIndex` is created which is passed on to the [PosixReasonerConnector].
 //!
-//! Now that the [PosixReasonerConnector] is created, it can start to handle requests. There are three types of
-//! requests:
-//!
-//! - [Execute task](fn@PosixReasonerConnector::execute_task)
-//! - [Access data](fn@PosixReasonerConnector::access_data_request)
-//! - [Workflow validation](fn@PosixReasonerConnector::workflow_validation_request)
+//! Now that the [PosixReasonerConnector] is created, it can start to handle requests. These are all handled by
+//! [`PosixReasonerConnector::consult()`](spec::reasonerconn::ReasonerConnector::consult()).
 //!
 //! As of now, the assumption is taken that it does not matter for this reasoner which type of request comes in, as we
-//! only look at the data usage in the [Workflow].
+//! only look at the data usage in the [Workflow](::workflow::Workflow).
 //!
-//! As one of these requests comes in, the provided [Workflow] is parsed using a [DatasetCollectorVisitor] (an
-//! implementation of the new util trait [WorkflowVisitor]) and all data accesses in the workflow are gathered and
-//! associated with an access type of either read, write, or execute (execute is currently unused as no usage was
-//! found).
+//! As one of these requests comes in, the provided [Workflow](::workflow::Workflow) is parsed using a
+//! `DatasetCollector` (an implementation of the new util trait [Visitor](::workflow::visitor::Visitor))
+//! and all data accesses in the workflow are gathered and associated with an access type of either read, write, or execute
+//! (execute is currently unused as no usage was found).
 //!
 //! From this point, we iterate over all the different datasets and associated requests/required permissions. For each
-//! [Dataset] we look up the path in the [DataIndex]. Now that we have the path and the requested permissions, we can
-//! check if the user in the mapping has access to this dataset.
+//! [Dataset](::workflow::Dataset) we look up the path in the `DataIndex`. Now that we have the path and the requested
+//! permissions, we can check if the user in the mapping has access to this dataset.
 //!
 //! ### Current permission model
 //!
@@ -62,7 +58,7 @@
 //! the gids extracted from the policy are matched against the file's uid and gid. If the file is owned by the user, the
 //! owner permissions are checked. If the file is owned by a group the user is in, the group permissions are checked. If
 //! neither of these is true, the other permissions are checked. If the user has the required permissions, the request is
-//! approved. If not, the request is denied : [satisfies_posix_permissions].
+//! approved. If not, the request is denied : `satisfies_posix_permissions()`.
 //!
 //!
 //! # State of the implementation
@@ -94,10 +90,10 @@
 //! but also the policy reasoner needs to reach at least the directory in which the file resides in order for the
 //! reasoner to be able to `stat(1)` the file.
 //!
-//! Right now, we are seemingly limited by the fact that the policy reasoner GUI does not send at which site a [Dataset]
+//! Right now, we are seemingly limited by the fact that the policy reasoner GUI does not send at which site a [Dataset](::workflow::Dataset)
 //! is accessed, making it impossible to fully know which of the mappings in the policy to use. There is a location
 //! field that could be used, but since it is always set to `None`, we opted to fall back to the assumed location as
-//! hardcoded in the static: [`ASSUMED_LOCATION`]
+//! hardcoded in the static: `ASSUMED_LOCATION`.
 //!
 //! # Future work
 //!
@@ -136,7 +132,7 @@
 //! but it can be quite daunting to figure out how every part of this system works. The author made a good effort to
 //! improve the documentation during the running of this project, and that helped a lot. That combined with the already
 //! existing implementation of the eFlint reasoner made this project possible. We hope that the POSIX (and
-//! [no_op](crate::no_op)) reasoner can help guide future contributors in either extension of the current reasoners or
+//! `no_op` reasoner can help guide future contributors in either extension of the current reasoners or
 //! the addition of new reasoner types.
 //
 

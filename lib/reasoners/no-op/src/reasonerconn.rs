@@ -4,12 +4,12 @@
 //  Created:
 //    10 Oct 2024, 16:21:09
 //  Last edited:
-//    02 Dec 2024, 15:49:08
+//    06 May 2025, 11:31:04
 //  Auto updated?
 //    Yes
 //
 //  Description:
-//!   <Todo>
+//!   Implements a reasoner connector that doesn't do ANYTHING (lazy thing).
 //
 
 use std::borrow::Cow;

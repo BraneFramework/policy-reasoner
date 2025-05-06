@@ -4,7 +4,7 @@
 //  Created:
 //    09 Oct 2024, 13:38:41
 //  Last edited:
-//    02 Dec 2024, 14:21:01
+//    06 May 2025, 11:32:28
 //  Auto updated?
 //    Yes
 //
@@ -23,8 +23,8 @@ use crate::reasonerconn::{ReasonerContext, ReasonerResponse};
 
 
 /***** AUXILLARY *****/
-/// Defines a wrapper around any [`AuditLogger`] that extends it with some kind of [`tracing`]-like
-/// session information.
+/// Defines a wrapper around any [`AuditLogger`] that extends it with some kind of
+/// [`tracing`](https://github.com/tokio-rs/tracing)-like session information.
 #[derive(Clone, Debug)]
 pub struct SessionedAuditLogger<L> {
     /// The reference used to recognize the logs based on user input.
