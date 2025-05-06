@@ -19,7 +19,7 @@ members = [
 ]
 
 [workspace.package]
-repository = "https://github.com/epi-project/policy-reasoner"
+repository = "https://github.com/BraneFramework/policy-reasoner"
 license = "Apache-2.0"
 
 
