@@ -2,6 +2,7 @@
 name = "eflint-haskell-reasoner"
 description = "Wraps the infamous Haskell interpreter to supply an eFLINT DSL backend."
 edition = "2021"
+rust-version = "1.75.0"
 authors = [ "Tim Müller" ]
 version = "0.1.0"
 repository.workspace = true

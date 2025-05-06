@@ -2,6 +2,7 @@
 name = "specifications"
 description = "Defines various interfaces between various parts of the reasoner."
 edition = "2021"
+rust-version = "1.75.0"
 authors = [ "Bas Kloosterman", "Tim Müller" ]
 version = "0.2.0"
 repository.workspace = true

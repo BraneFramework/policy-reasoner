@@ -8,6 +8,7 @@ Furthermore it can be used for testing. The reasoner approves all workflow valid
 not perform any permission checks, and thus never rejects a request).
 """
 edition = "2021"
+rust-version = "1.75.0"
 authors = [ "Daniel Voogsgerd", "Tim Müller" ]
 version = "0.2.0"
 repository.workspace = true

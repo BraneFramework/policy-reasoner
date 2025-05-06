@@ -2,6 +2,7 @@
 name = "no-op-logger"
 description = "Implements an audit logger that doesn't audit log anything but just logs a little using `tracing`."
 edition = "2021"
+rust-version = "1.75.0"
 authors = [ "Bas Kloosterman", "Tim Müller" ]
 version = "0.2.0"
 repository.workspace = true
