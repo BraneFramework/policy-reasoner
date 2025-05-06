@@ -13,7 +13,7 @@ license.workspace = true
 serde = { version = "1.0.204", features = ["derive"] }
 sha2 = "0.10.6"
 thiserror = "2.0.12"
-tokio = { version = "1.44.2", default-features = false, features = ["io-util", "process"] }
+tokio = { version = "1.44.2", default-features = false, features = ["fs", "io-util", "process"] }
 tracing = "0.1.40"
 
 error-trace.workspace = true
