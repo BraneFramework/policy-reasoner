@@ -1191,6 +1191,7 @@ dependencies = [
  "no-op-reasoner",
  "posix-reasoner",
  "serde_json",
+ "shlex",
  "specifications",
  "tokio",
  "tracing",
