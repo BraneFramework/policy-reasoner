@@ -120,10 +120,10 @@ fn print_elem(f: &mut Formatter, elem: &Elem, prefix: &dyn Display) -> FResult {
         },
 
         Elem::Next => {
-            writeln!(f, "{}next", prefix)
+            writeln!(f, "{prefix}next")
         },
         Elem::Stop => {
-            writeln!(f, "{}stop", prefix)
+            writeln!(f, "{prefix}stop")
         },
     }
 }
