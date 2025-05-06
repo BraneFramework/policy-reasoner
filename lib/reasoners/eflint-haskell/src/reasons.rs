@@ -4,7 +4,7 @@
 //  Created:
 //    25 Apr 2025, 16:36:41
 //  Last edited:
-//    06 May 2025, 11:21:19
+//    06 May 2025, 12:44:08
 //  Auto updated?
 //    Yes
 //
@@ -132,5 +132,7 @@ impl ReasonHandler for VerboseHandler {
     type Reason = ManyReason<String>;
 
     #[inline]
-    fn handle(&self, problems: impl IntoIterator<Item = Problem>) -> Self::Reason { ManyReason::from(problems.into_iter().map(|p| p.to_string())) }
+    fn handle(&self, problems: impl IntoIterator<Item = Problem>) -> Self::Reason {
+        ManyReason::from_iter(problems.into_iter().map(|p| p.to_string()))
+    }
 }
