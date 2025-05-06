@@ -4,7 +4,7 @@
 //  Created:
 //    25 Apr 2025, 16:36:41
 //  Last edited:
-//    01 May 2025, 16:56:22
+//    06 May 2025, 11:21:19
 //  Auto updated?
 //    Yes
 //
@@ -22,7 +22,7 @@ use crate::trace::Violation;
 
 
 /***** AUXILLARY *****/
-/// Defines either a [`Query`] or a [`Violation`].
+/// Defines either a failed [`Query`](crate::trace::Query) or a [`Violation`].
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub enum Problem {
     QueryFailed,

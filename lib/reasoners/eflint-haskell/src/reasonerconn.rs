@@ -4,7 +4,7 @@
 //  Created:
 //    16 Apr 2025, 23:09:26
 //  Last edited:
-//    01 May 2025, 16:59:00
+//    06 May 2025, 11:20:38
 //  Auto updated?
 //    Yes
 //
@@ -227,7 +227,7 @@ impl<R, S, Q> EFlintHaskellReasonerConnector<R, S, Q> {
     /// then call [`find_deps()`](crate::hash::find_deps()) on the resulting file.
     ///
     /// # Returns
-    /// A [`Path`] representing this file.
+    /// A [`PathBuf`] representing this file.
     #[inline]
     pub const fn base_policy(&self) -> &PathBuf { &self.context.base_policy }
 }

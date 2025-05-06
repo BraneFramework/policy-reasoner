@@ -4,7 +4,7 @@
 //  Created:
 //    09 Oct 2024, 15:52:06
 //  Last edited:
-//    06 May 2025, 10:56:58
+//    06 May 2025, 11:21:41
 //  Auto updated?
 //    Yes
 //
@@ -32,7 +32,7 @@ use crate::spec::EFlintable;
 
 
 /***** ERRORS *****/
-/// Defines the errors returned by the [`EFlintJsonReasonerConnectorector`].
+/// Defines the errors returned by the [`EFlintJsonReasonerConnector`].
 #[derive(Debug, Error)]
 pub enum Error<R, S, Q> {
     /// Failed to log the context of the reasoner.
