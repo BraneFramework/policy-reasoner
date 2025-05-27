@@ -12,7 +12,7 @@ license.workspace = true
 [dependencies]
 serde = { version = "1.0.204", features = ["derive"] }
 sha2 = "0.10.6"
-thiserror = "2.0.12"
+thiserror = "2.0.0"
 tokio = { version = "1.44.2", default-features = false, features = ["fs", "io-util", "process"] }
 tracing = "0.1.40"
 

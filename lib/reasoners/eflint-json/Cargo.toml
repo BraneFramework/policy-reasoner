@@ -13,7 +13,7 @@ license.workspace = true
 reqwest = { version = "0.12.0", features = ["json"] }
 serde = { version = "1.0.204", features = ["derive"] }
 serde_json = "1.0.120"
-thiserror = "1.0.61"
+thiserror = "2.0.0"
 tracing = "0.1.40"
 
 eflint-json.workspace = true
