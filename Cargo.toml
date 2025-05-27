@@ -11,7 +11,7 @@ license.workspace = true
 [workspace.package]
 version = "0.1.0"
 repository = "https://github.com/braneframework/policy-reasoner"
-authors = [ "Bas Kloosterman", "Tim Müller" ]
+authors = ["Bas Kloosterman", "Tim Müller"]
 license = "Apache-2.0"
 
 
@@ -27,8 +27,8 @@ itertools = "0.14.0"
 jsonwebtoken = "9.2.0"
 log = "0.4.22"
 reqwest = { version = "0.12.0", features = ["json"] }
-serde = { version="1.0.204", features=["derive"]}
-serde_json = { version = "1.0.120" , features = ["raw_value"]}
+serde = { version = "1.0.204", features = ["derive"] }
+serde_json = { version = "1.0.120", features = ["raw_value"] }
 serde_yaml = { version = "0.0.11", package = "serde_yml" }
 thiserror = "2.0.0"
 tokio = { version = "1.38.0", features = ["full"] }
@@ -36,8 +36,8 @@ uuid = { version = "1.7.0", features = ["serde", "v4"], optional = true }
 warp = "0.3"
 
 # Path
-audit-logger = { path = "lib/audit-logger"}
-auth-resolver = { path = "lib/auth-resolver"}
+audit-logger = { path = "lib/audit-logger" }
+auth-resolver = { path = "lib/auth-resolver" }
 deliberation = { path = "./lib/deliberation" }
 nested-cli-parser = { path = "lib/nested-cli-parser" }
 policy = { path = "./lib/policy" }
@@ -52,7 +52,7 @@ error-trace.workspace = true
 humanlog.workspace = true
 
 # GitLab
-eflint-json = { git = "https://gitlab.com/eflint/json-spec-rs", branch = "incorrect-is-invariant" }
+eflint-json = { git = "https://gitlab.com/eflint/json-spec-rs.git", branch = "incorrect-is-invariant" }
 
 # Brane
 brane-cfg = { git = "https://github.com/braneframework/brane", optional = true }
@@ -75,7 +75,7 @@ eflint-to-json = { path = "./lib/eflint-to-json" }
 error-trace.workspace = true
 
 [features]
-brane-api-resolver = [ "dep:graphql_client", "dep:brane-cfg", "dep:uuid" ]
+brane-api-resolver = ["dep:graphql_client", "dep:brane-cfg", "dep:uuid"]
 leak-public-errors = []
 
 
@@ -105,11 +105,17 @@ members = [
 
 [workspace.dependencies]
 # The infamous lut99 crate set
-enum-debug = { git = "https://github.com/Lut99/enum-debug", tag = "v1.1.0", features = ["derive"] }
+enum-debug = { git = "https://github.com/Lut99/enum-debug", tag = "v1.1.0", features = [
+    "derive",
+] }
 error-trace = { git = "https://github.com/Lut99/error-trace-rs", tag = "v3.0.0" }
 humanlog = { git = "https://github.com/Lut99/humanlog-rs", tag = "v0.2.0" }
-names = { git = "https://github.com/Lut99/names-rs", tag = "v0.1.0", default-features = false, features = [ "rand", "three-lowercase", "three-usualcase" ]}
+names = { git = "https://github.com/Lut99/names-rs", tag = "v0.1.0", default-features = false, features = [
+    "rand",
+    "three-lowercase",
+    "three-usualcase",
+] }
 transform = { git = "https://github.com/Lut99/transform-rs", tag = "v0.2.0" }
 
 # Eflint
-eflint-json = { git = "https://gitlab.com/eflint/json-spec-rs", branch = "incorrect-is-invariant" }
+eflint-json = { git = "https://gitlab.com/eflint/json-spec-rs.git", branch = "incorrect-is-invariant" }
