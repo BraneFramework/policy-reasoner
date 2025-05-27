@@ -17,7 +17,7 @@ license.workspace = true
 
 [dependencies]
 serde = "1.0.204"
-thiserror = "1.0.61"
+thiserror = "2.0.0"
 tracing = "0.1.40"
 
 error-trace.workspace = true
