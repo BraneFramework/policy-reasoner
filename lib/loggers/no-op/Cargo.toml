@@ -10,8 +10,8 @@ license.workspace = true
 
 
 [dependencies]
-serde = "1.0.204"
-tracing = "0.1.40"
+serde = "1.0.184"
+tracing = "0.1.37"
 
 spec = { path = "../../spec", package = "specifications" }
 

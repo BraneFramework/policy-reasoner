@@ -11,7 +11,7 @@ license.workspace = true
 
 [dependencies]
 paste = "1.0.0"
-serde = { version = "1.0.204", features = ["derive"] }
+serde = { version = "1.0.184", features = ["derive"] }
 
 
 [features]
