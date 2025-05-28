@@ -10,7 +10,7 @@ license.workspace = true
 
 
 [dependencies]
-serde = { version = "1.0.204", features = ["derive"], optional = true }
+serde = { version = "1.0.184", features = ["derive"], optional = true }
 
 enum-debug.workspace = true
 

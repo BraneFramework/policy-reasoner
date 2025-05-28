@@ -11,10 +11,10 @@ license.workspace = true
 
 [dependencies]
 reqwest = { version = "0.12.0", features = ["json"] }
-serde = { version = "1.0.204", features = ["derive"] }
-serde_json = "1.0.120"
+serde = { version = "1.0.184", features = ["derive"] }
+serde_json = "1.0.29"
 thiserror = "2.0.0"
-tracing = "0.1.40"
+tracing = "0.1.37"
 
 eflint-json.workspace = true
 error-trace.workspace = true
