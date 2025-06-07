@@ -409,8 +409,9 @@ dependencies = [
 
 [[package]]
 name = "error-trace"
-version = "3.1.0"
-source = "git+https://github.com/Lut99/error-trace-rs?tag=v3.1.0#c3046059215f2bf60175f0274ec91c241c6dd069"
+version = "3.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f003273bc107da5ef350a569bef0171f58da33da8aad8793bb1d79d81a5f10f2"
 
 [[package]]
 name = "fastrand"
