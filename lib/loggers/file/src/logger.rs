@@ -13,8 +13,7 @@
 //
 
 use std::borrow::Cow;
-use std::error;
-use std::fmt::{Debug, Display, Formatter, Result as FResult};
+use std::fmt::{Debug, Display};
 use std::path::PathBuf;
 
 use enum_debug::EnumDebug as _;
@@ -37,7 +36,7 @@ macro_rules! write_file {
         async {
             use tokio::io::AsyncWriteExt as _;
             let contents: String = format!($($t)+);
-            $handle.write_all(contents.as_bytes()).await.map_err(|err| Error::FileWrite { path: ($path), err })
+            $handle.write_all(contents.as_bytes()).await.map_err(|source| Error::FileWrite { path: ($path), source })
         }
     };
 }
@@ -48,7 +47,7 @@ macro_rules! writeln_file {
         // Psych we actually don't wrap that macro, since we're doing async ofc
         async {
             use tokio::io::AsyncWriteExt as _;
-            $handle.write_all(b"\n").await.map_err(|err| Error::FileWrite { path: ($path), err })
+            $handle.write_all(b"\n").await.map_err(|source| Error::FileWrite { path: ($path), source })
         }
     };
     ($path:expr, $handle:expr, $($t:tt)+) => {
@@ -57,7 +56,7 @@ macro_rules! writeln_file {
             use tokio::io::AsyncWriteExt as _;
             let mut contents: String = format!($($t)*);
             contents.push('\n');
-            $handle.write_all(contents.as_bytes()).await.map_err(|err| Error::FileWrite { path: ($path), err })
+            $handle.write_all(contents.as_bytes()).await.map_err(|source| Error::FileWrite { path: ($path), source })
         }
     };
 }
@@ -68,44 +67,23 @@ macro_rules! writeln_file {
 
 /***** ERRORS *****/
 /// Defines the errors emitted by the [`FileLogger`].
-#[derive(Debug)]
+#[derive(Debug, thiserror::Error)]
 pub enum Error {
     /// Failed to create a new file.
-    FileCreate { path: PathBuf, err: std::io::Error },
+    #[error("Failed to create a new file at: {}", path.display())]
+    FileCreate { path: PathBuf, source: std::io::Error },
     /// Failed to open an existing file.
-    FileOpen { path: PathBuf, err: std::io::Error },
+    #[error("Failed to open existing file: {}", path.display())]
+    FileOpen { path: PathBuf, source: std::io::Error },
     /// Failed to shutdown an open file.
-    FileShutdown { path: PathBuf, err: std::io::Error },
+    #[error("Failed to shutdown open file: {}", path.display())]
+    FileShutdown { path: PathBuf, source: std::io::Error },
     /// Failed to write to a new file.
-    FileWrite { path: PathBuf, err: std::io::Error },
+    #[error("Failed to write to file: {}", path.display())]
+    FileWrite { path: PathBuf, source: std::io::Error },
     /// Failed to serialize a logging statement.
-    LogStatementSerialize { kind: String, err: serde_json::Error },
-}
-impl Display for Error {
-    #[inline]
-    fn fmt(&self, f: &mut Formatter<'_>) -> FResult {
-        use Error::*;
-        match self {
-            FileCreate { path, .. } => write!(f, "Failed to create a new file at {:?}", path.display()),
-            FileOpen { path, .. } => write!(f, "Failed to open existing file {:?}", path.display()),
-            FileShutdown { path, .. } => write!(f, "Failed to shutdown open file {:?}", path.display()),
-            FileWrite { path, .. } => write!(f, "Failed to write to flie {:?}", path.display()),
-            LogStatementSerialize { kind, .. } => write!(f, "Failed to serialize statement LogStatement::{kind}"),
-        }
-    }
-}
-impl error::Error for Error {
-    #[inline]
-    fn source(&self) -> Option<&(dyn error::Error + 'static)> {
-        use Error::*;
-        match self {
-            FileCreate { err, .. } => Some(err),
-            FileOpen { err, .. } => Some(err),
-            FileShutdown { err, .. } => Some(err),
-            FileWrite { err, .. } => Some(err),
-            LogStatementSerialize { err, .. } => Some(err),
-        }
-    }
+    #[error("Failed to serialize statement LogStatement::{kind}")]
+    LogStatementSerialize { kind: String, source: serde_json::Error },
 }
 
 
@@ -154,16 +132,15 @@ impl FileLogger {
         // Step 1: Open the log file
         let mut handle: File = if !self.path.exists() {
             debug!("Creating new log file at '{}'...", self.path.display());
-            match File::create(&self.path).await {
-                Ok(handle) => handle,
-                Err(err) => return Err(Error::FileCreate { path: self.path.clone(), err }),
-            }
+            File::create(&self.path).await.map_err(|source| Error::FileCreate { path: self.path.clone(), source })?
         } else {
             debug!("Opening existing log file at '{}'...", self.path.display());
-            match OpenOptions::new().write(true).append(true).open(&self.path).await {
-                Ok(handle) => handle,
-                Err(err) => return Err(Error::FileOpen { path: self.path.clone(), err }),
-            }
+            OpenOptions::new()
+                .write(true)
+                .append(true)
+                .open(&self.path)
+                .await
+                .map_err(|source| Error::FileOpen { path: self.path.clone(), source })?
         };
 
         // // Navigate to the end of the file
@@ -180,16 +157,13 @@ impl FileLogger {
         // Print the timestamp
         write_file!(self.path.clone(), &mut handle, "[{}]", chrono::Local::now().format("%Y-%m-%d %H:%M:%S")).await?;
         // Then write the logged message
-        match serde_json::to_string(&stmt) {
-            Ok(message) => writeln_file!(self.path.clone(), &mut handle, " {message}").await?,
-            Err(err) => return Err(Error::LogStatementSerialize { kind: format!("{stmt:?}"), err }),
-        }
+        let message = serde_json::to_string(&stmt).map_err(|source| Error::LogStatementSerialize { kind: format!("{stmt:?}"), source })?;
+        writeln_file!(self.path.clone(), &mut handle, " {message}").await?;
 
         // Finally flush the file
         debug!("Flushing log file...");
-        if let Err(err) = handle.shutdown().await {
-            return Err(Error::FileShutdown { path: self.path.clone(), err });
-        }
+        handle.shutdown().await.map_err(|source| Error::FileShutdown { path: self.path.clone(), source })?;
+
         drop(handle);
 
         // Done, a smashing success
@@ -205,10 +179,8 @@ impl AuditLogger for FileLogger {
         C: ?Sized + Sync + ReasonerContext,
     {
         // Serialize the context first
-        let context: Value = match serde_json::to_value(context) {
-            Ok(ctx) => ctx,
-            Err(err) => return Err(Error::LogStatementSerialize { kind: "LogStatement::Context".into(), err }),
-        };
+        let context: Value =
+            serde_json::to_value(context).map_err(|source| Error::LogStatementSerialize { kind: "LogStatement::Context".into(), source })?;
 
         // Log it
         self.log(LogStatement::Context { context }).await?;
@@ -228,13 +200,11 @@ impl AuditLogger for FileLogger {
         }
 
         // Serialize the response first
-        let response: Value = match serde_json::to_value(&match response {
+        let response: Value = serde_json::to_value(&match response {
             ReasonerResponse::Success => ReasonerResponse::Success,
             ReasonerResponse::Violated(reasons) => ReasonerResponse::Violated(reasons.to_string()),
-        }) {
-            Ok(res) => res,
-            Err(err) => return Err(Error::LogStatementSerialize { kind: "LogStatement::ReasonerResponse".into(), err }),
-        };
+        })
+        .map_err(|source| Error::LogStatementSerialize { kind: "LogStatement::ReasonerResponse".into(), source })?;
 
         // Log it
         self.log(LogStatement::ReasonerResponse { reference: Cow::Borrowed(reference), response, raw: raw.map(Cow::Borrowed) }).await
@@ -252,14 +222,10 @@ impl AuditLogger for FileLogger {
         }
 
         // Serialize the state & question first
-        let state: Value = match serde_json::to_value(state) {
-            Ok(res) => res,
-            Err(err) => return Err(Error::LogStatementSerialize { kind: "LogStatement::ReasonerConsult".into(), err }),
-        };
-        let question: Value = match serde_json::to_value(question) {
-            Ok(res) => res,
-            Err(err) => return Err(Error::LogStatementSerialize { kind: "LogStatement::ReasonerConsult".into(), err }),
-        };
+        let state: Value =
+            serde_json::to_value(state).map_err(|source| Error::LogStatementSerialize { kind: "LogStatement::ReasonerConsult".into(), source })?;
+        let question: Value =
+            serde_json::to_value(question).map_err(|source| Error::LogStatementSerialize { kind: "LogStatement::ReasonerConsult".into(), source })?;
 
         // Log it
         self.log(LogStatement::ReasonerConsult { reference: Cow::Borrowed(reference), state, question }).await

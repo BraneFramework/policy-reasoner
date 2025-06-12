@@ -34,6 +34,8 @@ use crate::reasons::{Problem, ReasonHandler};
 use crate::spec::{EFlintable, EFlintableExt as _};
 use crate::trace::{Delta, Trace};
 
+/***** CONSTANTS *****/
+const BLOCK_SEPARATOR: &str = "--------------------------------------------------------------------------------";
 
 /***** ERRORS *****/
 /// Defines errors originating from the [`EFlintHaskellReasonerConnector`].
@@ -41,50 +43,27 @@ use crate::trace::{Delta, Trace};
 pub enum Error {
     /// Failed to log the context of the reasoner.
     #[error("Failed to log the reasoner's context to {to}")]
-    LogContext {
-        to:  &'static str,
-        #[source]
-        err: error_trace::Trace,
-    },
+    LogContext { to: &'static str, source: error_trace::Trace },
     /// Failed to log the question to the given logger.
     #[error("Failed to log the question to {to}")]
-    LogQuestion {
-        to:  &'static str,
-        #[source]
-        err: error_trace::Trace,
-    },
+    LogQuestion { to: &'static str, source: error_trace::Trace },
     /// Failed to hash the input policy.
-    #[error("Failed to hash the input policy {:?}", path.display())]
+    #[error("Failed to hash the input policy {:}", path.display())]
     PolicyHash { path: PathBuf, source: crate::hash::Error },
 
     #[error("Empty REPL-command given")]
     EmptyReplCommand,
 
     #[error("Failed to spawn command {cmd:?}")]
-    CommandSpawn {
-        cmd: Command,
-        #[source]
-        err: std::io::Error,
-    },
+    CommandSpawn { cmd: Command, source: std::io::Error },
     #[error("Failed to write to subprocess stdin")]
-    CommandStdinWrite {
-        #[source]
-        err: std::io::Error,
-    },
+    CommandStdinWrite { source: std::io::Error },
     #[error("Failed to wait for command {cmd:?} to complete")]
-    CommandJoin {
-        cmd: Command,
-        #[source]
-        err: std::io::Error,
-    },
-    #[error("Command {:?} failed with exit code {}\n\nstdout:\n{}\n{}\n{}\n\nstderr:\n{}\n{}\n{}\n", cmd, status.code().unwrap_or(-1), "-".repeat(80), stdout, "-".repeat(80), "-".repeat(80), stderr, "-".repeat(80))]
+    CommandJoin { cmd: Command, source: std::io::Error },
+    #[error("Command {cmd:?} failed with exit code {code}\n\nstdout:\n{BLOCK_SEPARATOR}\n{stdout}\n{BLOCK_SEPARATOR}\n\nstderr:\n{BLOCK_SEPARATOR}\n{stderr}\n{BLOCK_SEPARATOR}\n", code = status.code().unwrap_or(-1))]
     CommandFailure { cmd: Command, status: ExitStatus, stdout: String, stderr: String },
-    #[error("Failed to parse reasoner output\n\nstdout:\n{}\n{}\n{}\n", "-".repeat(80), output, "-".repeat(80))]
-    IllegalReasonerResponse {
-        output: String,
-        #[source]
-        err:    crate::trace::Error,
-    },
+    #[error("Failed to parse reasoner output\n\nstdout:\n{BLOCK_SEPARATOR}\n{output}\n{BLOCK_SEPARATOR}\n")]
+    IllegalReasonerResponse { output: String, source: crate::trace::Error },
 }
 
 
@@ -207,7 +186,7 @@ impl<R, S, Q> EFlintHaskellReasonerConnector<R, S, Q> {
             cmd,
             base_policy,
         };
-        logger.log_context(&context).await.map_err(|err| Error::LogContext { to: std::any::type_name::<L>(), err: err.freeze() })?;
+        logger.log_context(&context).await.map_err(|err| Error::LogContext { to: std::any::type_name::<L>(), source: err.freeze() })?;
 
         // OK, return ourselves
         Ok(Self { context, handler, _state: PhantomData, _question: PhantomData })
@@ -258,7 +237,7 @@ where
         logger
             .log_question(&state, &question)
             .await
-            .map_err(|err| Error::LogQuestion { to: std::any::type_name::<SessionedAuditLogger<L>>(), err: err.freeze() })?;
+            .map_err(|err| Error::LogQuestion { to: std::any::type_name::<SessionedAuditLogger<L>>(), source: err.freeze() })?;
 
         // Prepare the full file to send
         let spec: String = format!("{}{}", state.eflint(), question.eflint());
@@ -277,7 +256,7 @@ where
         debug!("Calling reasoner with {cmd:?}...");
         let mut handle = match cmd.spawn() {
             Ok(handle) => handle,
-            Err(err) => return Err(Error::CommandSpawn { cmd, err }),
+            Err(source) => return Err(Error::CommandSpawn { cmd, source }),
         };
         handle
             .stdin
@@ -285,11 +264,11 @@ where
             .unwrap_or_else(|| panic!("No stdin on subprocess even though it's piped!"))
             .write_all(spec.as_bytes())
             .await
-            .map_err(|err| Error::CommandStdinWrite { err })?;
+            .map_err(|source| Error::CommandStdinWrite { source })?;
         debug!("Inputs submitted, waiting for reasoner to complete...");
         let output = match handle.wait_with_output().await {
             Ok(handle) => handle,
-            Err(err) => return Err(Error::CommandJoin { cmd, err }),
+            Err(source) => return Err(Error::CommandJoin { cmd, source }),
         };
         if !output.status.success() {
             return Err(Error::CommandFailure {
@@ -345,7 +324,7 @@ where
         debug!("Reasoner output:\n{}\n{}\n{}\n", "-".repeat(80), clean_output, "-".repeat(80));
         let trace: Trace = match Trace::from_str(clean_output.as_ref()) {
             Ok(trace) => trace,
-            Err(err) => return Err(Error::IllegalReasonerResponse { output: clean_output, err }),
+            Err(source) => return Err(Error::IllegalReasonerResponse { output: clean_output, source }),
         };
         debug!("Reasoner trace:\n{}\n{}\n{}\n", "-".repeat(80), trace, "-".repeat(80));
 

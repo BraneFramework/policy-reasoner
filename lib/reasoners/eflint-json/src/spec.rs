@@ -27,10 +27,9 @@ use thiserror::Error;
 #[error("Failed to serialize element {i} to eFLINT")]
 pub struct Error<E> {
     /// The index of the failed element.
-    i:   usize,
+    i:      usize,
     /// The nested error.
-    #[source]
-    err: E,
+    source: E,
 }
 
 
@@ -101,7 +100,7 @@ where
     fn to_eflint(&self) -> Result<Vec<Phrase>, Self::Error> {
         let mut res: Vec<Phrase> = Vec::with_capacity(self.len());
         for (i, e) in self.iter().enumerate() {
-            res.extend(e.to_eflint().map_err(|err| Error { i, err })?);
+            res.extend(e.to_eflint().map_err(|source| Error { i, source })?);
         }
         Ok(res)
     }

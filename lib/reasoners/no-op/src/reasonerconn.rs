@@ -29,25 +29,13 @@ use tracing::{debug, instrument};
 pub enum Error {
     /// Failed to log the reasoner's context to the given logger.
     #[error("Failed to log the reasoner's context to {to}")]
-    LogContext {
-        to:  &'static str,
-        #[source]
-        err: Trace,
-    },
+    LogContext { to: &'static str, source: Trace },
     /// Failed to log the reasoner's response to the given logger.
     #[error("Failed to log the reasoner's response to {to}")]
-    LogResponse {
-        to:  &'static str,
-        #[source]
-        err: Trace,
-    },
+    LogResponse { to: &'static str, source: Trace },
     /// Failed to log the question to the given logger.
     #[error("Failed to log the question to {to}")]
-    LogQuestion {
-        to:  &'static str,
-        #[source]
-        err: Trace,
-    },
+    LogQuestion { to: &'static str, source: Trace },
 }
 
 
@@ -107,7 +95,7 @@ impl<Q> NoOpReasonerConnector<Q> {
         logger
             .log_context(&NoOpReasonerContext::default())
             .await
-            .map_err(|err| Error::LogContext { to: std::any::type_name::<L>(), err: err.freeze() })?;
+            .map_err(|err| Error::LogContext { to: std::any::type_name::<L>(), source: err.freeze() })?;
         Ok(Self { _question: PhantomData })
     }
 }
@@ -140,13 +128,13 @@ where
         logger
             .log_question(&state, &question)
             .await
-            .map_err(|err| Error::LogQuestion { to: std::any::type_name::<SessionedAuditLogger<L>>(), err: err.freeze() })?;
+            .map_err(|err| Error::LogQuestion { to: std::any::type_name::<SessionedAuditLogger<L>>(), source: err.freeze() })?;
 
         // Log the reasoner has been called
         logger
             .log_response::<u8>(&ReasonerResponse::Success, None)
             .await
-            .map_err(|err| Error::LogResponse { to: std::any::type_name::<SessionedAuditLogger<L>>(), err: err.freeze() })?;
+            .map_err(|err| Error::LogResponse { to: std::any::type_name::<SessionedAuditLogger<L>>(), source: err.freeze() })?;
 
         Ok(ReasonerResponse::Success)
     }

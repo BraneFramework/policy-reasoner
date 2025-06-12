@@ -355,6 +355,7 @@ dependencies = [
  "log",
  "reqwest",
  "sha2",
+ "thiserror",
  "tokio",
  "tracing",
 ]
@@ -428,6 +429,7 @@ dependencies = [
  "serde",
  "serde_json",
  "specifications",
+ "thiserror",
  "tokio",
  "tracing",
 ]
@@ -439,6 +441,7 @@ dependencies = [
  "serde",
  "serde_json",
  "specifications",
+ "thiserror",
  "tokio",
  "tracing",
 ]

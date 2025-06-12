@@ -29,6 +29,8 @@ use tracing::{debug, instrument};
 use crate::reasons::ReasonHandler;
 use crate::spec::EFlintable;
 
+/***** Constants *****/
+const BLOCK_SEPARATOR: &str = "--------------------------------------------------------------------------------";
 
 /***** ERRORS *****/
 /// Defines the errors returned by the [`EFlintJsonReasonerConnector`].
@@ -36,82 +38,40 @@ use crate::spec::EFlintable;
 pub enum Error<R, S, Q> {
     /// Failed to log the context of the reasoner.
     #[error("Failed to log the reasoner's context to {to}")]
-    LogContext {
-        to:  &'static str,
-        #[source]
-        err: Trace,
-    },
+    LogContext { to: &'static str, source: Trace },
     /// Failed to log the reasoner's response to the given logger.
     #[error("Failed to log the reasoner's response to {to}")]
-    LogResponse {
-        to:  &'static str,
-        #[source]
-        err: Trace,
-    },
+    LogResponse { to: &'static str, source: Trace },
     /// Failed to log the question to the given logger.
     #[error("Failed to log the question to {to}")]
-    LogQuestion {
-        to:  &'static str,
-        #[source]
-        err: Trace,
-    },
+    LogQuestion { to: &'static str, source: Trace },
     /// Failed to receive a [`ResponsePhrases`] to the remote reasoner (as raw).
     #[error("Failed to fetch reply from remote reasoner at {addr:?}")]
-    ReasonerResponse {
-        addr: String,
-        #[source]
-        err:  reqwest::Error,
-    },
+    ReasonerResponse { addr: String, source: reqwest::Error },
     /// Failed to send a [`RequestPhrases`] to the remote reasoner.
     #[error("Failed to set PhrasesRequest to reasoner at {addr:?}")]
-    ReasonerRequest {
-        addr: String,
-        #[source]
-        err:  reqwest::Error,
-    },
+    ReasonerRequest { addr: String, source: reqwest::Error },
     /// Failed to extract the reasons for failure (i.e., violations) from a parsed [`ResponsePhrases`] object.
-    #[error("Failed to extract reasons (i.e., violations) from the response of reasoner at {:?}\n\nParsed response:\n{}\n{}\n{}\n\n",
-        addr,
-        (0..80).map(|_| '-').collect::<String>(),
-        raw,
-        (0..80).map(|_| '-').collect::<String>())]
-    ResponseExtractReasons {
-        addr: String,
-        raw:  String,
-        #[source]
-        err:  R,
-    },
+    #[error(
+        "Failed to extract reasons (i.e., violations) from the response of reasoner at {addr:?}\n\nParsed \
+         response:\n{BLOCK_SEPARATOR}\n{raw}\n{BLOCK_SEPARATOR}\n\n"
+    )]
+    ResponseExtractReasons { addr: String, raw: String, source: R },
     /// The query returned in the response was of an illegal ending type.
-    #[error("Reasoner at {:?} returned result of instance query as last state change; this is unsupported!\n\nParsed response:\n{}\n{}\n{}\n\n",
-                addr,
-                (0..80).map(|_| '-').collect::<String>(),
-                raw,
-                (0..80).map(|_| '-').collect::<String>())]
+    #[error(
+        "Reasoner at {addr:?} returned result of instance query as last state change; this is unsupported!\n\nParsed \
+         response:\n{BLOCK_SEPARATOR}\n{raw}\n{BLOCK_SEPARATOR}\n\n"
+    )]
     ResponseIllegalQuery { addr: String, raw: String },
     /// Failed to parse the response of the reasoner as a valid [`ResponsePhrases`] object.
-    #[error("Failed to parse response from reasoner at {:?}\n\nRaw response:\n{}\n{}\n{}\n\n",
-                addr,
-                (0..80).map(|_| '-').collect::<String>(),
-                raw,
-                (0..80).map(|_| '-').collect::<String>())]
-    ResponseParse {
-        addr: String,
-        raw:  String,
-        #[source]
-        err:  serde_json::Error,
-    },
+    #[error("Failed to parse response from reasoner at {addr:?}\n\nRaw response:\n{BLOCK_SEPARATOR}\n{raw}\n{BLOCK_SEPARATOR}\n\n")]
+    ResponseParse { addr: String, raw: String, source: serde_json::Error },
     /// Failed to serialize the state to eFLINT.
     #[error("Failed to serialize given state to eFLINT")]
-    StateToEFlint {
-        #[source]
-        err: S,
-    },
-    /// Failed ot serialize the question to eFLINT.
+    StateToEFlint { source: S },
+    /// Failed to serialize the question to eFLINT.
     #[error("Failed to serialize given question to eFLINT")]
-    QuestionToEFlint {
-        #[source]
-        err: Q,
-    },
+    QuestionToEFlint { source: Q },
 }
 
 
@@ -229,7 +189,7 @@ impl<R, S, Q> EFlintJsonReasonerConnector<R, S, Q> {
         logger
             .log_context(&EFlintJsonReasonerContextFull::new(&addr))
             .await
-            .map_err(|err| Error::LogContext { to: std::any::type_name::<L>(), err: err.freeze() })?;
+            .map_err(|err| Error::LogContext { to: std::any::type_name::<L>(), source: err.freeze() })?;
         Ok(Self { addr, reason_handler: handler, _state: PhantomData, _question: PhantomData })
     }
 }
@@ -264,13 +224,13 @@ where
         logger
             .log_question(&state, &question)
             .await
-            .map_err(|err| Error::LogQuestion { to: std::any::type_name::<SessionedAuditLogger<L>>(), err: err.freeze() })?;
+            .map_err(|source| Error::LogQuestion { to: std::any::type_name::<SessionedAuditLogger<L>>(), source: source.freeze() })?;
 
         // Build the full policy
         debug!("Building full policy...");
         let mut phrases: Vec<Phrase> = Vec::new();
-        phrases.extend(state.to_eflint().map_err(|err| Error::StateToEFlint { err })?);
-        phrases.extend(question.to_eflint().map_err(|err| Error::QuestionToEFlint { err })?);
+        phrases.extend(state.to_eflint().map_err(|source| Error::StateToEFlint { source })?);
+        phrases.extend(question.to_eflint().map_err(|source| Error::QuestionToEFlint { source })?);
         debug!("Full request length: {} phrase(s)", phrases.len());
 
         // Build the request
@@ -284,17 +244,15 @@ where
         // Send it on its way
         debug!("Sending eFLINT phrases request to '{}'", self.addr);
         let client = reqwest::Client::new();
-        let res = client.post(&self.addr).json(&request).send().await.map_err(|err| Error::ReasonerRequest { addr: self.addr.clone(), err })?;
+        let res = client.post(&self.addr).json(&request).send().await.map_err(|source| Error::ReasonerRequest { addr: self.addr.clone(), source })?;
 
         debug!("Awaiting response...");
-        let raw_body = res.text().await.map_err(|err| Error::ReasonerResponse { addr: self.addr.clone(), err })?;
+        let raw_body = res.text().await.map_err(|source| Error::ReasonerResponse { addr: self.addr.clone(), source })?;
 
         debug!("Parsing response...");
         // NOTE: No 'map_err' to avoid moving 'raw_body' out on the happy path
-        let response: ResponsePhrases = match serde_json::from_str(&raw_body) {
-            Ok(res) => res,
-            Err(err) => return Err(Error::ResponseParse { addr: self.addr.clone(), raw: raw_body, err }),
-        };
+        let response: ResponsePhrases =
+            serde_json::from_str(&raw_body).map_err(|source| Error::ResponseParse { addr: self.addr.clone(), raw: raw_body.clone(), source })?;
 
         debug!("Analysing response...");
         // TODO proper handle invalid query and unexpected result
@@ -306,11 +264,11 @@ where
                     if r.result {
                         Ok(ReasonerResponse::Success)
                     } else {
-                        Ok(ReasonerResponse::Violated(self.reason_handler.extract_reasons(&response).map_err(|err| {
+                        Ok(ReasonerResponse::Violated(self.reason_handler.extract_reasons(&response).map_err(|source| {
                             Error::ResponseExtractReasons {
                                 addr: self.addr.clone(),
                                 raw: serde_json::to_string_pretty(&response).unwrap_or_else(|_| "<serialization error>".into()),
-                                err,
+                                source,
                             }
                         })?))
                     }
@@ -323,11 +281,11 @@ where
                     if !r.violated {
                         Ok(ReasonerResponse::Success)
                     } else {
-                        Ok(ReasonerResponse::Violated(self.reason_handler.extract_reasons(&response).map_err(|err| {
+                        Ok(ReasonerResponse::Violated(self.reason_handler.extract_reasons(&response).map_err(|source| {
                             Error::ResponseExtractReasons {
                                 addr: self.addr.clone(),
                                 raw: serde_json::to_string_pretty(&response).unwrap_or_else(|_| "<serialization error>".into()),
-                                err,
+                                source,
                             }
                         })?))
                     }
@@ -340,7 +298,7 @@ where
         logger
             .log_response(&verdict, Some(&raw_body))
             .await
-            .map_err(|err| Error::LogResponse { to: std::any::type_name::<SessionedAuditLogger<L>>(), err: err.freeze() })?;
+            .map_err(|source| Error::LogResponse { to: std::any::type_name::<SessionedAuditLogger<L>>(), source: source.freeze() })?;
         debug!("Final reasoner verdict: {verdict:?}");
         Ok(verdict)
     }
