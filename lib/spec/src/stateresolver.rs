@@ -63,15 +63,13 @@ macro_rules! tuple_impl {
                 type Resolved = [<T $li>]::Resolved;
                 type Error = E;
 
-                fn resolve<'a, L>(&'a self, state: Self::State, logger: &'a SessionedAuditLogger<L>) -> impl 'a + Send + Future<Output = Result<Self::Resolved, Self::Error>>
+                async fn resolve<'a, L>(&'a self, state: Self::State, logger: &'a SessionedAuditLogger<L>) -> Result<Self::Resolved, Self::Error>
                 where
                     L: Sync + AuditLogger,
                 {
-                    async move {
-                        let resolved: [<T $fi>]::Resolved = self.$fi.resolve(state, logger).await?;
-                        $(let resolved: [<T $i>]::Resolved = self.$i.resolve(resolved, logger).await?;)*
-                        Ok(resolved)
-                    }
+                    let resolved: [<T $fi>]::Resolved = self.$fi.resolve(state, logger).await?;
+                    $(let resolved: [<T $i>]::Resolved = self.$i.resolve(resolved, logger).await?;)*
+                    Ok(resolved)
                 }
             }
         }
@@ -104,11 +102,7 @@ pub trait StateResolver {
     ///
     /// # Errors
     /// This function may error if it failed to do its resolution.
-    fn resolve<'a, L>(
-        &'a self,
-        state: Self::State,
-        logger: &'a SessionedAuditLogger<L>,
-    ) -> impl 'a + Send + Future<Output = Result<Self::Resolved, Self::Error>>
+    fn resolve<'a, L>(&'a self, state: Self::State, logger: &'a SessionedAuditLogger<L>) -> impl Future<Output = Result<Self::Resolved, Self::Error>>
     where
         L: Sync + AuditLogger;
 }

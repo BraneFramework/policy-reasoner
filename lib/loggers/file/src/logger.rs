@@ -15,7 +15,6 @@
 use std::borrow::Cow;
 use std::error;
 use std::fmt::{Debug, Display, Formatter, Result as FResult};
-use std::future::Future;
 use std::path::PathBuf;
 
 use enum_debug::EnumDebug as _;
@@ -201,84 +200,68 @@ impl AuditLogger for FileLogger {
     type Error = Error;
 
     #[inline]
-    fn log_context<'a, C>(&'a self, context: &'a C) -> impl 'a + Send + Future<Output = Result<(), Self::Error>>
+    async fn log_context<'a, C>(&'a self, context: &'a C) -> Result<(), Self::Error>
     where
         C: ?Sized + Sync + ReasonerContext,
     {
-        async move {
-            // Serialize the context first
-            let context: Value = match serde_json::to_value(context) {
-                Ok(ctx) => ctx,
-                Err(err) => return Err(Error::LogStatementSerialize { kind: "LogStatement::Context".into(), err }),
-            };
+        // Serialize the context first
+        let context: Value = match serde_json::to_value(context) {
+            Ok(ctx) => ctx,
+            Err(err) => return Err(Error::LogStatementSerialize { kind: "LogStatement::Context".into(), err }),
+        };
 
-            // Log it
-            self.log(LogStatement::Context { context }).await?;
-            #[cfg(debug_assertions)]
-            self.logged_context.store(true, std::sync::atomic::Ordering::Relaxed);
-            Ok(())
-        }
+        // Log it
+        self.log(LogStatement::Context { context }).await?;
+        #[cfg(debug_assertions)]
+        self.logged_context.store(true, std::sync::atomic::Ordering::Relaxed);
+        Ok(())
     }
 
     #[inline]
-    fn log_response<'a, R>(
-        &'a self,
-        reference: &'a str,
-        response: &'a ReasonerResponse<R>,
-        raw: Option<&'a str>,
-    ) -> impl 'a + Send + Future<Output = Result<(), Self::Error>>
+    async fn log_response<'a, R>(&'a self, reference: &'a str, response: &'a ReasonerResponse<R>, raw: Option<&'a str>) -> Result<(), Self::Error>
     where
         R: Sync + Display,
     {
-        async move {
-            #[cfg(debug_assertions)]
-            if !self.logged_context.load(std::sync::atomic::Ordering::Relaxed) {
-                tracing::warn!("Logging reasoner response without having logged the reasoner context; please call FileLogger::log_context() first.");
-            }
-
-            // Serialize the response first
-            let response: Value = match serde_json::to_value(&match response {
-                ReasonerResponse::Success => ReasonerResponse::Success,
-                ReasonerResponse::Violated(reasons) => ReasonerResponse::Violated(reasons.to_string()),
-            }) {
-                Ok(res) => res,
-                Err(err) => return Err(Error::LogStatementSerialize { kind: "LogStatement::ReasonerResponse".into(), err }),
-            };
-
-            // Log it
-            self.log(LogStatement::ReasonerResponse { reference: Cow::Borrowed(reference), response, raw: raw.map(Cow::Borrowed) }).await
+        #[cfg(debug_assertions)]
+        if !self.logged_context.load(std::sync::atomic::Ordering::Relaxed) {
+            tracing::warn!("Logging reasoner response without having logged the reasoner context; please call FileLogger::log_context() first.");
         }
+
+        // Serialize the response first
+        let response: Value = match serde_json::to_value(&match response {
+            ReasonerResponse::Success => ReasonerResponse::Success,
+            ReasonerResponse::Violated(reasons) => ReasonerResponse::Violated(reasons.to_string()),
+        }) {
+            Ok(res) => res,
+            Err(err) => return Err(Error::LogStatementSerialize { kind: "LogStatement::ReasonerResponse".into(), err }),
+        };
+
+        // Log it
+        self.log(LogStatement::ReasonerResponse { reference: Cow::Borrowed(reference), response, raw: raw.map(Cow::Borrowed) }).await
     }
 
     #[inline]
-    fn log_question<'a, S, Q>(
-        &'a self,
-        reference: &'a str,
-        state: &'a S,
-        question: &'a Q,
-    ) -> impl 'a + Send + Future<Output = Result<(), Self::Error>>
+    async fn log_question<'a, S, Q>(&'a self, reference: &'a str, state: &'a S, question: &'a Q) -> Result<(), Self::Error>
     where
         S: Sync + Serialize,
         Q: Sync + Serialize,
     {
-        async move {
-            #[cfg(debug_assertions)]
-            if !self.logged_context.load(std::sync::atomic::Ordering::Relaxed) {
-                tracing::warn!("Logging reasoner response without having logged the reasoner context; please call FileLogger::log_context() first.");
-            }
-
-            // Serialize the state & question first
-            let state: Value = match serde_json::to_value(state) {
-                Ok(res) => res,
-                Err(err) => return Err(Error::LogStatementSerialize { kind: "LogStatement::ReasonerConsult".into(), err }),
-            };
-            let question: Value = match serde_json::to_value(question) {
-                Ok(res) => res,
-                Err(err) => return Err(Error::LogStatementSerialize { kind: "LogStatement::ReasonerConsult".into(), err }),
-            };
-
-            // Log it
-            self.log(LogStatement::ReasonerConsult { reference: Cow::Borrowed(reference), state, question }).await
+        #[cfg(debug_assertions)]
+        if !self.logged_context.load(std::sync::atomic::Ordering::Relaxed) {
+            tracing::warn!("Logging reasoner response without having logged the reasoner context; please call FileLogger::log_context() first.");
         }
+
+        // Serialize the state & question first
+        let state: Value = match serde_json::to_value(state) {
+            Ok(res) => res,
+            Err(err) => return Err(Error::LogStatementSerialize { kind: "LogStatement::ReasonerConsult".into(), err }),
+        };
+        let question: Value = match serde_json::to_value(question) {
+            Ok(res) => res,
+            Err(err) => return Err(Error::LogStatementSerialize { kind: "LogStatement::ReasonerConsult".into(), err }),
+        };
+
+        // Log it
+        self.log(LogStatement::ReasonerConsult { reference: Cow::Borrowed(reference), state, question }).await
     }
 }

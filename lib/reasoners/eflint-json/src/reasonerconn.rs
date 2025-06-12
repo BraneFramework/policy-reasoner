@@ -15,7 +15,6 @@
 use std::borrow::Cow;
 use std::collections::HashMap;
 use std::fmt::Display;
-use std::future::Future;
 use std::marker::PhantomData;
 
 use eflint_json::spec::auxillary::Version;
@@ -25,7 +24,7 @@ use serde::{Deserialize, Serialize};
 use spec::auditlogger::{AuditLogger, SessionedAuditLogger};
 use spec::reasonerconn::{ReasonerConnector, ReasonerContext, ReasonerResponse};
 use thiserror::Error;
-use tracing::{Instrument as _, Level, debug, span};
+use tracing::{debug, instrument};
 
 use crate::reasons::ReasonHandler;
 use crate::spec::EFlintable;
@@ -252,99 +251,97 @@ where
 
     fn context(&self) -> Self::Context { EFlintJsonReasonerContext::default() }
 
-    fn consult<'a, L>(
+    #[instrument(name = "EFlintJsonReasonerConnector::consult", skip_all, fields(reference = logger.reference()))]
+    async fn consult<'a, L>(
         &'a self,
         state: Self::State,
         question: Self::Question,
         logger: &'a SessionedAuditLogger<L>,
-    ) -> impl 'a + Send + Future<Output = Result<ReasonerResponse<Self::Reason>, Self::Error>>
+    ) -> Result<ReasonerResponse<Self::Reason>, Self::Error>
     where
         L: Sync + AuditLogger,
     {
-        async move {
-            logger
-                .log_question(&state, &question)
-                .await
-                .map_err(|err| Error::LogQuestion { to: std::any::type_name::<SessionedAuditLogger<L>>(), err: err.freeze() })?;
+        logger
+            .log_question(&state, &question)
+            .await
+            .map_err(|err| Error::LogQuestion { to: std::any::type_name::<SessionedAuditLogger<L>>(), err: err.freeze() })?;
 
-            // Build the full policy
-            debug!("Building full policy...");
-            let mut phrases: Vec<Phrase> = Vec::new();
-            phrases.extend(state.to_eflint().map_err(|err| Error::StateToEFlint { err })?);
-            phrases.extend(question.to_eflint().map_err(|err| Error::QuestionToEFlint { err })?);
-            debug!("Full request length: {} phrase(s)", phrases.len());
+        // Build the full policy
+        debug!("Building full policy...");
+        let mut phrases: Vec<Phrase> = Vec::new();
+        phrases.extend(state.to_eflint().map_err(|err| Error::StateToEFlint { err })?);
+        phrases.extend(question.to_eflint().map_err(|err| Error::QuestionToEFlint { err })?);
+        debug!("Full request length: {} phrase(s)", phrases.len());
 
-            // Build the request
-            let request: Request = Request::Phrases(RequestPhrases {
-                common: RequestCommon { version: Version::v0_1_0(), extensions: HashMap::new() },
-                phrases,
-                updates: true,
-            });
-            debug!("Full request:\n\n{}\n\n", serde_json::to_string_pretty(&request).unwrap_or_else(|_| "<serialization failure>".into()));
+        // Build the request
+        let request: Request = Request::Phrases(RequestPhrases {
+            common: RequestCommon { version: Version::v0_1_0(), extensions: HashMap::new() },
+            phrases,
+            updates: true,
+        });
+        debug!("Full request:\n\n{}\n\n", serde_json::to_string_pretty(&request).unwrap_or_else(|_| "<serialization failure>".into()));
 
-            // Send it on its way
-            debug!("Sending eFLINT phrases request to '{}'", self.addr);
-            let client = reqwest::Client::new();
-            let res = client.post(&self.addr).json(&request).send().await.map_err(|err| Error::ReasonerRequest { addr: self.addr.clone(), err })?;
+        // Send it on its way
+        debug!("Sending eFLINT phrases request to '{}'", self.addr);
+        let client = reqwest::Client::new();
+        let res = client.post(&self.addr).json(&request).send().await.map_err(|err| Error::ReasonerRequest { addr: self.addr.clone(), err })?;
 
-            debug!("Awaiting response...");
-            let raw_body = res.text().await.map_err(|err| Error::ReasonerResponse { addr: self.addr.clone(), err })?;
+        debug!("Awaiting response...");
+        let raw_body = res.text().await.map_err(|err| Error::ReasonerResponse { addr: self.addr.clone(), err })?;
 
-            debug!("Parsing response...");
-            // NOTE: No 'map_err' to avoid moving 'raw_body' out on the happy path
-            let response: ResponsePhrases = match serde_json::from_str(&raw_body) {
-                Ok(res) => res,
-                Err(err) => return Err(Error::ResponseParse { addr: self.addr.clone(), raw: raw_body, err }),
-            };
+        debug!("Parsing response...");
+        // NOTE: No 'map_err' to avoid moving 'raw_body' out on the happy path
+        let response: ResponsePhrases = match serde_json::from_str(&raw_body) {
+            Ok(res) => res,
+            Err(err) => return Err(Error::ResponseParse { addr: self.addr.clone(), raw: raw_body, err }),
+        };
 
-            debug!("Analysing response...");
-            // TODO proper handle invalid query and unexpected result
-            let verdict: ReasonerResponse<R::Reason> = response
-                .results
-                .last()
-                .map(|r| match r {
-                    PhraseResult::BooleanQuery(r) => {
-                        if r.result {
-                            Ok(ReasonerResponse::Success)
-                        } else {
-                            Ok(ReasonerResponse::Violated(self.reason_handler.extract_reasons(&response).map_err(|err| {
-                                Error::ResponseExtractReasons {
-                                    addr: self.addr.clone(),
-                                    raw: serde_json::to_string_pretty(&response).unwrap_or_else(|_| "<serialization error>".into()),
-                                    err,
-                                }
-                            })?))
-                        }
-                    },
-                    PhraseResult::InstanceQuery(_) => Err(Error::ResponseIllegalQuery {
-                        addr: self.addr.clone(),
-                        raw:  serde_json::to_string_pretty(&response).unwrap_or_else(|_| "<serialization error>".into()),
-                    }),
-                    PhraseResult::StateChange(r) => {
-                        if !r.violated {
-                            Ok(ReasonerResponse::Success)
-                        } else {
-                            Ok(ReasonerResponse::Violated(self.reason_handler.extract_reasons(&response).map_err(|err| {
-                                Error::ResponseExtractReasons {
-                                    addr: self.addr.clone(),
-                                    raw: serde_json::to_string_pretty(&response).unwrap_or_else(|_| "<serialization error>".into()),
-                                    err,
-                                }
-                            })?))
-                        }
-                    },
-                })
-                .transpose()?
-                .unwrap_or(ReasonerResponse::Success);
+        debug!("Analysing response...");
+        // TODO proper handle invalid query and unexpected result
+        let verdict: ReasonerResponse<R::Reason> = response
+            .results
+            .last()
+            .map(|r| match r {
+                PhraseResult::BooleanQuery(r) => {
+                    if r.result {
+                        Ok(ReasonerResponse::Success)
+                    } else {
+                        Ok(ReasonerResponse::Violated(self.reason_handler.extract_reasons(&response).map_err(|err| {
+                            Error::ResponseExtractReasons {
+                                addr: self.addr.clone(),
+                                raw: serde_json::to_string_pretty(&response).unwrap_or_else(|_| "<serialization error>".into()),
+                                err,
+                            }
+                        })?))
+                    }
+                },
+                PhraseResult::InstanceQuery(_) => Err(Error::ResponseIllegalQuery {
+                    addr: self.addr.clone(),
+                    raw:  serde_json::to_string_pretty(&response).unwrap_or_else(|_| "<serialization error>".into()),
+                }),
+                PhraseResult::StateChange(r) => {
+                    if !r.violated {
+                        Ok(ReasonerResponse::Success)
+                    } else {
+                        Ok(ReasonerResponse::Violated(self.reason_handler.extract_reasons(&response).map_err(|err| {
+                            Error::ResponseExtractReasons {
+                                addr: self.addr.clone(),
+                                raw: serde_json::to_string_pretty(&response).unwrap_or_else(|_| "<serialization error>".into()),
+                                err,
+                            }
+                        })?))
+                    }
+                },
+            })
+            .transpose()?
+            .unwrap_or(ReasonerResponse::Success);
 
-            // OK, report and return
-            logger
-                .log_response(&verdict, Some(&raw_body))
-                .await
-                .map_err(|err| Error::LogResponse { to: std::any::type_name::<SessionedAuditLogger<L>>(), err: err.freeze() })?;
-            debug!("Final reasoner verdict: {verdict:?}");
-            Ok(verdict)
-        }
-        .instrument(span!(Level::INFO, "EFlintJsonReasonerConnector::consult", reference = logger.reference()))
+        // OK, report and return
+        logger
+            .log_response(&verdict, Some(&raw_body))
+            .await
+            .map_err(|err| Error::LogResponse { to: std::any::type_name::<SessionedAuditLogger<L>>(), err: err.freeze() })?;
+        debug!("Final reasoner verdict: {verdict:?}");
+        Ok(verdict)
     }
 }

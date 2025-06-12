@@ -13,7 +13,6 @@
 //
 
 use std::borrow::Cow;
-use std::future::Future;
 use std::marker::PhantomData;
 
 use error_trace::{ErrorTrace as _, Trace};
@@ -22,7 +21,7 @@ use spec::auditlogger::SessionedAuditLogger;
 use spec::reasonerconn::{ReasonerContext, ReasonerResponse};
 use spec::{AuditLogger, ReasonerConnector};
 use thiserror::Error;
-use tracing::{Instrument as _, Level, debug, span};
+use tracing::{debug, instrument};
 
 
 /***** ERRORS *****/
@@ -125,32 +124,30 @@ where
     #[inline]
     fn context(&self) -> Self::Context { NoOpReasonerContext::default() }
 
-    fn consult<'a, L>(
+    #[instrument(name = "NoOpReasonerContext", skip_all, fields(reference=logger.reference()))]
+    async fn consult<'a, L>(
         &'a self,
         state: Self::State,
         question: Self::Question,
         logger: &'a SessionedAuditLogger<L>,
-    ) -> impl 'a + Send + Future<Output = Result<ReasonerResponse<Self::Reason>, Self::Error>>
+    ) -> Result<ReasonerResponse<Self::Reason>, Self::Error>
     where
         L: Sync + AuditLogger,
     {
-        async move {
-            debug!("NoOpReasonerConnector: request received");
+        debug!("NoOpReasonerConnector: request received");
 
-            // Log that the question has been asked
-            logger
-                .log_question(&state, &question)
-                .await
-                .map_err(|err| Error::LogQuestion { to: std::any::type_name::<SessionedAuditLogger<L>>(), err: err.freeze() })?;
+        // Log that the question has been asked
+        logger
+            .log_question(&state, &question)
+            .await
+            .map_err(|err| Error::LogQuestion { to: std::any::type_name::<SessionedAuditLogger<L>>(), err: err.freeze() })?;
 
-            // Log the reasoner has been called
-            logger
-                .log_response::<u8>(&ReasonerResponse::Success, None)
-                .await
-                .map_err(|err| Error::LogResponse { to: std::any::type_name::<SessionedAuditLogger<L>>(), err: err.freeze() })?;
+        // Log the reasoner has been called
+        logger
+            .log_response::<u8>(&ReasonerResponse::Success, None)
+            .await
+            .map_err(|err| Error::LogResponse { to: std::any::type_name::<SessionedAuditLogger<L>>(), err: err.freeze() })?;
 
-            Ok(ReasonerResponse::Success)
-        }
-        .instrument(span!(Level::INFO, "NoOpReasonerConnector::consult", reference = logger.reference()))
+        Ok(ReasonerResponse::Success)
     }
 }
