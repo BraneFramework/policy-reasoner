@@ -70,9 +70,7 @@ impl<R: Display> Display for ReasonerResponse<R> {
         match self {
             Self::Success => write!(f, "SUCCESS"),
             Self::Violated(r) => {
-                write!(f, "VIOLATION(")?;
-                r.fmt(f)?;
-                write!(f, ")")
+                write!(f, "VIOLATION({r})")
             },
         }
     }
