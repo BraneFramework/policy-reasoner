@@ -34,7 +34,7 @@ use tokio::fs::{self as tfs, File as TFile};
 #[cfg(feature = "async-tokio")]
 use tokio::io::{AsyncBufReadExt as _, AsyncReadExt, AsyncWriteExt as _, BufReader as TBufReader};
 #[cfg(feature = "async-tokio")]
-use tokio::process::{Child as TChild, ChildStdin as TChildStdin, ChildStdout as TChildStdout, Command as TCommand};
+use tokio::process::{ChildStdin as TChildStdin, ChildStdout as TChildStdout, Command as TCommand};
 
 #[cfg(feature = "async-tokio")]
 use crate::download::download_file_async;
@@ -120,84 +120,55 @@ impl error::Error for ChildStream {}
 
 
 /// Defines toplevel errors.
-#[derive(Debug)]
+#[derive(Debug, thiserror::Error)]
 pub enum Error {
     /// The child failed
+    #[error("Child process {cmd:?} failed with exit status {status}")]
     ChildFailed { cmd: String, status: ExitStatus, output: ChildStreams },
     /// Failed to read from child stdout.
-    ChildRead { err: std::io::Error },
+    #[error("Failed to read from child stdin")]
+    ChildRead { source: std::io::Error },
     /// Failed to wait for the child to be ready.
-    ChildWait { err: std::io::Error },
+    #[error("Failed to wait for child")]
+    ChildWait { source: std::io::Error },
     /// Failed to write to child stdin.
-    ChildWrite { err: std::io::Error },
+    #[error("Failed to write to child stdin")]
+    ChildWrite { source: std::io::Error },
     /// Failed to download the compiler.
     ///
     /// NOTE: `err` is boxed to not make this variant much larger in memory than the rest.
-    CompilerDownload { from: String, to: PathBuf, err: Box<crate::download::Error> },
+    #[error("Failed to download 'eflint-to-json' compiler from '{}' to '{}'", from, to.display())]
+    CompilerDownload { from: String, to: PathBuf, source: Box<crate::download::Error> },
     /// Failed to create the output file.
-    FileCreate { path: PathBuf, err: std::io::Error },
+    #[error("Failed to create output file '{}'", path.display())]
+    FileCreate { path: PathBuf, source: std::io::Error },
     /// Failed to get metadata of file.
-    FileMetadata { path: PathBuf, err: std::io::Error },
+    #[error("Failed to get metadata of file '{}'", path.display())]
+    FileMetadata { path: PathBuf, source: std::io::Error },
     /// Failed to open the input file.
-    FileOpen { path: PathBuf, err: std::io::Error },
+    #[error("Failed to open input file '{}'", path.display())]
+    FileOpen { path: PathBuf, source: std::io::Error },
     /// Failed to set permissions of file.
-    FilePermissions { path: PathBuf, err: std::io::Error },
+    #[error("Failed to set permissions of file '{}'", path.display())]
+    FilePermissions { path: PathBuf, source: std::io::Error },
     /// Failed to read the input file.
-    FileRead { path: PathBuf, err: std::io::Error },
+    #[error("Failed to read from input file '{}'", path.display())]
+    FileRead { path: PathBuf, source: std::io::Error },
     /// Failed to open included file.
-    IncludeOpen { parent: PathBuf, path: PathBuf, err: std::io::Error },
+    #[error("Failed to open included file '{}' (in file '{}')", path.display(), parent.display())]
+    IncludeOpen { parent: PathBuf, path: PathBuf, source: std::io::Error },
     /// Missing a quote in the `#include`-string.
+    #[error("Missing quotes (\") in '{raw}' (in file '{}')", parent.display())]
     MissingQuote { parent: PathBuf, raw: String },
     /// Failed to canonicalize the given path.
-    PathCanonicalize { parent: PathBuf, path: PathBuf, err: std::io::Error },
+    #[error("Failed to canonicalize path '{}' (in file '{}')", path.display(), parent.display())]
+    PathCanonicalize { parent: PathBuf, path: PathBuf, source: std::io::Error },
     /// Failed to spawn the eflint-to-json compiler process.
-    Spawn { cmd: String, err: std::io::Error },
+    #[error("Failed to spawn command {cmd:?}")]
+    Spawn { cmd: String, source: std::io::Error },
     /// Failed to write to the output writer.
-    WriterWrite { err: std::io::Error },
-}
-impl Display for Error {
-    fn fmt(&self, f: &mut Formatter<'_>) -> FResult {
-        use Error::*;
-        match self {
-            ChildFailed { cmd, status, .. } => write!(f, "Child process {cmd:?} failed with exit status {status}"),
-            ChildRead { .. } => write!(f, "Failed to read from child stdin"),
-            ChildWait { .. } => write!(f, "Failed to wait for child"),
-            ChildWrite { .. } => write!(f, "Failed to write to child stdin"),
-            CompilerDownload { from, to, .. } => write!(f, "Failed to download 'eflint-to-json' compiler from '{}' to '{}'", from, to.display()),
-            FileCreate { path, .. } => write!(f, "Failed to create output file '{}'", path.display()),
-            FileMetadata { path, .. } => write!(f, "Failed to get metadata of file '{}'", path.display()),
-            FileOpen { path, .. } => write!(f, "Failed to open input file '{}'", path.display()),
-            FilePermissions { path, .. } => write!(f, "Failed to set permissions of file '{}'", path.display()),
-            FileRead { path, .. } => write!(f, "Failed to read from input file '{}'", path.display()),
-            IncludeOpen { parent, path, .. } => write!(f, "Failed to open included file '{}' (in file '{}')", path.display(), parent.display()),
-            MissingQuote { parent, raw } => write!(f, "Missing quotes (\") in '{}' (in file '{}')", raw, parent.display()),
-            PathCanonicalize { parent, path, .. } => write!(f, "Failed to canonicalize path '{}' (in file '{}')", path.display(), parent.display()),
-            Spawn { cmd, .. } => write!(f, "Failed to spawn command {cmd:?}"),
-            WriterWrite { .. } => write!(f, "Failed to write to output writer"),
-        }
-    }
-}
-impl error::Error for Error {
-    fn source(&self) -> Option<&(dyn error::Error + 'static)> {
-        use Error::*;
-        match self {
-            ChildFailed { output, .. } => Some(output),
-            ChildRead { err, .. } => Some(err),
-            ChildWait { err, .. } => Some(err),
-            ChildWrite { err, .. } => Some(err),
-            CompilerDownload { err, .. } => Some(err),
-            FileCreate { err, .. } => Some(err),
-            FileMetadata { err, .. } => Some(err),
-            FileOpen { err, .. } => Some(err),
-            FilePermissions { err, .. } => Some(err),
-            FileRead { err, .. } => Some(err),
-            IncludeOpen { err, .. } => Some(err),
-            MissingQuote { .. } => None,
-            PathCanonicalize { err, .. } => Some(err),
-            Spawn { err, .. } => Some(err),
-            WriterWrite { err, .. } => Some(err),
-        }
-    }
+    #[error("Failed to write to output writer")]
+    WriterWrite { source: std::io::Error },
 }
 
 
@@ -227,14 +198,8 @@ fn potentially_include(imported: &mut HashSet<PathBuf>, path: &Path, line: &str)
     }
 
     // Extract the text
-    let squote: usize = match line.find('"') {
-        Some(pos) => pos,
-        None => return Err(Error::MissingQuote { parent: path.into(), raw: line.into() }),
-    };
-    let equote: usize = match line.rfind('"') {
-        Some(pos) => pos,
-        None => return Err(Error::MissingQuote { parent: path.into(), raw: line.into() }),
-    };
+    let squote: usize = line.find('"').ok_or_else(|| Error::MissingQuote { parent: path.into(), raw: line.into() })?;
+    let equote: usize = line.rfind('"').ok_or_else(|| Error::MissingQuote { parent: path.into(), raw: line.into() })?;
     let incl_path: PathBuf = PathBuf::from(&line[squote + 1..equote]);
 
     // Build the path
@@ -242,10 +207,8 @@ fn potentially_include(imported: &mut HashSet<PathBuf>, path: &Path, line: &str)
     // NOTE: Allowing the `is_none()`, `unwrap()` because else we ruin the logic
     #[allow(clippy::unnecessary_unwrap)]
     let incl_path: PathBuf = if incl_path.is_absolute() || parent.is_none() { incl_path } else { parent.unwrap().join(incl_path) };
-    let incl_path: PathBuf = match incl_path.canonicalize() {
-        Ok(path) => path,
-        Err(err) => return Err(Error::PathCanonicalize { parent: path.into(), path: incl_path, err }),
-    };
+    let incl_path: PathBuf =
+        incl_path.canonicalize().map_err(|source| Error::PathCanonicalize { parent: path.into(), path: incl_path.clone(), source })?;
 
     // Check if we've seen this before if it's require
     if line.starts_with("#require") && imported.contains(&incl_path) {
@@ -254,10 +217,7 @@ fn potentially_include(imported: &mut HashSet<PathBuf>, path: &Path, line: &str)
     imported.insert(incl_path.clone());
 
     // Build the path and attempt to open it
-    let handle: File = match File::open(&incl_path) {
-        Ok(handle) => handle,
-        Err(err) => return Err(Error::IncludeOpen { parent: path.into(), path: incl_path, err }),
-    };
+    let handle = File::open(&incl_path).map_err(|source| Error::IncludeOpen { parent: path.into(), path: incl_path.clone(), source })?;
 
     // OK
     Ok(Some(Some((incl_path, handle))))
@@ -286,14 +246,8 @@ async fn potentially_include_async(imported: &mut HashSet<PathBuf>, path: &Path,
     }
 
     // Extract the text
-    let squote: usize = match line.find('"') {
-        Some(pos) => pos,
-        None => return Err(Error::MissingQuote { parent: path.into(), raw: line.into() }),
-    };
-    let equote: usize = match line.rfind('"') {
-        Some(pos) => pos,
-        None => return Err(Error::MissingQuote { parent: path.into(), raw: line.into() }),
-    };
+    let squote: usize = line.find('"').ok_or_else(|| Error::MissingQuote { parent: path.into(), raw: line.into() })?;
+    let equote: usize = line.rfind('"').ok_or_else(|| Error::MissingQuote { parent: path.into(), raw: line.into() })?;
     let incl_path: PathBuf = PathBuf::from(&line[squote + 1..equote]);
 
     // Build the path
@@ -301,10 +255,8 @@ async fn potentially_include_async(imported: &mut HashSet<PathBuf>, path: &Path,
     // NOTE: Allowing the `is_none()`, `unwrap()` because else we ruin the logic
     #[allow(clippy::unnecessary_unwrap)]
     let incl_path: PathBuf = if incl_path.is_absolute() || parent.is_none() { incl_path } else { parent.unwrap().join(incl_path) };
-    let incl_path: PathBuf = match tfs::canonicalize(&incl_path).await {
-        Ok(path) => path,
-        Err(err) => return Err(Error::PathCanonicalize { parent: path.into(), path: incl_path, err }),
-    };
+    let incl_path: PathBuf =
+        tfs::canonicalize(&incl_path).await.map_err(|source| Error::PathCanonicalize { parent: path.into(), path: incl_path, source })?;
 
     // Check if we've seen this before if it's require
     if line.starts_with("#require") && imported.contains(&incl_path) {
@@ -313,10 +265,7 @@ async fn potentially_include_async(imported: &mut HashSet<PathBuf>, path: &Path,
     imported.insert(incl_path.clone());
 
     // Build the path and attempt to open it
-    let handle: TFile = match TFile::open(&incl_path).await {
-        Ok(handle) => handle,
-        Err(err) => return Err(Error::IncludeOpen { parent: path.into(), path: incl_path, err }),
-    };
+    let handle = TFile::open(&incl_path).await.map_err(|source| Error::IncludeOpen { parent: path.into(), path: incl_path.clone(), source })?;
 
     // OK
     Ok(Some(Some((incl_path, handle))))
@@ -338,10 +287,7 @@ fn load_input(imported: &mut HashSet<PathBuf>, path: &Path, handle: BufReader<Fi
     // Read the lines for the file
     for line in handle.lines() {
         // Unwrap the line
-        let line: String = match line {
-            Ok(line) => line,
-            Err(err) => return Err(Error::FileRead { path: path.into(), err }),
-        };
+        let line: String = line.map_err(|source| Error::FileRead { path: path.into(), source })?;
 
         // See if a file is included
         match potentially_include(imported, path, &line)? {
@@ -351,12 +297,8 @@ fn load_input(imported: &mut HashSet<PathBuf>, path: &Path, handle: BufReader<Fi
             // We don't want to write the line since we already imported it
             Some(None) => {},
             None => {
-                if let Err(err) = child.write_all(line.as_bytes()) {
-                    return Err(Error::ChildWrite { err });
-                }
-                if let Err(err) = child.write_all(b"\n") {
-                    return Err(Error::ChildWrite { err });
-                }
+                child.write_all(line.as_bytes()).map_err(|source| Error::ChildWrite { source })?;
+                child.write_all(b"\n").map_err(|source| Error::ChildWrite { source })?;
             },
         }
     }
@@ -384,10 +326,7 @@ async fn load_input_async(imported: &mut HashSet<PathBuf>, path: &Path, handle: 
     let mut lines = handle.lines();
     while let Some(line) = lines.next_line().await.transpose() {
         // Unwrap the line
-        let line: String = match line {
-            Ok(line) => line,
-            Err(err) => return Err(Error::FileRead { path: path.into(), err }),
-        };
+        let line: String = line.map_err(|source| Error::FileRead { path: path.into(), source })?;
 
         // See if a file is included
         match potentially_include_async(imported, path, &line).await? {
@@ -397,12 +336,8 @@ async fn load_input_async(imported: &mut HashSet<PathBuf>, path: &Path, handle: 
             // We don't want to write the line since we already imported it
             Some(None) => {},
             None => {
-                if let Err(err) = child.write_all(line.as_bytes()).await {
-                    return Err(Error::ChildWrite { err });
-                }
-                if let Err(err) = child.write_all(b"\n").await {
-                    return Err(Error::ChildWrite { err });
-                }
+                child.write_all(line.as_bytes()).await.map_err(|source| Error::ChildWrite { source })?;
+                child.write_all(b"\n").await.map_err(|source| Error::ChildWrite { source })?;
             },
         }
     }
@@ -440,28 +375,28 @@ pub fn compile(input_path: &Path, mut output: impl Write, compiler_path: Option<
             // Download it if it does not exist (or at least, give it a try)
             if !compiler_path.exists() {
                 // Download the file...
-                if let Err(err) = download_file(
+                download_file(
                     COMPILER_URL,
                     &compiler_path,
                     DownloadSecurity { checksum: Some(&COMPILER_CHECKSUM), https: true },
                     Some(Style::new().bold().green()),
-                ) {
-                    return Err(Error::CompilerDownload { from: COMPILER_URL.into(), to: compiler_path, err: Box::new(err) });
-                }
+                )
+                .map_err(|source| Error::CompilerDownload {
+                    from:   COMPILER_URL.into(),
+                    to:     compiler_path.clone(),
+                    source: Box::new(source),
+                })?;
 
                 #[cfg(unix)]
                 {
                     use std::os::unix::fs::PermissionsExt as _;
 
                     // ...and make it executable
-                    let mut perms: Permissions = match fs::metadata(&compiler_path) {
-                        Ok(mdata) => mdata.permissions(),
-                        Err(err) => return Err(Error::FileMetadata { path: compiler_path, err }),
-                    };
+                    let mut perms: Permissions =
+                        fs::metadata(&compiler_path).map_err(|source| Error::FileMetadata { path: compiler_path.clone(), source })?.permissions();
+
                     perms.set_mode(perms.mode() | 0o500);
-                    if let Err(err) = fs::set_permissions(&compiler_path, perms) {
-                        return Err(Error::FilePermissions { path: compiler_path, err });
-                    }
+                    fs::set_permissions(&compiler_path, perms).map_err(|source| Error::FilePermissions { path: compiler_path.clone(), source })?;
                 }
             }
 
@@ -473,10 +408,7 @@ pub fn compile(input_path: &Path, mut output: impl Write, compiler_path: Option<
 
     // Open the input file
     debug!("Opening input file '{}'", input_path.display());
-    let input: File = match File::open(input_path) {
-        Ok(input) => input,
-        Err(err) => return Err(Error::FileOpen { path: input_path.into(), err }),
-    };
+    let input = File::open(input_path).map_err(|source| Error::FileOpen { path: input_path.into(), source })?;
 
     // Alrighty well open a handle to the compiler
     debug!("Spawning compiler '{}'", compiler_path.display());
@@ -484,10 +416,7 @@ pub fn compile(input_path: &Path, mut output: impl Write, compiler_path: Option<
     cmd.stdin(Stdio::piped());
     cmd.stdout(Stdio::piped());
     cmd.stderr(Stdio::piped());
-    let mut handle: Child = match cmd.spawn() {
-        Ok(handle) => handle,
-        Err(err) => return Err(Error::Spawn { cmd: format!("{cmd:?}"), err }),
-    };
+    let mut handle: Child = cmd.spawn().map_err(|source| Error::Spawn { cmd: format!("{cmd:?}"), source })?;
 
     // Feed the input to the compiler, analyzing for `#input(...)` and `#require(...)`
     debug!("Reading input to child process...");
@@ -498,10 +427,8 @@ pub fn compile(input_path: &Path, mut output: impl Write, compiler_path: Option<
 
     // Wait until the process is finished
     debug!("Waiting for child process to complete...");
-    let status: ExitStatus = match handle.wait() {
-        Ok(status) => status,
-        Err(err) => return Err(Error::ChildWait { err }),
-    };
+    let status: ExitStatus = handle.wait().map_err(|source| Error::ChildWait { source })?;
+
     if !status.success() {
         return Err(Error::ChildFailed {
             cmd: format!("{cmd:?}"),
@@ -519,18 +446,14 @@ pub fn compile(input_path: &Path, mut output: impl Write, compiler_path: Option<
     let mut stdout: ChildStdout = handle.stdout.take().unwrap();
     loop {
         // Read the next chunk
-        let chunk_len: usize = match stdout.read(&mut chunk) {
-            Ok(len) => len,
-            Err(err) => return Err(Error::ChildRead { err }),
-        };
+        let chunk_len: usize = stdout.read(&mut chunk).map_err(|source| Error::ChildRead { source })?;
+
         if chunk_len == 0 {
             break;
         }
 
         // Write to the file
-        if let Err(err) = output.write_all(&chunk[..chunk_len]) {
-            return Err(Error::WriterWrite { err });
-        }
+        output.write_all(&chunk[..chunk_len]).map_err(|source| Error::WriterWrite { source })?;
     }
 
     // Done
@@ -562,16 +485,18 @@ pub async fn compile_async(input_path: &Path, mut output: impl Write, compiler_p
             // Download it if it does not exist (or at least, give it a try)
             if !compiler_path.exists() {
                 // Download the file...
-                if let Err(err) = download_file_async(
+                download_file_async(
                     COMPILER_URL,
                     &compiler_path,
                     DownloadSecurity { checksum: Some(&COMPILER_CHECKSUM), https: true },
                     Some(Style::new().bold().green()),
                 )
                 .await
-                {
-                    return Err(Error::CompilerDownload { from: COMPILER_URL.into(), to: compiler_path, err: Box::new(err) });
-                }
+                .map_err(|source| Error::CompilerDownload {
+                    from:   COMPILER_URL.into(),
+                    to:     compiler_path.clone(),
+                    source: Box::new(source),
+                })?;
 
                 #[cfg(unix)]
                 {
@@ -579,14 +504,15 @@ pub async fn compile_async(input_path: &Path, mut output: impl Write, compiler_p
 
                     // ...and make it executable
                     debug!("Making compiler '{}' executable...", compiler_path.display());
-                    let mut perms: Permissions = match tfs::metadata(&compiler_path).await {
-                        Ok(mdata) => mdata.permissions(),
-                        Err(err) => return Err(Error::FileMetadata { path: compiler_path, err }),
-                    };
+                    let mut perms: Permissions = tfs::metadata(&compiler_path)
+                        .await
+                        .map_err(|source| Error::FileMetadata { path: compiler_path.clone(), source })?
+                        .permissions();
                     perms.set_mode(perms.mode() | 0o500);
-                    if let Err(err) = tfs::set_permissions(&compiler_path, perms).await {
-                        return Err(Error::FilePermissions { path: compiler_path, err });
-                    }
+
+                    tfs::set_permissions(&compiler_path, perms)
+                        .await
+                        .map_err(|source| Error::FilePermissions { path: compiler_path.clone(), source })?;
                 }
             }
 
@@ -598,10 +524,7 @@ pub async fn compile_async(input_path: &Path, mut output: impl Write, compiler_p
 
     // Open the input file
     debug!("Opening input file '{}'", input_path.display());
-    let input: TFile = match TFile::open(input_path).await {
-        Ok(input) => input,
-        Err(err) => return Err(Error::FileOpen { path: input_path.into(), err }),
-    };
+    let input = TFile::open(input_path).await.map_err(|source| Error::FileOpen { path: input_path.into(), source })?;
 
     // Alrighty well open a handle to the compiler
     debug!("Spawning compiler '{}'", compiler_path.display());
@@ -609,10 +532,7 @@ pub async fn compile_async(input_path: &Path, mut output: impl Write, compiler_p
     cmd.stdin(Stdio::piped());
     cmd.stdout(Stdio::piped());
     cmd.stderr(Stdio::piped());
-    let mut handle: TChild = match cmd.spawn() {
-        Ok(handle) => handle,
-        Err(err) => return Err(Error::Spawn { cmd: format!("{cmd:?}"), err }),
-    };
+    let mut handle = cmd.spawn().map_err(|source| Error::Spawn { cmd: format!("{cmd:?}"), source })?;
 
     // Feed the input to the compiler, analyzing for `#input(...)` and `#require(...)`
     debug!("Reading input to child process...");
@@ -623,10 +543,8 @@ pub async fn compile_async(input_path: &Path, mut output: impl Write, compiler_p
 
     // Wait until the process is finished
     debug!("Waiting for child process to complete...");
-    let status: ExitStatus = match handle.wait().await {
-        Ok(status) => status,
-        Err(err) => return Err(Error::ChildWait { err }),
-    };
+    let status = handle.wait().await.map_err(|source| Error::ChildWait { source })?;
+
     if !status.success() {
         return Err(Error::ChildFailed {
             cmd: format!("{cmd:?}"),
@@ -640,22 +558,18 @@ pub async fn compile_async(input_path: &Path, mut output: impl Write, compiler_p
 
     // Alrighty, now it's time to stream the output of the child to the output file
     debug!("Writing child process output to given output...");
-    let mut chunk: [u8; 65535] = [0; 65535];
+    let mut chunk = [0; 65535];
     let mut stdout: TChildStdout = handle.stdout.take().unwrap();
     loop {
         // Read the next chunk
-        let chunk_len: usize = match stdout.read(&mut chunk).await {
-            Ok(len) => len,
-            Err(err) => return Err(Error::ChildRead { err }),
-        };
+        let chunk_len: usize = stdout.read(&mut chunk).await.map_err(|source| Error::ChildRead { source })?;
+
         if chunk_len == 0 {
             break;
         }
 
         // Write to the file
-        if let Err(err) = output.write_all(&chunk[..chunk_len]) {
-            return Err(Error::WriterWrite { err });
-        }
+        output.write_all(&chunk[..chunk_len]).map_err(|source| Error::WriterWrite { source })?;
     }
 
     // Done

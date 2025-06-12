@@ -40,32 +40,16 @@ use crate::workflow::WorkflowDatasets;
 pub enum Error {
     /// Failed to retrieve a file's metadata.
     #[error("Failed to get file {:?} metadata", path.display())]
-    FileMetadata {
-        path: PathBuf,
-        #[source]
-        err:  std::io::Error,
-    },
+    FileMetadata { path: PathBuf, source: std::io::Error },
     /// Failed to log the context of the reasoner.
     #[error("Failed to log the reasoner's context to {to}")]
-    LogContext {
-        to:  &'static str,
-        #[source]
-        err: Trace,
-    },
+    LogContext { to: &'static str, source: Trace },
     /// Failed to log the reasoner's response to the given logger.
     #[error("Failed to log the reasoner's response to {to}")]
-    LogResponse {
-        to:  &'static str,
-        #[source]
-        err: Trace,
-    },
+    LogResponse { to: &'static str, source: Trace },
     /// Failed to log the question to the given logger.
     #[error("Failed to log the question to {to}")]
-    LogQuestion {
-        to:  &'static str,
-        #[source]
-        err: Trace,
-    },
+    LogQuestion { to: &'static str, source: Trace },
     /// The dataset was unknown to us.
     #[error("Unknown dataset {data:?}")]
     UnknownDataset { data: String },
@@ -94,7 +78,7 @@ async fn satisfies_posix_permissions(
     }
 
     let path: &Path = path.as_ref();
-    let metadata = fs::metadata(path).await.map_err(|err| Error::FileMetadata { path: path.into(), err })?;
+    let metadata = fs::metadata(path).await.map_err(|source| Error::FileMetadata { path: path.into(), source })?;
 
     // First, get the appropriate UIDs from the file
     let mode_bits = metadata.permissions().mode();
@@ -262,7 +246,7 @@ impl PosixReasonerConnector {
         logger
             .log_context(&PosixReasonerContext::default())
             .await
-            .map_err(|err| Error::LogContext { to: std::any::type_name::<L>(), err: err.freeze() })?;
+            .map_err(|err| Error::LogContext { to: std::any::type_name::<L>(), source: err.freeze() })?;
         Ok(Self)
     }
 }
@@ -290,7 +274,7 @@ impl ReasonerConnector for PosixReasonerConnector {
         logger
             .log_question(&state, &())
             .await
-            .map_err(|err| Error::LogQuestion { to: std::any::type_name::<SessionedAuditLogger<L>>(), err: err.freeze() })?;
+            .map_err(|err| Error::LogQuestion { to: std::any::type_name::<SessionedAuditLogger<L>>(), source: err.freeze() })?;
 
         // The datasets used in the workflow. E.g., `st_antonius_ect`.
         let datasets: WorkflowDatasets = WorkflowDatasets::new(&state.config.id, &state.workflow);
@@ -315,7 +299,7 @@ impl ReasonerConnector for PosixReasonerConnector {
                 logger
                     .log_response(&ReasonerResponse::Violated(NoReason), Some("false"))
                     .await
-                    .map_err(|err| Error::LogResponse { to: std::any::type_name::<SessionedAuditLogger<L>>(), err: err.freeze() })?;
+                    .map_err(|err| Error::LogResponse { to: std::any::type_name::<SessionedAuditLogger<L>>(), source: err.freeze() })?;
                 return Ok(ReasonerResponse::Violated(NoReason));
             }
         }
@@ -324,7 +308,7 @@ impl ReasonerConnector for PosixReasonerConnector {
         logger
             .log_response(&ReasonerResponse::<NoReason>::Success, Some("true"))
             .await
-            .map_err(|err| Error::LogResponse { to: std::any::type_name::<SessionedAuditLogger<L>>(), err: err.freeze() })?;
+            .map_err(|err| Error::LogResponse { to: std::any::type_name::<SessionedAuditLogger<L>>(), source: err.freeze() })?;
         Ok(ReasonerResponse::Success)
     }
 }
