@@ -222,7 +222,7 @@ fn potentially_include(imported: &mut HashSet<PathBuf>, path: &Path, line: &str)
     let line: &str = line.trim();
 
     // Check it's a line
-    if line.len() < 8 || (&line[..8] != "#include" && &line[..8] != "#require") || line.chars().last().map(|c| c != '.').unwrap_or(true) {
+    if !line.starts_with("#include") && !line.starts_with("#require") || line.chars().last().map(|c| c != '.').unwrap_or(true) {
         return Ok(None);
     }
 
@@ -248,7 +248,7 @@ fn potentially_include(imported: &mut HashSet<PathBuf>, path: &Path, line: &str)
     };
 
     // Check if we've seen this before if it's require
-    if &line[..8] == "#require" && imported.contains(&incl_path) {
+    if line.starts_with("#require") && imported.contains(&incl_path) {
         return Ok(Some(None));
     }
     imported.insert(incl_path.clone());
@@ -281,7 +281,7 @@ async fn potentially_include_async(imported: &mut HashSet<PathBuf>, path: &Path,
     let line: &str = line.trim();
 
     // Check it's a line
-    if line.len() < 8 || (&line[..8] != "#include" && &line[..8] != "#require") || line.chars().last().map(|c| c != '.').unwrap_or(true) {
+    if !line.starts_with("#include") && !line.starts_with("#require") || line.chars().last().map(|c| c != '.').unwrap_or(true) {
         return Ok(None);
     }
 
@@ -307,7 +307,7 @@ async fn potentially_include_async(imported: &mut HashSet<PathBuf>, path: &Path,
     };
 
     // Check if we've seen this before if it's require
-    if &line[..8] == "#require" && imported.contains(&incl_path) {
+    if line.starts_with("#require") && imported.contains(&incl_path) {
         return Ok(Some(None));
     }
     imported.insert(incl_path.clone());
