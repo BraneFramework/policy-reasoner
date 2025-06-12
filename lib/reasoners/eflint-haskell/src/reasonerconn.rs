@@ -14,7 +14,6 @@
 //
 
 use std::borrow::Cow;
-use std::future::Future;
 use std::marker::PhantomData;
 use std::path::PathBuf;
 use std::process::{ExitStatus, Stdio};
@@ -247,141 +246,139 @@ where
     fn context(&self) -> Self::Context { self.context.public.clone() }
 
     #[inline]
-    fn consult<'a, L>(
+    async fn consult<'a, L>(
         &'a self,
         state: Self::State,
         question: Self::Question,
         logger: &'a SessionedAuditLogger<L>,
-    ) -> impl 'a + Send + Future<Output = Result<ReasonerResponse<Self::Reason>, Self::Error>>
+    ) -> Result<ReasonerResponse<Self::Reason>, Self::Error>
     where
         L: Sync + AuditLogger,
     {
-        async move {
-            logger
-                .log_question(&state, &question)
-                .await
-                .map_err(|err| Error::LogQuestion { to: std::any::type_name::<SessionedAuditLogger<L>>(), err: err.freeze() })?;
+        logger
+            .log_question(&state, &question)
+            .await
+            .map_err(|err| Error::LogQuestion { to: std::any::type_name::<SessionedAuditLogger<L>>(), err: err.freeze() })?;
 
-            // Prepare the full file to send
-            let spec: String = format!("{}{}", state.eflint(), question.eflint());
-            debug!("Full spec to submit to reasoner:{}\n{}\n{}\n", "-".repeat(80), spec, "-".repeat(80));
+        // Prepare the full file to send
+        let spec: String = format!("{}{}", state.eflint(), question.eflint());
+        debug!("Full spec to submit to reasoner:{}\n{}\n{}\n", "-".repeat(80), spec, "-".repeat(80));
 
-            // Prepare the command to execute
-            let mut cmd = Command::new(&self.context.cmd.0);
-            cmd.args(&self.context.cmd.1);
-            cmd.arg(&self.context.base_policy);
-            cmd.stdin(Stdio::piped());
-            cmd.stdout(Stdio::piped());
-            cmd.stderr(Stdio::piped());
+        // Prepare the command to execute
+        let mut cmd = Command::new(&self.context.cmd.0);
+        cmd.args(&self.context.cmd.1);
+        cmd.arg(&self.context.base_policy);
+        cmd.stdin(Stdio::piped());
+        cmd.stdout(Stdio::piped());
+        cmd.stderr(Stdio::piped());
 
-            // Attempt to execute it, sending the full spec on the input
-            // NOTE: Using match to avoid moving `cmd` a closure and having to clone it (which it can't)
-            debug!("Calling reasoner with {cmd:?}...");
-            let mut handle = match cmd.spawn() {
-                Ok(handle) => handle,
-                Err(err) => return Err(Error::CommandSpawn { cmd, err }),
-            };
-            handle
-                .stdin
-                .as_mut()
-                .unwrap_or_else(|| panic!("No stdin on subprocess even though it's piped!"))
-                .write_all(spec.as_bytes())
-                .await
-                .map_err(|err| Error::CommandStdinWrite { err })?;
-            debug!("Inputs submitted, waiting for reasoner to complete...");
-            let output = match handle.wait_with_output().await {
-                Ok(handle) => handle,
-                Err(err) => return Err(Error::CommandJoin { cmd, err }),
-            };
-            if !output.status.success() {
-                return Err(Error::CommandFailure {
-                    cmd,
-                    status: output.status,
-                    stdout: String::from_utf8_lossy(&output.stdout).into(),
-                    stderr: String::from_utf8_lossy(&output.stderr).into(),
-                });
-            }
+        // Attempt to execute it, sending the full spec on the input
+        // NOTE: Using match to avoid moving `cmd` a closure and having to clone it (which it can't)
+        debug!("Calling reasoner with {cmd:?}...");
+        let mut handle = match cmd.spawn() {
+            Ok(handle) => handle,
+            Err(err) => return Err(Error::CommandSpawn { cmd, err }),
+        };
+        handle
+            .stdin
+            .as_mut()
+            .unwrap_or_else(|| panic!("No stdin on subprocess even though it's piped!"))
+            .write_all(spec.as_bytes())
+            .await
+            .map_err(|err| Error::CommandStdinWrite { err })?;
+        debug!("Inputs submitted, waiting for reasoner to complete...");
+        let output = match handle.wait_with_output().await {
+            Ok(handle) => handle,
+            Err(err) => return Err(Error::CommandJoin { cmd, err }),
+        };
+        if !output.status.success() {
+            return Err(Error::CommandFailure {
+                cmd,
+                status: output.status,
+                stdout: String::from_utf8_lossy(&output.stdout).into(),
+                stderr: String::from_utf8_lossy(&output.stderr).into(),
+            });
+        }
 
-            // Stript the prompts from the eFLINT output
-            let output: Cow<str> = String::from_utf8_lossy(&output.stdout);
-            let mut clean_output: String = String::with_capacity(output.len());
-            let mut buf: String = String::new();
-            let mut state: usize = 0;
-            for c in output.chars() {
-                // Loop exists to be able to examine some chars again
-                loop {
-                    match state {
-                        // Finding pounds
-                        0 if c == '#' => {
-                            buf.push('#');
-                            state = 1;
-                            break;
-                        },
-                        0 => {
-                            clean_output.push(c);
-                            break;
-                        },
+        // Stript the prompts from the eFLINT output
+        let output: Cow<str> = String::from_utf8_lossy(&output.stdout);
+        let mut clean_output: String = String::with_capacity(output.len());
+        let mut buf: String = String::new();
+        let mut state: usize = 0;
+        for c in output.chars() {
+            // Loop exists to be able to examine some chars again
+            loop {
+                match state {
+                    // Finding pounds
+                    0 if c == '#' => {
+                        buf.push('#');
+                        state = 1;
+                        break;
+                    },
+                    0 => {
+                        clean_output.push(c);
+                        break;
+                    },
 
-                        // Parsing numbers & whitespace
-                        1 if c.is_ascii_digit() || c.is_whitespace() => {
-                            buf.push(c);
-                            break;
-                        },
-                        1 if c == '>' => {
-                            state = 0;
-                            break;
-                        },
-                        1 => {
-                            clean_output.push_str(&buf);
-                            buf.clear();
-                            state = 0;
-                            // Don't break, re-try this character
-                        },
+                    // Parsing numbers & whitespace
+                    1 if c.is_ascii_digit() || c.is_whitespace() => {
+                        buf.push(c);
+                        break;
+                    },
+                    1 if c == '>' => {
+                        state = 0;
+                        break;
+                    },
+                    1 => {
+                        clean_output.push_str(&buf);
+                        buf.clear();
+                        state = 0;
+                        // Don't break, re-try this character
+                    },
 
-                        _ => unreachable!(),
-                    }
+                    _ => unreachable!(),
                 }
             }
-
-            // Attempt to parse the output
-            debug!("Reasoner output:\n{}\n{}\n{}\n", "-".repeat(80), clean_output, "-".repeat(80));
-            let trace: Trace = match Trace::from_str(clean_output.as_ref()) {
-                Ok(trace) => trace,
-                Err(err) => return Err(Error::IllegalReasonerResponse { output: clean_output, err }),
-            };
-            debug!("Reasoner trace:\n{}\n{}\n{}\n", "-".repeat(80), trace, "-".repeat(80));
-
-            // Analyze the output to find violations
-            // The rule is:
-            // 1. Check the last delta
-            //    a. If it's a query, then it must succeed; or
-            //    b. If it's not a query, it must not be a violation.
-            // 2. If there is no last delta, then we default to **success**.
-            let problems: Vec<Problem> = trace
-                .deltas
-                .iter()
-                .filter_map(|delta| match delta {
-                    Delta::Query(query) if query.is_succes() => Some(Problem::QueryFailed),
-                    Delta::Violation(viol) => Some(Problem::Violation(viol.clone())),
-                    _ => None,
-                })
-                .collect();
-            let res: ReasonerResponse<_> = trace
-                .deltas
-                .into_iter()
-                .next_back()
-                .map(|delta| match delta {
-                    Delta::Query(query) if query.is_succes() => ReasonerResponse::Success,
-                    Delta::Query(_) => ReasonerResponse::Violated(self.handler.handle(problems)),
-                    Delta::Violation(_) => ReasonerResponse::Violated(self.handler.handle(problems)),
-                    delta => {
-                        warn!("Got non-query, non-violation delta as last delta ({delta:?}); assuming OK");
-                        ReasonerResponse::Success
-                    },
-                })
-                .unwrap_or(ReasonerResponse::Success);
-            debug!("Reasoner verdict: {res}");
-            Ok(res)
         }
+
+        // Attempt to parse the output
+        debug!("Reasoner output:\n{}\n{}\n{}\n", "-".repeat(80), clean_output, "-".repeat(80));
+        let trace: Trace = match Trace::from_str(clean_output.as_ref()) {
+            Ok(trace) => trace,
+            Err(err) => return Err(Error::IllegalReasonerResponse { output: clean_output, err }),
+        };
+        debug!("Reasoner trace:\n{}\n{}\n{}\n", "-".repeat(80), trace, "-".repeat(80));
+
+        // Analyze the output to find violations
+        // The rule is:
+        // 1. Check the last delta
+        //    a. If it's a query, then it must succeed; or
+        //    b. If it's not a query, it must not be a violation.
+        // 2. If there is no last delta, then we default to **success**.
+        let problems: Vec<Problem> = trace
+            .deltas
+            .iter()
+            .filter_map(|delta| match delta {
+                Delta::Query(query) if query.is_succes() => Some(Problem::QueryFailed),
+                Delta::Violation(viol) => Some(Problem::Violation(viol.clone())),
+                _ => None,
+            })
+            .collect();
+        let res: ReasonerResponse<_> = trace
+            .deltas
+            .into_iter()
+            .next_back()
+            .map(|delta| match delta {
+                Delta::Query(query) if query.is_succes() => ReasonerResponse::Success,
+                Delta::Query(_) => ReasonerResponse::Violated(self.handler.handle(problems)),
+                Delta::Violation(_) => ReasonerResponse::Violated(self.handler.handle(problems)),
+                delta => {
+                    warn!("Got non-query, non-violation delta as last delta ({delta:?}); assuming OK");
+                    ReasonerResponse::Success
+                },
+            })
+            .unwrap_or(ReasonerResponse::Success);
+        debug!("Reasoner verdict: {res}");
+        Ok(res)
     }
 }

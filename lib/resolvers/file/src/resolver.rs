@@ -14,7 +14,6 @@
 
 use std::error;
 use std::fmt::{Display, Formatter, Result as FResult};
-use std::future::Future;
 use std::marker::PhantomData;
 use std::path::PathBuf;
 
@@ -23,7 +22,7 @@ use spec::AuditLogger;
 use spec::auditlogger::SessionedAuditLogger;
 use spec::stateresolver::StateResolver;
 use tokio::fs;
-use tracing::{Instrument as _, Level, debug, span};
+use tracing::{debug, instrument};
 
 
 /***** ERRORS *****/
@@ -86,29 +85,23 @@ impl<R: Sync + for<'de> Deserialize<'de>> StateResolver for FileResolver<R> {
     type Resolved = R;
     type State = ();
 
-    fn resolve<'a, L>(
-        &'a self,
-        _state: Self::State,
-        logger: &'a SessionedAuditLogger<L>,
-    ) -> impl 'a + Send + Future<Output = Result<Self::Resolved, Self::Error>>
+    #[instrument(name = "FileResolver::resolve", skip_all, fields(reference=logger.reference()))]
+    async fn resolve<'a, L>(&'a self, _state: Self::State, logger: &'a SessionedAuditLogger<L>) -> Result<Self::Resolved, Self::Error>
     where
         L: Sync + AuditLogger,
     {
-        async move {
-            // Read the file in one go// Read the file in one go
-            debug!("Opening input file '{}'...", self.path.display());
-            let state: String = match fs::read_to_string(&self.path).await {
-                Ok(state) => state,
-                Err(err) => return Err(Error::FileRead { path: self.path.clone(), err }),
-            };
+        // Read the file in one go// Read the file in one go
+        debug!("Opening input file '{}'...", self.path.display());
+        let state: String = match fs::read_to_string(&self.path).await {
+            Ok(state) => state,
+            Err(err) => return Err(Error::FileRead { path: self.path.clone(), err }),
+        };
 
-            // Parse it as JSON
-            debug!("Parsing input file '{}'...", self.path.display());
-            match serde_json::from_str(&state) {
-                Ok(state) => Ok(state),
-                Err(err) => Err(Error::FileDeserialize { to: std::any::type_name::<R>(), path: self.path.clone(), err }),
-            }
+        // Parse it as JSON
+        debug!("Parsing input file '{}'...", self.path.display());
+        match serde_json::from_str(&state) {
+            Ok(state) => Ok(state),
+            Err(err) => Err(Error::FileDeserialize { to: std::any::type_name::<R>(), path: self.path.clone(), err }),
         }
-        .instrument(span!(Level::INFO, "FileResolver::resolve", reference = logger.reference()))
     }
 }

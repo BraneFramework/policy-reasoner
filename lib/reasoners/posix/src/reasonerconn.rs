@@ -15,7 +15,6 @@
 
 use std::borrow::Cow;
 /***** LIBRARY *****/
-use std::future::Future;
 use std::iter::repeat;
 use std::ops::BitOr;
 use std::os::unix::fs::{MetadataExt as _, PermissionsExt as _};
@@ -28,7 +27,7 @@ use spec::reasonerconn::{ReasonerConnector, ReasonerContext, ReasonerResponse};
 use spec::reasons::NoReason;
 use thiserror::Error;
 use tokio::fs;
-use tracing::{Instrument as _, Level, debug, info, span};
+use tracing::{debug, info};
 use workflow::Workflow;
 
 use crate::config::{Config, DataPolicy, PosixLocalIdentity};
@@ -278,57 +277,54 @@ impl ReasonerConnector for PosixReasonerConnector {
     fn context(&self) -> Self::Context { PosixReasonerContext::default() }
 
     #[inline]
-    fn consult<'a, L>(
+    async fn consult<'a, L>(
         &'a self,
         state: Self::State,
         _question: Self::Question,
         logger: &'a SessionedAuditLogger<L>,
-    ) -> impl 'a + Send + Future<Output = Result<ReasonerResponse<Self::Reason>, Self::Error>>
+    ) -> Result<ReasonerResponse<Self::Reason>, Self::Error>
     where
         L: Sync + AuditLogger,
     {
-        async move {
-            // Log the input
-            logger
-                .log_question(&state, &())
-                .await
-                .map_err(|err| Error::LogQuestion { to: std::any::type_name::<SessionedAuditLogger<L>>(), err: err.freeze() })?;
+        // Log the input
+        logger
+            .log_question(&state, &())
+            .await
+            .map_err(|err| Error::LogQuestion { to: std::any::type_name::<SessionedAuditLogger<L>>(), err: err.freeze() })?;
 
-            // The datasets used in the workflow. E.g., `st_antonius_ect`.
-            let datasets: WorkflowDatasets = WorkflowDatasets::new(&state.config.id, &state.workflow);
-            debug!("Found datasets in workflow {:?}: {:#?}", state.workflow.id, datasets);
+        // The datasets used in the workflow. E.g., `st_antonius_ect`.
+        let datasets: WorkflowDatasets = WorkflowDatasets::new(&state.config.id, &state.workflow);
+        debug!("Found datasets in workflow {:?}: {:#?}", state.workflow.id, datasets);
 
-            // Loop to find the permissions on the disk
-            for ((location, dataset), permission) in std::iter::empty()
-                .chain(datasets.read_sets.iter().zip(repeat(PosixFilePermission::Read.to_set())))
-                .chain(datasets.write_sets.iter().zip(repeat(PosixFilePermission::Write.to_set())))
-                .chain(datasets.execute_sets.iter().zip(repeat(PosixFilePermission::Read | PosixFilePermission::Execute)))
-            {
-                info!("Testing dataset {:?} for permission to {:?} for user {:?}", dataset.id, permission, location);
+        // Loop to find the permissions on the disk
+        for ((location, dataset), permission) in std::iter::empty()
+            .chain(datasets.read_sets.iter().zip(repeat(PosixFilePermission::Read.to_set())))
+            .chain(datasets.write_sets.iter().zip(repeat(PosixFilePermission::Write.to_set())))
+            .chain(datasets.execute_sets.iter().zip(repeat(PosixFilePermission::Read | PosixFilePermission::Execute)))
+        {
+            info!("Testing dataset {:?} for permission to {:?} for user {:?}", dataset.id, permission, location);
 
-                // Find the location of the dataset in the list
-                let policy: &DataPolicy = match state.config.data.get(&dataset.id) {
-                    Some(data) => data,
-                    None => return Err(Error::UnknownDataset { data: dataset.id.clone() }),
-                };
+            // Find the location of the dataset in the list
+            let policy: &DataPolicy = match state.config.data.get(&dataset.id) {
+                Some(data) => data,
+                None => return Err(Error::UnknownDataset { data: dataset.id.clone() }),
+            };
 
-                // Now check the policy!
-                if !satisfies_posix_permissions(&policy.path, policy.user_map.get(&location.id), permission).await? {
-                    logger
-                        .log_response(&ReasonerResponse::Violated(NoReason), Some("false"))
-                        .await
-                        .map_err(|err| Error::LogResponse { to: std::any::type_name::<SessionedAuditLogger<L>>(), err: err.freeze() })?;
-                    return Ok(ReasonerResponse::Violated(NoReason));
-                }
+            // Now check the policy!
+            if !satisfies_posix_permissions(&policy.path, policy.user_map.get(&location.id), permission).await? {
+                logger
+                    .log_response(&ReasonerResponse::Violated(NoReason), Some("false"))
+                    .await
+                    .map_err(|err| Error::LogResponse { to: std::any::type_name::<SessionedAuditLogger<L>>(), err: err.freeze() })?;
+                return Ok(ReasonerResponse::Violated(NoReason));
             }
-
-            // If none of them failed prematurely, then we're done
-            logger
-                .log_response(&ReasonerResponse::<NoReason>::Success, Some("true"))
-                .await
-                .map_err(|err| Error::LogResponse { to: std::any::type_name::<SessionedAuditLogger<L>>(), err: err.freeze() })?;
-            Ok(ReasonerResponse::Success)
         }
-        .instrument(span!(Level::INFO, "ReasonerConnector::consult", reference = logger.reference()))
+
+        // If none of them failed prematurely, then we're done
+        logger
+            .log_response(&ReasonerResponse::<NoReason>::Success, Some("true"))
+            .await
+            .map_err(|err| Error::LogResponse { to: std::any::type_name::<SessionedAuditLogger<L>>(), err: err.freeze() })?;
+        Ok(ReasonerResponse::Success)
     }
 }
