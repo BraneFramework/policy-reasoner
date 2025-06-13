@@ -178,7 +178,7 @@ pub fn download_file(
 ) -> Result<(), Error> {
     let source_url: &str = source_url.as_ref();
     let target: &Path = target.as_ref();
-    debug!("Downloading '{}' to '{}' (Security: {})...", source_url, target.display(), security);
+    debug!("Downloading '{source_url}' to '{}' (Security: {security})...", target.display());
     if let Some(style) = &verbose {
         println!("Downloading {}...", style.apply_to(source_url));
     }
