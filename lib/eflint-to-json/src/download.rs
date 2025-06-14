@@ -227,20 +227,6 @@ pub fn download_file(source: impl AsRef<str>, target: impl AsRef<Path>, security
 
     // Open the target file for writing
     let mut handle: fs::File = match fs::File::create(target) {
-        // Ok(handle) => {
-        //     // Prepare the permissions to set by reading the file's metadata
-        //     let mut permissions: Permissions = match handle.metadata() {
-        //         Ok(metadata) => metadata.permissions(),
-        //         Err(err)     => { return Err(Error::FileMetadataError{ what: "temporary binary", path: local.into(), err }); },
-        //     };
-        //     permissions.set_mode(permissions.mode() | 0o100);
-
-        //     // Set them
-        //     if let Err(err) = handle.set_permissions(permissions) { return Err(Error::FilePermissionsError{ what: "temporary binary", path: local.into(), err }); }
-
-        //     // Return the handle
-        //     handle
-        // },
         Ok(handle) => handle,
         Err(err) => {
             return Err(Error::FileCreate { path: target.into(), err });
@@ -402,20 +388,6 @@ pub async fn download_file_async(
 
     // Open the target file for writing
     let mut handle: tfs::File = match tfs::File::create(target).await {
-        // Ok(handle) => {
-        //     // Prepare the permissions to set by reading the file's metadata
-        //     let mut permissions: Permissions = match handle.metadata() {
-        //         Ok(metadata) => metadata.permissions(),
-        //         Err(err)     => { return Err(Error::FileMetadataError{ what: "temporary binary", path: local.into(), err }); },
-        //     };
-        //     permissions.set_mode(permissions.mode() | 0o100);
-
-        //     // Set them
-        //     if let Err(err) = handle.set_permissions(permissions) { return Err(Error::FilePermissionsError{ what: "temporary binary", path: local.into(), err }); }
-
-        //     // Return the handle
-        //     handle
-        // },
         Ok(handle) => handle,
         Err(err) => {
             return Err(Error::FileCreate { path: target.into(), err });
