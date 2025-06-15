@@ -93,7 +93,7 @@ async fn main() {
     info!("{} - v{}", env!("CARGO_BIN_NAME"), env!("CARGO_PKG_VERSION"));
 
     // Create the logger
-    let mut logger: SessionedAuditLogger<FileLogger> =
+    let logger: SessionedAuditLogger<FileLogger> =
         SessionedAuditLogger::new("test", FileLogger::new(format!("{} - v{}", env!("CARGO_BIN_NAME"), env!("CARGO_PKG_VERSION")), "./test.log"));
 
     // Decide which eflint to run
@@ -120,7 +120,7 @@ async fn main() {
 
         // Compile first
         let mut json: Vec<u8> = Vec::new();
-        if let Err(err) = eflint_to_json::compile_async(&file, &mut json, args.eflint_path.as_ref().map(PathBuf::as_path)).await {
+        if let Err(err) = eflint_to_json::compile_async(&file, &mut json, args.eflint_path.as_deref()).await {
             error!("{}", trace!(("Failed to compile input file '{}' to JSON", args.file), err));
             std::process::exit(1);
         }
@@ -182,20 +182,17 @@ async fn main() {
     };
 
     // Create the reasoner
-    let conn = match EFlintJsonReasonerConnector::<EFlintSilentReasonHandler, Vec<Phrase>, ()>::new_async(
-        &args.address,
-        EFlintSilentReasonHandler,
-        &mut logger,
-    )
-    .await
-    {
-        Ok(conn) => conn,
-        Err(err) => {
-            error!("{}", trace!(("Failed to create eFLINT reasoner"), err));
-            std::process::exit(1);
-        },
-    };
-    let verdict: ReasonerResponse<NoReason> = match conn.consult(policy.phrases, (), &mut logger).await {
+    let conn =
+        match EFlintJsonReasonerConnector::<EFlintSilentReasonHandler, Vec<Phrase>, ()>::new_async(&args.address, EFlintSilentReasonHandler, &logger)
+            .await
+        {
+            Ok(conn) => conn,
+            Err(err) => {
+                error!("{}", trace!(("Failed to create eFLINT reasoner"), err));
+                std::process::exit(1);
+            },
+        };
+    let verdict: ReasonerResponse<NoReason> = match conn.consult(policy.phrases, (), &logger).await {
         Ok(res) => res,
         Err(err) => {
             error!("{}", trace!(("Failed to send message to reasoner at {:?}", args.address), err));

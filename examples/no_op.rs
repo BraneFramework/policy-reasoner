@@ -70,7 +70,7 @@ async fn main() {
             std::process::exit(1);
         },
     };
-    let verdict: ReasonerResponse<()> = conn.consult((), (), &mut logger).await.unwrap();
+    let verdict: ReasonerResponse<()> = conn.consult((), (), &logger).await.unwrap();
 
     // OK, report
     match verdict {

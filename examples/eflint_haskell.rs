@@ -71,7 +71,7 @@ async fn main() {
     info!("{} - v{}", env!("CARGO_BIN_NAME"), env!("CARGO_PKG_VERSION"));
 
     // Create the logger
-    let mut logger: SessionedAuditLogger<FileLogger> =
+    let logger: SessionedAuditLogger<FileLogger> =
         SessionedAuditLogger::new("test", FileLogger::new(format!("{} - v{}", env!("CARGO_BIN_NAME"), env!("CARGO_PKG_VERSION")), "./test.log"));
 
     // Ensure there is a file to input
@@ -98,7 +98,7 @@ async fn main() {
         shlex::split(&args.eflint_cmd).into_iter().flatten(),
         &policy,
         SilentHandler,
-        &mut logger,
+        &logger,
     )
     .await
     {
@@ -108,7 +108,7 @@ async fn main() {
             std::process::exit(1);
         },
     };
-    let verdict: ReasonerResponse<NoReason> = match conn.consult("".into(), (), &mut logger).await {
+    let verdict: ReasonerResponse<NoReason> = match conn.consult("".into(), (), &logger).await {
         Ok(res) => res,
         Err(err) => {
             error!("{}", trace!(("Failed to send message to reasoner {:?}", args.eflint_cmd), err));
