@@ -191,7 +191,7 @@ async fn main() {
             std::process::exit(1);
         },
     };
-    let verdict: ReasonerResponse<NoReason> = match conn.consult(State { workflow, config }, (), &mut logger).await {
+    let verdict: ReasonerResponse<NoReason> = match conn.consult(State { workflow, config }, (), &logger).await {
         Ok(res) => res,
         Err(err) => {
             error!("{}", trace!(("Failed to consult the POSIX reasoner"), err));
