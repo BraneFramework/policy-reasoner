@@ -15,7 +15,7 @@
 use std::convert::Infallible;
 use std::sync::LazyLock;
 
-use tracing::{Level, debug, span};
+use tracing::{debug, instrument};
 use workflow::visitor::Visitor;
 use workflow::{Dataset, Elem, ElemCall, Entity, Workflow};
 
@@ -129,8 +129,8 @@ pub struct WorkflowDatasets<'w> {
 }
 impl<'w> WorkflowDatasets<'w> {
     #[inline]
+    #[instrument(skip_all)]
     pub fn new(here: &'w str, wf: &'w Workflow) -> Self {
-        let _span = span!(Level::INFO, "PosixReasonerConnector::find_datasets_in_workflow", workflow = wf.id).entered();
         debug!("Walking the workflow in order to find datasets. Starting with {:?}", &wf.start);
 
         let mut visitor = DatasetCollector::new(here);

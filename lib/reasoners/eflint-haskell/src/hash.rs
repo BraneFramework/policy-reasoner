@@ -22,7 +22,7 @@ use sha2::{Digest as _, Sha256};
 use thiserror::Error;
 use tokio::fs::File;
 use tokio::io::AsyncReadExt as _;
-use tracing::{Level, debug, span};
+use tracing::{debug, instrument};
 
 
 /***** ERRORS *****/
@@ -274,9 +274,9 @@ async fn find_deps_of(mut handle: File, path: &Path, base_path: &Path, include_d
 /// # Errors
 /// This function may error if we failed to open the given `path` as a file, or failed to find any
 /// of the (recursive) dependencies.
+#[instrument(skip_all, fields(file=%path.as_ref().display()))]
 pub async fn find_deps(path: impl AsRef<Path>, include_dirs: &[&Path]) -> Result<HashSet<PathBuf>, Error> {
     let path: &Path = path.as_ref();
-    let _span = span!(Level::DEBUG, "find_deps", file = path.display().to_string());
 
     // Delegate to the recursive function
     let mut res: HashSet<PathBuf> = HashSet::with_capacity(16);
