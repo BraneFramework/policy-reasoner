@@ -15,11 +15,12 @@
 use std::fs::{self, File};
 use std::io::{self, Read as _};
 use std::path::PathBuf;
+use std::process::ExitCode;
 
 use clap::Parser;
 use console::style;
 use eflint_json_reasoner::json::spec::Phrase;
-use error_trace::trace;
+use miette::{Context, IntoDiagnostic as _};
 use policy_reasoner::loggers::file::FileLogger;
 use policy_reasoner::reasoners::eflint_json::EFlintJsonReasonerConnector;
 use policy_reasoner::reasoners::eflint_json::json::spec::RequestPhrases;
@@ -76,7 +77,7 @@ struct Arguments {
 
 /***** LIBRARY *****/
 #[tokio::main(flavor = "current_thread")]
-async fn main() {
+async fn main() -> ExitCode {
     // Parse the arguments
     let args = Arguments::parse();
 
@@ -92,6 +93,16 @@ async fn main() {
         .init();
     info!("{} - v{}", env!("CARGO_BIN_NAME"), env!("CARGO_PKG_VERSION"));
 
+    match run(args).await {
+        Ok(()) => ExitCode::SUCCESS,
+        Err(err) => {
+            error!("{err:?}");
+            ExitCode::FAILURE
+        },
+    }
+}
+
+async fn run(args: Arguments) -> miette::Result<()> {
     // Create the logger
     let logger: SessionedAuditLogger<FileLogger> =
         SessionedAuditLogger::new("test", FileLogger::new(format!("{} - v{}", env!("CARGO_BIN_NAME"), env!("CARGO_PKG_VERSION")), "./test.log"));
@@ -102,17 +113,13 @@ async fn main() {
         // First: resolve any stdin to a file
         let file: PathBuf = if args.file == "-" {
             let file: PathBuf = std::env::temp_dir().join(format!("{}-v{}-stdin", env!("CARGO_BIN_NAME"), env!("CARGO_PKG_VERSION")));
-            let mut handle: File = match File::create(&file) {
-                Ok(handle) => handle,
-                Err(err) => {
-                    error!("{}", trace!(("Failed to open temporary stdin file '{}'", file.display()), err));
-                    std::process::exit(1);
-                },
-            };
-            if let Err(err) = io::copy(&mut io::stdin(), &mut handle) {
-                error!("{}", trace!(("Failed to write stdin to temporary file '{}'", file.display()), err));
-                std::process::exit(1);
-            }
+            let mut handle =
+                File::create(&file).into_diagnostic().with_context(|| format!("Failed to open temporary stdin file '{}'", file.display()))?;
+
+            io::copy(&mut io::stdin(), &mut handle)
+                .into_diagnostic()
+                .with_context(|| format!("Failed to write stdin to temporary file '{}'", file.display()))?;
+
             file
         } else {
             PathBuf::from(&args.file)
@@ -120,85 +127,50 @@ async fn main() {
 
         // Compile first
         let mut json: Vec<u8> = Vec::new();
-        if let Err(err) = eflint_to_json::compile_async(&file, &mut json, args.eflint_path.as_deref()).await {
-            error!("{}", trace!(("Failed to compile input file '{}' to JSON", args.file), err));
-            std::process::exit(1);
-        }
+        eflint_to_json::compile_async(&file, &mut json, args.eflint_path.as_deref())
+            .await
+            .into_diagnostic()
+            .with_context(|| format!("Failed to compile input file '{}' to JSON", args.file))?;
 
         // Now parse the file contents as a request and done
-        match serde_json::from_slice(&json) {
-            Ok(req) => req,
-            Err(err) => {
-                error!(
-                    "{}",
-                    trace!(
-                        (
-                            "Failed to parse {} as an eFLINT JSON phrases request",
-                            if args.file == "-" { "stdin".to_string() } else { format!("file {:?}", args.file) }
-                        ),
-                        err
-                    )
-                );
-                std::process::exit(1);
-            },
-        }
+        serde_json::from_slice(&json).into_diagnostic().with_context(|| {
+            format!(
+                "Failed to parse {} as an eFLINT JSON phrases request",
+                if args.file == "-" { "stdin".to_string() } else { format!("file {:?}", args.file) }
+            )
+        })?
     } else {
         // Read the file
         let raw: Vec<u8> = if args.file == "-" {
             let mut raw: Vec<u8> = Vec::new();
-            if let Err(err) = io::stdin().read_to_end(&mut raw) {
-                error!("{}", trace!(("Failed to read stdin"), err));
-                std::process::exit(1);
-            }
+            io::stdin().read_to_end(&mut raw).into_diagnostic().context("Failed to read stdin")?;
             raw
         } else {
             // Open the file
-            match fs::read(&args.file) {
-                Ok(raw) => raw,
-                Err(err) => {
-                    error!("{}", trace!(("Failed to open & read file '{}'", args.file), err));
-                    std::process::exit(1);
-                },
-            }
+            fs::read(&args.file).into_diagnostic().with_context(|| format!("Failed to open & read file '{}'", args.file))?
         };
 
         // Now parse the file contents as a request and done
-        match serde_json::from_slice(&raw) {
-            Ok(req) => req,
-            Err(err) => {
-                error!(
-                    "{}",
-                    trace!(
-                        (
-                            "Failed to parse {} as an eFLINT JSON phrases request",
-                            if args.file == "-" { "stdin".to_string() } else { format!("file {:?}", args.file) }
-                        ),
-                        err
-                    )
-                );
-                std::process::exit(1);
-            },
-        }
+        serde_json::from_slice(&raw).into_diagnostic().with_context(|| {
+            format!(
+                "Failed to parse {} as an eFLINT JSON phrases request",
+                if args.file == "-" { "stdin".to_string() } else { format!("file {:?}", args.file) }
+            )
+        })?
     };
 
     // Create the reasoner
     let conn =
-        match EFlintJsonReasonerConnector::<EFlintSilentReasonHandler, Vec<Phrase>, ()>::new_async(&args.address, EFlintSilentReasonHandler, &logger)
+        EFlintJsonReasonerConnector::<EFlintSilentReasonHandler, Vec<Phrase>, ()>::new_async(&args.address, EFlintSilentReasonHandler, &logger)
             .await
-        {
-            Ok(conn) => conn,
-            Err(err) => {
-                error!("{}", trace!(("Failed to create eFLINT reasoner"), err));
-                std::process::exit(1);
-            },
-        };
-    let verdict: ReasonerResponse<NoReason> = match conn.consult(policy.phrases, (), &logger).await {
-        Ok(res) => res,
-        Err(err) => {
-            error!("{}", trace!(("Failed to send message to reasoner at {:?}", args.address), err));
-            std::process::exit(1);
-        },
-    };
+            .into_diagnostic()
+            .context("Failed to create eFLINT reasoner")?;
+
+    let verdict: ReasonerResponse<NoReason> = conn
+        .consult(policy.phrases, (), &logger)
+        .await
+        .into_diagnostic()
+        .with_context(|| format!("Failed to send message to reasoner at {:?}", args.address))?;
 
     // OK, report
     match verdict {
@@ -210,4 +182,6 @@ async fn main() {
             println!();
         },
     }
+
+    Ok(())
 }

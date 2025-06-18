@@ -13,9 +13,11 @@
 //!   always accepts anything.
 //
 
+use std::process::ExitCode;
+
 use clap::Parser;
 use console::style;
-use error_trace::trace;
+use miette::{Context as _, IntoDiagnostic as _};
 use policy_reasoner::loggers::file::FileLogger;
 use policy_reasoner::reasoners::no_op::NoOpReasonerConnector;
 use policy_reasoner::spec::ReasonerConnector as _;
@@ -42,7 +44,7 @@ pub struct Arguments {
 
 /***** ENTRYPOINT *****/
 #[tokio::main(flavor = "current_thread")]
-async fn main() {
+async fn main() -> ExitCode {
     // Parse the arguments
     let args = Arguments::parse();
 
@@ -58,19 +60,23 @@ async fn main() {
         .init();
     info!("{} - v{}", env!("CARGO_BIN_NAME"), env!("CARGO_PKG_VERSION"));
 
+    match run(args).await {
+        Ok(()) => ExitCode::SUCCESS,
+        Err(err) => {
+            error!("{err:?}");
+            ExitCode::FAILURE
+        },
+    }
+}
+
+async fn run(_args: Arguments) -> miette::Result<()> {
     // Create the logger
-    let mut logger: SessionedAuditLogger<FileLogger> =
+    let mut logger =
         SessionedAuditLogger::new("test", FileLogger::new(format!("{} - v{}", env!("CARGO_BIN_NAME"), env!("CARGO_PKG_VERSION")), "./test.log"));
 
     // Run the reasoner
-    let conn: NoOpReasonerConnector<()> = match NoOpReasonerConnector::new_async(&mut logger).await {
-        Ok(conn) => conn,
-        Err(err) => {
-            error!("{}", trace!(("Failed to setup no-op reasoner"), err));
-            std::process::exit(1);
-        },
-    };
-    let verdict: ReasonerResponse<()> = conn.consult((), (), &logger).await.unwrap();
+    let conn = NoOpReasonerConnector::new_async(&mut logger).await.into_diagnostic().context("Failed to setup no-op reasoner")?;
+    let verdict = conn.consult((), (), &logger).await.unwrap();
 
     // OK, report
     match verdict {
@@ -79,4 +85,6 @@ async fn main() {
             println!("{} {}", style("Reasoner says:").bold(), style("VIOLATION").bold().red());
         },
     }
+
+    Ok(())
 }

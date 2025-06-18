@@ -14,10 +14,11 @@
 //
 
 use std::path::PathBuf;
+use std::process::ExitCode;
 
 use clap::Parser;
 use console::style;
-use error_trace::trace;
+use miette::{Context, IntoDiagnostic};
 use policy_reasoner::loggers::file::FileLogger;
 use policy_reasoner::reasoners::eflint_haskell::EFlintHaskellReasonerConnector;
 use policy_reasoner::reasoners::eflint_haskell::reasons::SilentHandler;
@@ -54,7 +55,7 @@ struct Arguments {
 
 /***** LIBRARY *****/
 #[tokio::main(flavor = "current_thread")]
-async fn main() {
+async fn main() -> ExitCode {
     // Parse the arguments
     let args = Arguments::parse();
 
@@ -70,6 +71,16 @@ async fn main() {
         .init();
     info!("{} - v{}", env!("CARGO_BIN_NAME"), env!("CARGO_PKG_VERSION"));
 
+    match run(args).await {
+        Ok(()) => ExitCode::SUCCESS,
+        Err(err) => {
+            error!("{err:?}");
+            ExitCode::FAILURE
+        },
+    }
+}
+
+async fn run(args: Arguments) -> miette::Result<()> {
     // Create the logger
     let logger: SessionedAuditLogger<FileLogger> =
         SessionedAuditLogger::new("test", FileLogger::new(format!("{} - v{}", env!("CARGO_BIN_NAME"), env!("CARGO_PKG_VERSION")), "./test.log"));
@@ -77,44 +88,37 @@ async fn main() {
     // Ensure there is a file to input
     let policy: PathBuf = if args.file == "-" {
         let file: PathBuf = std::env::temp_dir().join(format!("{}-v{}-stdin.eflint", env!("CARGO_BIN_NAME"), env!("CARGO_PKG_VERSION")));
-        let mut handle: tokio::fs::File = match tokio::fs::File::create(&file).await {
-            Ok(handle) => handle,
-            Err(err) => {
-                error!("{}", trace!(("Failed to open temporary stdin file '{}'", file.display()), err));
-                std::process::exit(1);
-            },
-        };
-        if let Err(err) = tokio::io::copy(&mut tokio::io::stdin(), &mut handle).await {
-            error!("{}", trace!(("Failed to write stdin to temporary file '{}'", file.display()), err));
-            std::process::exit(1);
-        }
+        let mut handle = tokio::fs::File::create(&file)
+            .await
+            .into_diagnostic()
+            .with_context(|| format!("Failed to open temporary stdin file '{}'", file.display()))?;
+
+        tokio::io::copy(&mut tokio::io::stdin(), &mut handle)
+            .await
+            .into_diagnostic()
+            .with_context(|| format!("Failed to write stdin to temporary file '{}'", file.display()))?;
+
         file
     } else {
         PathBuf::from(args.file)
     };
 
     // Create the reasoner
-    let conn = match EFlintHaskellReasonerConnector::<SilentHandler, String, ()>::new_async(
+    let conn = EFlintHaskellReasonerConnector::<SilentHandler, String, ()>::new_async(
         shlex::split(&args.eflint_cmd).into_iter().flatten(),
         &policy,
         SilentHandler,
         &logger,
     )
     .await
-    {
-        Ok(conn) => conn,
-        Err(err) => {
-            error!("{}", trace!(("Failed to create eFLINT reasoner"), err));
-            std::process::exit(1);
-        },
-    };
-    let verdict: ReasonerResponse<NoReason> = match conn.consult("".into(), (), &logger).await {
-        Ok(res) => res,
-        Err(err) => {
-            error!("{}", trace!(("Failed to send message to reasoner {:?}", args.eflint_cmd), err));
-            std::process::exit(1);
-        },
-    };
+    .into_diagnostic()
+    .context("Failed to create eFLINT reasoner")?;
+
+    let verdict: ReasonerResponse<NoReason> = conn
+        .consult("".into(), (), &logger)
+        .await
+        .into_diagnostic()
+        .with_context(|| format!("Failed to send message to reasoner {:?}", args.eflint_cmd))?;
 
     // OK, report
     match verdict {
@@ -126,4 +130,6 @@ async fn main() {
             println!();
         },
     }
+
+    Ok(())
 }
