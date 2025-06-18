@@ -63,7 +63,7 @@ posix-reasoner = { path = "./lib/reasoners/posix", optional = true }
 file-logger    = { path = "./lib/loggers/file", optional = true }
 no-op-logger   = { path = "./lib/loggers/no-op", optional = true }
 file-resolver  = { path = "./lib/resolvers/file", optional = true }
-eflint-to-json = { path = "./lib/eflint-to-json", features = ["async-tokio", "tracing"], optional = true }
+eflint-to-json = { path = "./lib/eflint-to-json", features = ["async-tokio"], optional = true }
 spec           = { path = "./lib/spec", package = "specifications" }
 workflow       = { path = "./lib/workflow", optional = true }
 

@@ -30,8 +30,7 @@ use sha2::{Digest as _, Sha256};
 use tokio::fs as tfs;
 #[cfg(feature = "async-tokio")]
 use tokio::io::AsyncWriteExt as _;
-
-use crate::log::debug;
+use tracing::debug;
 
 
 /***** ERRORS *****/

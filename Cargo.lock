@@ -352,7 +352,6 @@ dependencies = [
  "hex",
  "hex-literal",
  "indicatif",
- "log",
  "reqwest",
  "sha2",
  "thiserror",

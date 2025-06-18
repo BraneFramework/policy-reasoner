@@ -16,7 +16,6 @@
 
 // Declare modules
 pub mod download;
-mod log;
 
 use std::borrow::Cow;
 use std::collections::HashSet;
@@ -28,13 +27,13 @@ use std::path::{Path, PathBuf};
 use std::process::{Child, ChildStdin, ChildStdout, Command, ExitStatus, Stdio};
 
 use console::Style;
-use log::{debug, info};
 #[cfg(feature = "async-tokio")]
 use tokio::fs::{self as tfs, File as TFile};
 #[cfg(feature = "async-tokio")]
 use tokio::io::{AsyncBufReadExt as _, AsyncReadExt, AsyncWriteExt as _, BufReader as TBufReader};
 #[cfg(feature = "async-tokio")]
 use tokio::process::{ChildStdin as TChildStdin, ChildStdout as TChildStdout, Command as TCommand};
+use tracing::{debug, info};
 
 #[cfg(feature = "async-tokio")]
 use crate::download::download_file_async;
