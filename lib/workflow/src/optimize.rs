@@ -18,113 +18,6 @@ use crate::visitor::VisitorOwned;
 use crate::{Elem, ElemBranch, Workflow};
 
 
-/***** TESTS *****/
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::{ElemCall, Entity};
-
-
-    /// Generates a workflow with minimal info
-    #[inline]
-    fn gen_wf(id: impl Into<String>, start: impl Into<Elem>) -> Workflow {
-        Workflow { id: id.into(), start: start.into(), user: Some(Entity { id: "amy".into() }), metadata: vec![], signature: None }
-    }
-
-    /// Generates a branch.
-    #[inline]
-    fn gen_branch(branches: impl IntoIterator<Item = Elem>, next: Elem) -> Elem {
-        Elem::Branch(ElemBranch { branches: branches.into_iter().collect(), next: Box::new(next) })
-    }
-
-    /// Generates a call to a specific package, nothing else.
-    #[inline]
-    fn gen_void_call(id: impl Into<String>, task: impl Into<String>, next: Elem) -> Elem {
-        Elem::Call(ElemCall { id: id.into(), task: task.into(), input: vec![], output: vec![], at: None, metadata: vec![], next: Box::new(next) })
-    }
-
-
-    /// Checks if two workflows have the same structure.
-    #[inline]
-    fn compares(left: &Workflow, right: &Workflow) -> bool {
-        fn cmp_edge(left: &Elem, right: &Elem) -> bool {
-            match (left, right) {
-                (Elem::Call(l), Elem::Call(r)) => l.task == r.task && cmp_edge(&l.next, &r.next),
-
-                (Elem::Branch(l), Elem::Branch(r)) => {
-                    l.branches.len() == r.branches.len()
-                        && l.branches.iter().zip(r.branches.iter()).all(|(l, r)| cmp_edge(l, r))
-                        && cmp_edge(&l.next, &r.next)
-                },
-                (Elem::Parallel(l), Elem::Parallel(r)) => {
-                    l.branches.len() == r.branches.len()
-                        && l.branches.iter().zip(r.branches.iter()).all(|(l, r)| cmp_edge(l, r))
-                        && cmp_edge(&l.next, &r.next)
-                },
-                (Elem::Loop(l), Elem::Loop(r)) => cmp_edge(&l.body, &r.body) && cmp_edge(&l.next, &r.next),
-
-                (Elem::Next, Elem::Next) => true,
-                (Elem::Stop, Elem::Stop) => true,
-
-                _ => false,
-            }
-        }
-
-        cmp_edge(&left.start, &right.start)
-    }
-
-
-
-    /// Tests whether branches are flattened.
-    #[test]
-    fn test_branch_flattener() {
-        // Case 1
-        let mut pred: Workflow = gen_wf(
-            "Prediction",
-            gen_branch(
-                [
-                    gen_branch([gen_void_call("foo", "Foo", Elem::Next)], Elem::Next),
-                    gen_branch([gen_void_call("bar", "Bar", Elem::Next), gen_void_call("baz", "Baz", Elem::Next)], Elem::Next),
-                ],
-                Elem::Stop,
-            ),
-        );
-        pred.optimize();
-        assert!(compares(
-            &pred,
-            &gen_wf(
-                "Truth",
-                gen_branch(
-                    [gen_void_call("foo", "Foo", Elem::Next), gen_void_call("bar", "Bar", Elem::Next), gen_void_call("baz", "Baz", Elem::Next)],
-                    Elem::Stop
-                )
-            )
-        ));
-    }
-
-    /// Tests whether dead branches are pruned.
-    #[test]
-    fn test_dead_branch_pruner() {
-        // Case 1
-        let mut pred: Workflow = gen_wf("Prediction", gen_branch([gen_void_call("foo", "Foo", Elem::Next), Elem::Next], Elem::Stop));
-        pred.optimize();
-        assert!(compares(&pred, &gen_wf("Truth", gen_branch([gen_void_call("foo", "Foo", Elem::Next),], Elem::Stop))));
-    }
-
-    /// Tests whether empty branches are removed.
-    #[test]
-    fn test_empty_branch_remover() {
-        // Case 1
-        let mut pred: Workflow = gen_wf("Prediction", gen_branch([], Elem::Stop));
-        pred.optimize();
-        assert!(compares(&pred, &gen_wf("Truth", Elem::Stop)));
-    }
-}
-
-
-
-
-
 /***** HELPERS *****/
 // Interface
 /// Defines what an optimizer looks like in the abstract.
@@ -280,5 +173,112 @@ impl Workflow {
             // Apply the optimizations
             saturated = !(BranchFlattener::optimize(self) | DeadBranchPruner::optimize(self) | EmptyBranchRemover::optimize(self));
         }
+    }
+}
+
+
+
+
+
+/***** TESTS *****/
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{ElemCall, Entity};
+
+
+    /// Generates a workflow with minimal info
+    #[inline]
+    fn gen_wf(id: impl Into<String>, start: impl Into<Elem>) -> Workflow {
+        Workflow { id: id.into(), start: start.into(), user: Some(Entity { id: "amy".into() }), metadata: vec![], signature: None }
+    }
+
+    /// Generates a branch.
+    #[inline]
+    fn gen_branch(branches: impl IntoIterator<Item = Elem>, next: Elem) -> Elem {
+        Elem::Branch(ElemBranch { branches: branches.into_iter().collect(), next: Box::new(next) })
+    }
+
+    /// Generates a call to a specific package, nothing else.
+    #[inline]
+    fn gen_void_call(id: impl Into<String>, task: impl Into<String>, next: Elem) -> Elem {
+        Elem::Call(ElemCall { id: id.into(), task: task.into(), input: vec![], output: vec![], at: None, metadata: vec![], next: Box::new(next) })
+    }
+
+
+    /// Checks if two workflows have the same structure.
+    #[inline]
+    fn compares(left: &Workflow, right: &Workflow) -> bool {
+        fn cmp_edge(left: &Elem, right: &Elem) -> bool {
+            match (left, right) {
+                (Elem::Call(l), Elem::Call(r)) => l.task == r.task && cmp_edge(&l.next, &r.next),
+
+                (Elem::Branch(l), Elem::Branch(r)) => {
+                    l.branches.len() == r.branches.len()
+                        && l.branches.iter().zip(r.branches.iter()).all(|(l, r)| cmp_edge(l, r))
+                        && cmp_edge(&l.next, &r.next)
+                },
+                (Elem::Parallel(l), Elem::Parallel(r)) => {
+                    l.branches.len() == r.branches.len()
+                        && l.branches.iter().zip(r.branches.iter()).all(|(l, r)| cmp_edge(l, r))
+                        && cmp_edge(&l.next, &r.next)
+                },
+                (Elem::Loop(l), Elem::Loop(r)) => cmp_edge(&l.body, &r.body) && cmp_edge(&l.next, &r.next),
+
+                (Elem::Next, Elem::Next) => true,
+                (Elem::Stop, Elem::Stop) => true,
+
+                _ => false,
+            }
+        }
+
+        cmp_edge(&left.start, &right.start)
+    }
+
+
+
+    /// Tests whether branches are flattened.
+    #[test]
+    fn test_branch_flattener() {
+        // Case 1
+        let mut pred: Workflow = gen_wf(
+            "Prediction",
+            gen_branch(
+                [
+                    gen_branch([gen_void_call("foo", "Foo", Elem::Next)], Elem::Next),
+                    gen_branch([gen_void_call("bar", "Bar", Elem::Next), gen_void_call("baz", "Baz", Elem::Next)], Elem::Next),
+                ],
+                Elem::Stop,
+            ),
+        );
+        pred.optimize();
+        assert!(compares(
+            &pred,
+            &gen_wf(
+                "Truth",
+                gen_branch(
+                    [gen_void_call("foo", "Foo", Elem::Next), gen_void_call("bar", "Bar", Elem::Next), gen_void_call("baz", "Baz", Elem::Next)],
+                    Elem::Stop
+                )
+            )
+        ));
+    }
+
+    /// Tests whether dead branches are pruned.
+    #[test]
+    fn test_dead_branch_pruner() {
+        // Case 1
+        let mut pred: Workflow = gen_wf("Prediction", gen_branch([gen_void_call("foo", "Foo", Elem::Next), Elem::Next], Elem::Stop));
+        pred.optimize();
+        assert!(compares(&pred, &gen_wf("Truth", gen_branch([gen_void_call("foo", "Foo", Elem::Next),], Elem::Stop))));
+    }
+
+    /// Tests whether empty branches are removed.
+    #[test]
+    fn test_empty_branch_remover() {
+        // Case 1
+        let mut pred: Workflow = gen_wf("Prediction", gen_branch([], Elem::Stop));
+        pred.optimize();
+        assert!(compares(&pred, &gen_wf("Truth", Elem::Stop)));
     }
 }
