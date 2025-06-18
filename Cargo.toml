@@ -67,6 +67,8 @@ eflint-to-json = { path = "./lib/eflint-to-json", features = ["async-tokio"], op
 spec           = { path = "./lib/spec", package = "specifications" }
 workflow       = { path = "./lib/workflow", optional = true }
 
+miette = { version = "7.0.0", features = ["fancy"] }
+
 
 [dev-dependencies]
 clap = { version = "4.0.0", features = ["derive"] }

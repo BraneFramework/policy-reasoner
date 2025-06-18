@@ -14,18 +14,18 @@
 //
 
 use std::path::PathBuf;
+use std::process::ExitCode;
 
 use clap::Parser;
 use console::style;
-use error_trace::trace;
 use file_logger::FileLogger;
+use miette::{Context as _, IntoDiagnostic as _};
 use policy_reasoner::reasoners::posix::{PosixReasonerConnector, State};
 use policy_reasoner::spec::ReasonerConnector as _;
 use policy_reasoner::spec::auditlogger::SessionedAuditLogger;
 use policy_reasoner::workflow::Workflow;
 use posix_reasoner::config::Config;
 use spec::reasonerconn::ReasonerResponse;
-use spec::reasons::NoReason;
 use tokio::fs;
 use tokio::io::{self, AsyncReadExt as _};
 use tracing::{Level, debug, error, info};
@@ -44,36 +44,19 @@ use tracing::{Level, debug, error, info};
 /// This function errors if it failed to read stdin OR the file, or parse it as a valid Workflow.
 ///
 /// Note that errorring is done by calling [`std::process::exit()`].
-async fn load_workflow(input: String) -> Workflow {
+async fn load_workflow(input: &str) -> miette::Result<Workflow> {
     let workflow: String = if input == "-" {
         let mut raw: Vec<u8> = Vec::new();
-        if let Err(err) = io::stdin().read_buf(&mut raw).await {
-            error!("{}", trace!(("Failed to read from stdin"), err));
-            std::process::exit(1);
-        }
-        match String::from_utf8(raw) {
-            Ok(raw) => raw,
-            Err(err) => {
-                error!("{}", trace!(("Stdin is not valid UTF-8"), err));
-                std::process::exit(1);
-            },
-        }
+        io::stdin().read_buf(&mut raw).await.into_diagnostic().context("Failed to read from stdin")?;
+        String::from_utf8(raw).into_diagnostic().context("Stdin is not valid UTF-8")?
     } else {
-        match fs::read_to_string(&input).await {
-            Ok(raw) => raw,
-            Err(err) => {
-                error!("{}", trace!(("Failed to read the workflow file {input:?}"), err));
-                std::process::exit(1);
-            },
-        }
+        fs::read_to_string(&input).await.into_diagnostic().with_context(|| format!("Failed to read the workflow file {input:?}"))?
     };
-    match serde_json::from_str(&workflow) {
-        Ok(config) => config,
-        Err(err) => {
-            error!("{}", trace!(("{} is not a valid workflow", if input == "-" { "Stdin".to_string() } else { format!("File {input:?}") }), err));
-            std::process::exit(1);
-        },
-    }
+    let workflow = serde_json::from_str(&workflow)
+        .into_diagnostic()
+        .with_context(|| format!("{} is not a valid workflow", if input == "-" { "Stdin".to_string() } else { format!("File {input:?}") }))?;
+
+    Ok(workflow)
 }
 
 /// Reads a [`Config`] from disk.
@@ -86,39 +69,18 @@ async fn load_workflow(input: String) -> Workflow {
 ///
 /// # Errors
 /// This function errors if it failed to read the file, or it did not contain a valid config.
-///
-/// Note that errorring is done by calling [`std::process::exit()`].
-async fn load_config(path: PathBuf) -> Config {
+async fn load_config(path: PathBuf) -> miette::Result<Config> {
     // Load the file and parse it
-    let config: String = match fs::read_to_string(&path).await {
-        Ok(raw) => raw,
-        Err(err) => {
-            error!("{}", trace!(("Failed to read the config file {:?}", path.display()), err));
-            std::process::exit(1);
-        },
-    };
-    let mut config: Config = match serde_json::from_str(&config) {
-        Ok(config) => config,
-        Err(err) => {
-            error!("{}", trace!(("File {:?} is not a valid config file", path.display()), err));
-            std::process::exit(1);
-        },
-    };
+    let config: String =
+        fs::read_to_string(&path).await.into_diagnostic().with_context(|| format!("Failed to read the config file {:?}", path.display()))?;
+
+    let mut config: Config =
+        serde_json::from_str(&config).into_diagnostic().with_context(|| format!("File {:?} is not a valid config file", path.display()))?;
 
     // Resolve relative files to relative to the binary, for consistency of calling the example
-    let prefix: PathBuf = match std::env::current_exe() {
-        Ok(path) => {
-            if let Some(parent) = path.parent() {
-                parent.into()
-            } else {
-                path
-            }
-        },
-        Err(err) => {
-            error!("{}", trace!(("Failed to obtain the current executable's path"), err));
-            std::process::exit(1);
-        },
-    };
+    let path = std::env::current_exe().into_diagnostic().context("Failed to obtain the current executable's path")?;
+    let prefix = if let Some(parent) = path.parent() { parent.into() } else { path };
+
     for path in config.data.values_mut().map(|data| &mut data.path) {
         if path.is_relative() {
             *path = prefix.join(&*path);
@@ -127,10 +89,8 @@ async fn load_config(path: PathBuf) -> Config {
     debug!("Config after resolving relative paths: {config:?}");
 
     // Done
-    config
+    Ok(config)
 }
-
-
 
 
 
@@ -159,7 +119,7 @@ pub struct Arguments {
 
 /***** ENTRYPOINT *****/
 #[tokio::main(flavor = "current_thread")]
-async fn main() {
+async fn main() -> ExitCode {
     // Parse the arguments
     let args = Arguments::parse();
 
@@ -175,29 +135,27 @@ async fn main() {
         .init();
     info!("{} - v{}", env!("CARGO_BIN_NAME"), env!("CARGO_PKG_VERSION"));
 
+    match run(args).await {
+        Ok(()) => ExitCode::SUCCESS,
+        Err(err) => {
+            error!("{err:?}");
+            ExitCode::FAILURE
+        },
+    }
+}
+async fn run(args: Arguments) -> miette::Result<()> {
     // Read the workflow & config
-    let workflow: Workflow = load_workflow(args.workflow).await;
-    let config: Config = load_config(args.config).await;
+    let workflow: Workflow = load_workflow(&args.workflow).await.context("Could not load workflow")?;
+    let config: Config = load_config(args.config).await.context("Could not load config")?;
 
     // Create the logger
     let mut logger: SessionedAuditLogger<FileLogger> =
         SessionedAuditLogger::new("test", FileLogger::new(format!("{} - v{}", env!("CARGO_BIN_NAME"), env!("CARGO_PKG_VERSION")), "./test.log"));
 
     // Run the reasoner
-    let conn: PosixReasonerConnector = match PosixReasonerConnector::new_async(&mut logger).await {
-        Ok(conn) => conn,
-        Err(err) => {
-            error!("{}", trace!(("Failed to create the POSIX reasoner"), err));
-            std::process::exit(1);
-        },
-    };
-    let verdict: ReasonerResponse<NoReason> = match conn.consult(State { workflow, config }, (), &logger).await {
-        Ok(res) => res,
-        Err(err) => {
-            error!("{}", trace!(("Failed to consult the POSIX reasoner"), err));
-            std::process::exit(1);
-        },
-    };
+    let conn = PosixReasonerConnector::new_async(&mut logger).await.into_diagnostic().context("Failed to create the POSIX reasoner")?;
+
+    let verdict = conn.consult(State { workflow, config }, (), &logger).await.into_diagnostic().context("Failed to consult the POSIX reasoner")?;
 
     // OK, report
     match verdict {
@@ -206,4 +164,6 @@ async fn main() {
             println!("{} {}", style("Reasoner says:").bold(), style("VIOLATION").bold().red());
         },
     }
+
+    Ok(())
 }
