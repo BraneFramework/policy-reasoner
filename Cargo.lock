@@ -320,8 +320,10 @@ name = "eflint-haskell-reasoner"
 version = "0.1.0"
 dependencies = [
  "error-trace",
+ "hex",
  "serde",
  "sha2",
+ "share",
  "specifications",
  "thiserror",
  "tokio",
