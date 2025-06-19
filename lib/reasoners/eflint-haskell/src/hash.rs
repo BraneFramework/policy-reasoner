@@ -49,9 +49,9 @@ impl Display for PrettyPathListFormatter<'_> {
 /// Errors emitted by [`compute_policy_hash()`].
 #[derive(Debug, Error)]
 pub enum Error {
-    #[error("Failed to open file {:?}", path.display())]
+    #[error("Failed to open file {}", path.display())]
     FileOpen { path: PathBuf, source: std::io::Error },
-    #[error("Failed to read from file {:?}", path.display())]
+    #[error("Failed to read from file {}", path.display())]
     FileRead { path: PathBuf, source: std::io::Error },
     #[error("Failed to get current working directory")]
     GetCwd { source: std::io::Error },
@@ -306,7 +306,7 @@ pub async fn find_deps(path: impl AsRef<Path>, include_dirs: &[&Path]) -> Result
 /// of the (recursive) dependencies.
 pub async fn compute_policy_hash(path: impl AsRef<Path>, include_dirs: &[&Path]) -> Result<[u8; 32], Error> {
     // Find the set of all files first
-    let files: HashSet<PathBuf> = find_deps(path, include_dirs).await?;
+    let files = find_deps(path, include_dirs).await?;
 
     // Order them
     let mut files: Vec<PathBuf> = files.into_iter().collect();
@@ -316,7 +316,7 @@ pub async fn compute_policy_hash(path: impl AsRef<Path>, include_dirs: &[&Path])
     let mut hasher = Sha256::new();
     for file in files {
         // Open the file
-        debug!("Hashing eFLINT file {:?}", file.display());
+        debug!("Hashing eFLINT file {}", file.display());
         let mut handle = File::open(&file).await.map_err(|source| Error::FileOpen { path: file.clone(), source })?;
         let mut buf: [u8; 16384] = [0; 16384];
         loop {

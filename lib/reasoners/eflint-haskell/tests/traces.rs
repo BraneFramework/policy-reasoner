@@ -25,7 +25,8 @@ fn test_all_trace_files() {
     // Visit all traces
     let traces_path: PathBuf = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests").join("traces");
     let entries: ReadDir =
-        fs::read_dir(&traces_path).unwrap_or_else(|err| panic!("Failed to read traces directory {:?}: {err}", traces_path.display()));
+        fs::read_dir(&traces_path).unwrap_or_else(|err| panic!("Failed to read traces directory {path}: {err}", path = traces_path.display()));
+
     for (i, entry) in entries.enumerate() {
         let entry = entry.unwrap_or_else(|err| panic!("Failed to read entry {i} in traces directory {:?}: {err}", traces_path.display()));
 

@@ -227,10 +227,11 @@ impl FromStrHead for NewInvariant {
     #[inline]
     fn from_str_head(s: &str) -> Result<Option<(&str, Self)>, Self::Error> {
         // Parse the magic first
-        if !s.starts_with(NEW_INVARIANT) {
+        let Some(rem) = s.strip_prefix(NEW_INVARIANT) else {
             return Ok(None);
-        }
-        let rem = s[NEW_INVARIANT.len()..].trim_start();
+        };
+
+        let rem = rem.trim_start();
 
         // Then parse the type name
         match TypeName::from_str_head(rem)? {
@@ -256,10 +257,10 @@ impl FromStrHead for NewType {
     #[inline]
     fn from_str_head(s: &str) -> Result<Option<(&str, Self)>, Self::Error> {
         // Parse the magic first
-        if !s.starts_with(NEW_TYPE) {
+        let Some(rem) = s.strip_prefix(NEW_TYPE) else {
             return Ok(None);
-        }
-        let rem = s[NEW_TYPE.len()..].trim_start();
+        };
+        let rem = rem.trim_start();
 
         // Then parse the type name
         match TypeName::from_str_head(rem)? {
@@ -275,7 +276,7 @@ impl FromStrHead for NewType {
 #[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub enum Query {
     /// The answer is yes
-    Succes,
+    Success,
     /// The answer is no
     Fail,
 }
@@ -283,13 +284,13 @@ impl Query {
     /// Returns true if this query was a success.
     ///
     /// # Returns
-    /// True if this is a [`Query::Succes`], or false otherwise.
+    /// True if this is a [`Query::Success`], or false otherwise.
     #[inline]
-    pub const fn is_succes(&self) -> bool { matches!(self, Self::Succes) }
+    pub const fn is_success(&self) -> bool { matches!(self, Self::Success) }
 }
 impl Display for Query {
     #[inline]
-    fn fmt(&self, f: &mut Formatter<'_>) -> FResult { if self.is_succes() { write!(f, "Query succes") } else { write!(f, "Query failed") } }
+    fn fmt(&self, f: &mut Formatter<'_>) -> FResult { if self.is_success() { write!(f, "Query succes") } else { write!(f, "Query failed") } }
 }
 impl FromStrHead for Query {
     type Error = Infallible;
@@ -297,7 +298,7 @@ impl FromStrHead for Query {
     #[inline]
     fn from_str_head(s: &str) -> Result<Option<(&str, Self)>, Self::Error> {
         if let Some(rem) = s.strip_prefix(QUERY_SUCCESS) {
-            return Ok(Some((rem, Self::Succes)));
+            return Ok(Some((rem, Self::Success)));
         }
         if let Some(rem) = s.strip_prefix(QUERY_FAILED) {
             return Ok(Some((rem, Self::Fail)));
@@ -408,16 +409,14 @@ impl FromStrHead for Vec<Trigger> {
     #[inline]
     fn from_str_head(s: &str) -> Result<Option<(&str, Self)>, Self::Error> {
         // Parse the magic prefix first
-        if !s.starts_with(EXEC_TRANS) {
+        let Some(rem) = s.strip_prefix(EXEC_TRANS) else {
             return Ok(None);
-        }
-        let rem = s[EXEC_TRANS.len()..].trim_start();
+        };
+
+        let rem = rem.trim_start();
 
         // Now parse the triggered instance
-        let (rem, inst): (&str, Instance) = match Instance::from_str_head(rem)? {
-            Some(res) => res,
-            None => return Err(Error::MissingInstanceAfterExecuted { s: rem.into() }),
-        };
+        let (rem, inst): (&str, Instance) = Instance::from_str_head(rem)?.ok_or_else(|| Error::MissingInstanceAfterExecuted { s: rem.into() })?;
 
         // Parse the optional 'ENABLED|DISABLED' bizz
         let rem = rem.trim_start();
@@ -495,10 +494,11 @@ impl FromStrHead for Vec<Violation> {
     #[inline]
     fn from_str_head(s: &str) -> Result<Option<(&str, Self)>, Self::Error> {
         // Parse the initial magic
-        if !s.starts_with(VIOLATIONS) {
+        let Some(rem) = s.strip_prefix(VIOLATIONS) else {
             return Ok(None);
-        }
-        let mut rem = s[VIOLATIONS.len()..].trim_start();
+        };
+
+        let mut rem = rem.trim_start();
 
         // Now keep popping violations
         let mut res: Vec<Violation> = Vec::new();
@@ -905,9 +905,9 @@ mod tests {
 
     #[test]
     fn test_parse_query() {
-        assert_eq!(Query::from_str_head("query successful"), Ok(Some(("", Query::Succes))));
+        assert_eq!(Query::from_str_head("query successful"), Ok(Some(("", Query::Success))));
         assert_eq!(Query::from_str_head("query failed"), Ok(Some(("", Query::Fail))));
-        assert_eq!(Query::from_str_head("query successfulAND MORE"), Ok(Some(("AND MORE", Query::Succes))));
+        assert_eq!(Query::from_str_head("query successfulAND MORE"), Ok(Some(("AND MORE", Query::Success))));
         assert_eq!(Query::from_str_head("query successfu"), Ok(None));
         assert_eq!(Query::from_str_head("aquery failed"), Ok(None));
         assert_eq!(Query::from_str_head(""), Ok(None));

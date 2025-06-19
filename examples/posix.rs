@@ -155,7 +155,7 @@ async fn run(args: Arguments) -> miette::Result<()> {
     let config: Config = load_config(args.config).await.context("Could not load config")?;
 
     // Create the logger
-    let mut logger: SessionedAuditLogger<FileLogger> =
+    let mut logger =
         SessionedAuditLogger::new("test", FileLogger::new(format!("{} - v{}", env!("CARGO_BIN_NAME"), env!("CARGO_PKG_VERSION")), "./test.log"));
 
     // Run the reasoner
