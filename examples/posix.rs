@@ -78,10 +78,10 @@ async fn load_workflow(input: &InputFile) -> miette::Result<Workflow> {
 async fn load_config(path: PathBuf) -> miette::Result<Config> {
     // Load the file and parse it
     let config: String =
-        fs::read_to_string(&path).await.into_diagnostic().with_context(|| format!("Failed to read the config file {:?}", path.display()))?;
+        fs::read_to_string(&path).await.into_diagnostic().with_context(|| format!("Failed to read the config file {path}", path = path.display()))?;
 
     let mut config: Config =
-        serde_json::from_str(&config).into_diagnostic().with_context(|| format!("File {:?} is not a valid config file", path.display()))?;
+        serde_json::from_str(&config).into_diagnostic().with_context(|| format!("File {path} is not a valid config file", path = path.display()))?;
 
     // Resolve relative files to relative to the binary, for consistency of calling the example
     let path = std::env::current_exe().into_diagnostic().context("Failed to obtain the current executable's path")?;

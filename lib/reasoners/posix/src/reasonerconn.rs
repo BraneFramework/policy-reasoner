@@ -39,7 +39,7 @@ use crate::workflow::WorkflowDatasets;
 #[derive(Debug, Error)]
 pub enum Error {
     /// Failed to retrieve a file's metadata.
-    #[error("Failed to get file {:?} metadata", path.display())]
+    #[error("Failed to get file {} metadata", path.display())]
     FileMetadata { path: PathBuf, source: std::io::Error },
     /// Failed to log the context of the reasoner.
     #[error("Failed to log the reasoner's context to {to}")]
@@ -278,7 +278,7 @@ impl ReasonerConnector for PosixReasonerConnector {
 
         // The datasets used in the workflow. E.g., `st_antonius_ect`.
         let datasets: WorkflowDatasets = WorkflowDatasets::new(&state.config.id, &state.workflow);
-        debug!("Found datasets in workflow {:?}: {:#?}", state.workflow.id, datasets);
+        debug!("Found datasets in workflow {id}: {datasets:#?}", id = state.workflow.id);
 
         // Loop to find the permissions on the disk
         for ((location, dataset), permission) in std::iter::empty()
@@ -286,7 +286,7 @@ impl ReasonerConnector for PosixReasonerConnector {
             .chain(datasets.write_sets.iter().zip(repeat(PosixFilePermission::Write.to_set())))
             .chain(datasets.execute_sets.iter().zip(repeat(PosixFilePermission::Read | PosixFilePermission::Execute)))
         {
-            info!("Testing dataset {:?} for permission to {:?} for user {:?}", dataset.id, permission, location);
+            info!("Testing dataset {id:?} for permission to {permission:?} for user {location:?}", id = dataset.id);
 
             // Find the location of the dataset in the list
             let policy: &DataPolicy = match state.config.data.get(&dataset.id) {
