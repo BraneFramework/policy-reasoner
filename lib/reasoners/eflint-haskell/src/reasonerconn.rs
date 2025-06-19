@@ -21,6 +21,7 @@ use std::str::FromStr as _;
 
 use error_trace::ErrorTrace as _;
 use serde::{Deserialize, Serialize};
+use share::formatters::BlockFormatter;
 use spec::auditlogger::SessionedAuditLogger;
 use spec::reasonerconn::{ReasonerContext, ReasonerResponse};
 use spec::{AuditLogger, ReasonerConnector};
@@ -33,9 +34,6 @@ use crate::hash::compute_policy_hash;
 use crate::reasons::{Problem, ReasonHandler};
 use crate::spec::{EFlintable, EFlintableExt as _};
 use crate::trace::{Delta, Trace};
-
-/***** CONSTANTS *****/
-const BLOCK_SEPARATOR: &str = "--------------------------------------------------------------------------------";
 
 /***** ERRORS *****/
 /// Defines errors originating from the [`EFlintHaskellReasonerConnector`].
@@ -60,9 +58,14 @@ pub enum Error {
     CommandStdinWrite { source: std::io::Error },
     #[error("Failed to wait for command {cmd:?} to complete")]
     CommandJoin { cmd: Command, source: std::io::Error },
-    #[error("Command {cmd:?} failed with exit code {code}\n\nstdout:\n{BLOCK_SEPARATOR}\n{stdout}\n{BLOCK_SEPARATOR}\n\nstderr:\n{BLOCK_SEPARATOR}\n{stderr}\n{BLOCK_SEPARATOR}\n", code = status.code().unwrap_or(-1))]
+    #[error(
+        "Command {cmd:?} failed with exit code {code}\n\n{stdout}\n\n{stderr}",
+        code = status.code().unwrap_or(-1),
+        stdout = BlockFormatter::new("stdout:", stdout),
+        stderr = BlockFormatter::new("stderr:", stderr)
+    )]
     CommandFailure { cmd: Command, status: ExitStatus, stdout: String, stderr: String },
-    #[error("Failed to parse reasoner output\n\nstdout:\n{BLOCK_SEPARATOR}\n{output}\n{BLOCK_SEPARATOR}\n")]
+    #[error("Failed to parse reasoner output\n{output}", output = BlockFormatter::new("stdout:", output))]
     IllegalReasonerResponse { output: String, source: crate::trace::Error },
 }
 
@@ -241,7 +244,7 @@ where
 
         // Prepare the full file to send
         let spec: String = format!("{}{}", state.eflint(), question.eflint());
-        debug!("Full spec to submit to reasoner:{}\n{}\n{}\n", "-".repeat(80), spec, "-".repeat(80));
+        debug!("{}", BlockFormatter::new("Full spec to submit to reasoner:", &spec));
 
         // Prepare the command to execute
         let mut cmd = Command::new(&self.context.cmd.0);
@@ -321,12 +324,12 @@ where
         }
 
         // Attempt to parse the output
-        debug!("Reasoner output:\n{}\n{}\n{}\n", "-".repeat(80), clean_output, "-".repeat(80));
+        debug!("{}", BlockFormatter::new("Reasoner output:", &clean_output));
         let trace: Trace = match Trace::from_str(clean_output.as_ref()) {
             Ok(trace) => trace,
             Err(source) => return Err(Error::IllegalReasonerResponse { output: clean_output, source }),
         };
-        debug!("Reasoner trace:\n{}\n{}\n{}\n", "-".repeat(80), trace, "-".repeat(80));
+        debug!("{}", BlockFormatter::new("Reasoner trace:", &trace));
 
         // Analyze the output to find violations
         // The rule is:

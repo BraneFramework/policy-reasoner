@@ -17,9 +17,7 @@ use std::path::PathBuf;
 use std::str::FromStr as _;
 
 use eflint_haskell_reasoner::trace::Trace;
-
-
-static BLOCK_SEPARATOR: &str = "--------------------------------------------------------------------------------";
+use share::formatters::BlockFormatter;
 
 /***** Tests *****/
 #[test]
@@ -39,8 +37,9 @@ fn test_all_trace_files() {
         // Attempt to parse it
         if let Err(err) = Trace::from_str(&trace) {
             panic!(
-                "Failed to parse trace of trace file {path}: {err}\n\n{BLOCK_SEPARATOR}\n{trace}\n{BLOCK_SEPARATOR}\n",
+                "Failed to parse trace of trace file {path}: {err}\n\n{trace}\n",
                 path = entry.path().display(),
+                trace = BlockFormatter::new("trace", trace),
             );
         }
     }
