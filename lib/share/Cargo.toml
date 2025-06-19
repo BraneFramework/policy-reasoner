@@ -1,0 +1,12 @@
+[package]
+name = "share"
+version = "0.1.0"
+rust-version = "1.78.0"
+edition = "2021"
+repository.workspace = true
+license.workspace = true
+
+[dependencies]
+tokio = { version = "1.44.2", features = ["fs", "io-util", "io-std"] }
+miette = "7.0.0"
+tempfile = "3.0.0"

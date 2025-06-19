@@ -12,7 +12,7 @@
 //!   Entrypoint to the example `eflint` policy reasoner.
 //
 
-use std::fs::{self, File};
+use std::fs;
 use std::io::{self, Read as _};
 use std::path::PathBuf;
 use std::process::ExitCode;
@@ -28,6 +28,7 @@ use policy_reasoner::reasoners::eflint_json::reasons::EFlintSilentReasonHandler;
 use policy_reasoner::spec::auditlogger::SessionedAuditLogger;
 use policy_reasoner::spec::reasonerconn::ReasonerConnector as _;
 use policy_reasoner::spec::reasons::NoReason;
+use share::InputFile;
 use spec::reasonerconn::ReasonerResponse;
 use tracing::{Level, error, info};
 
@@ -45,7 +46,7 @@ struct Arguments {
 
     /// The file to use as input.
     #[clap(name = "FILE", default_value = "-", help = "The eFLINT (JSON) file to read. Use '-' to read from stdin.")]
-    file: String,
+    file: InputFile,
     /// Whether to read the input as DSL.
     #[clap(
         short,
@@ -109,55 +110,37 @@ async fn run(args: Arguments) -> miette::Result<()> {
 
     // Decide which eflint to run
     let dsl: bool = !args.json;
-    let policy: RequestPhrases = if dsl {
+    let raw = if dsl {
         // First: resolve any stdin to a file
-        let file: PathBuf = if args.file == "-" {
-            let file: PathBuf = std::env::temp_dir().join(format!("{}-v{}-stdin", env!("CARGO_BIN_NAME"), env!("CARGO_PKG_VERSION")));
-            let mut handle =
-                File::create(&file).into_diagnostic().with_context(|| format!("Failed to open temporary stdin file '{}'", file.display()))?;
-
-            io::copy(&mut io::stdin(), &mut handle)
-                .into_diagnostic()
-                .with_context(|| format!("Failed to write stdin to temporary file '{}'", file.display()))?;
-
-            file
-        } else {
-            PathBuf::from(&args.file)
-        };
+        let file = args.file.as_file().await?;
 
         // Compile first
         let mut json: Vec<u8> = Vec::new();
         eflint_to_json::compile_async(&file, &mut json, args.eflint_path.as_deref())
             .await
             .into_diagnostic()
-            .with_context(|| format!("Failed to compile input file '{}' to JSON", args.file))?;
+            .with_context(|| format!("Failed to compile input file '{}' to JSON", args.file.display()))?;
 
-        // Now parse the file contents as a request and done
-        serde_json::from_slice(&json).into_diagnostic().with_context(|| {
-            format!(
-                "Failed to parse {} as an eFLINT JSON phrases request",
-                if args.file == "-" { "stdin".to_string() } else { format!("file {:?}", args.file) }
-            )
-        })?
+        json
     } else {
         // Read the file
-        let raw: Vec<u8> = if args.file == "-" {
-            let mut raw: Vec<u8> = Vec::new();
-            io::stdin().read_to_end(&mut raw).into_diagnostic().context("Failed to read stdin")?;
-            raw
-        } else {
-            // Open the file
-            fs::read(&args.file).into_diagnostic().with_context(|| format!("Failed to open & read file '{}'", args.file))?
-        };
-
-        // Now parse the file contents as a request and done
-        serde_json::from_slice(&raw).into_diagnostic().with_context(|| {
-            format!(
-                "Failed to parse {} as an eFLINT JSON phrases request",
-                if args.file == "-" { "stdin".to_string() } else { format!("file {:?}", args.file) }
-            )
-        })?
+        match &args.file {
+            InputFile::Stdin => {
+                let mut raw: Vec<u8> = Vec::new();
+                io::stdin().read_to_end(&mut raw).into_diagnostic().context("Failed to read stdin")?;
+                raw
+            },
+            InputFile::File(path_buf) => {
+                fs::read(path_buf).into_diagnostic().with_context(|| format!("Failed to open & read file '{}'", path_buf.display()))?
+            },
+        }
     };
+
+    let policy: RequestPhrases =
+        // Now parse the file contents as a request and done
+        serde_json::from_slice(&raw)
+            .into_diagnostic()
+            .with_context(|| format!("Failed to parse {} as an eFLINT JSON phrases request", args.file.display()))?;
 
     // Create the reasoner
     let conn =

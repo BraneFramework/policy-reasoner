@@ -15,7 +15,8 @@ members = [
 
     # Specifications
     "lib/spec",
-    "lib/workflow"
+    "lib/workflow",
+    "lib/share",
 ]
 
 [workspace.package]
@@ -66,6 +67,8 @@ file-resolver  = { path = "./lib/resolvers/file", optional = true }
 eflint-to-json = { path = "./lib/eflint-to-json", features = ["async-tokio"], optional = true }
 spec           = { path = "./lib/spec", package = "specifications" }
 workflow       = { path = "./lib/workflow", optional = true }
+
+share = { path = "lib/share" }
 
 miette = { version = "7.0.0", features = ["fancy"] }
 

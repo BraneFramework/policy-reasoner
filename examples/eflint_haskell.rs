@@ -13,7 +13,6 @@
 //!   reasoner.
 //
 
-use std::path::PathBuf;
 use std::process::ExitCode;
 
 use clap::Parser;
@@ -25,6 +24,7 @@ use policy_reasoner::reasoners::eflint_haskell::reasons::SilentHandler;
 use policy_reasoner::spec::auditlogger::SessionedAuditLogger;
 use policy_reasoner::spec::reasonerconn::ReasonerConnector as _;
 use policy_reasoner::spec::reasons::NoReason;
+use share::InputFile;
 use spec::reasonerconn::ReasonerResponse;
 use tracing::{Level, error, info};
 
@@ -42,7 +42,7 @@ struct Arguments {
 
     /// The file to use as input.
     #[clap(name = "FILE", default_value = "-", help = "The eFLINT (JSON) file to read. Use '-' to read from stdin.")]
-    file: String,
+    file: InputFile,
 
     /// Which `eflint-repl` to use.
     #[clap(short, long, default_value = "eflint-repl", help = "The command used to launch the `eflint-repl` binary.")]
@@ -86,27 +86,12 @@ async fn run(args: Arguments) -> miette::Result<()> {
         SessionedAuditLogger::new("test", FileLogger::new(format!("{} - v{}", env!("CARGO_BIN_NAME"), env!("CARGO_PKG_VERSION")), "./test.log"));
 
     // Ensure there is a file to input
-    let policy: PathBuf = if args.file == "-" {
-        let file: PathBuf = std::env::temp_dir().join(format!("{}-v{}-stdin.eflint", env!("CARGO_BIN_NAME"), env!("CARGO_PKG_VERSION")));
-        let mut handle = tokio::fs::File::create(&file)
-            .await
-            .into_diagnostic()
-            .with_context(|| format!("Failed to open temporary stdin file '{}'", file.display()))?;
-
-        tokio::io::copy(&mut tokio::io::stdin(), &mut handle)
-            .await
-            .into_diagnostic()
-            .with_context(|| format!("Failed to write stdin to temporary file '{}'", file.display()))?;
-
-        file
-    } else {
-        PathBuf::from(args.file)
-    };
+    let policy = args.file.as_file().await.context("Could not get the input file")?;
 
     // Create the reasoner
     let conn = EFlintHaskellReasonerConnector::<SilentHandler, String, ()>::new_async(
         shlex::split(&args.eflint_cmd).into_iter().flatten(),
-        &policy,
+        &policy as &std::path::Path,
         SilentHandler,
         &logger,
     )
