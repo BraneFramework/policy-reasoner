@@ -21,6 +21,7 @@ use eflint_json::spec::auxillary::Version;
 use eflint_json::spec::{Phrase, PhraseResult, Request, RequestCommon, RequestPhrases, ResponsePhrases};
 use error_trace::{ErrorTrace as _, Trace};
 use serde::{Deserialize, Serialize};
+use share::formatters::BlockFormatter;
 use spec::auditlogger::{AuditLogger, SessionedAuditLogger};
 use spec::reasonerconn::{ReasonerConnector, ReasonerContext, ReasonerResponse};
 use thiserror::Error;
@@ -28,9 +29,6 @@ use tracing::{debug, instrument};
 
 use crate::reasons::ReasonHandler;
 use crate::spec::EFlintable;
-
-/***** Constants *****/
-const BLOCK_SEPARATOR: &str = "--------------------------------------------------------------------------------";
 
 /***** ERRORS *****/
 /// Defines the errors returned by the [`EFlintJsonReasonerConnector`].
@@ -53,18 +51,21 @@ pub enum Error<R, S, Q> {
     ReasonerRequest { addr: String, source: reqwest::Error },
     /// Failed to extract the reasons for failure (i.e., violations) from a parsed [`ResponsePhrases`] object.
     #[error(
-        "Failed to extract reasons (i.e., violations) from the response of reasoner at {addr:?}\n\nParsed \
-         response:\n{BLOCK_SEPARATOR}\n{raw}\n{BLOCK_SEPARATOR}\n\n"
+        "Failed to extract reasons (i.e., violations) from the response of reasoner at {addr:?}\n\n{raw}\n",
+         raw = BlockFormatter::new("Parsed response:", raw)
     )]
     ResponseExtractReasons { addr: String, raw: String, source: R },
     /// The query returned in the response was of an illegal ending type.
     #[error(
-        "Reasoner at {addr:?} returned result of instance query as last state change; this is unsupported!\n\nParsed \
-         response:\n{BLOCK_SEPARATOR}\n{raw}\n{BLOCK_SEPARATOR}\n\n"
+        "Reasoner at {addr:?} returned result of instance query as last state change; this is unsupported!\n\n{raw}\n",
+         raw = BlockFormatter::new("Parsed response:", raw)
     )]
     ResponseIllegalQuery { addr: String, raw: String },
     /// Failed to parse the response of the reasoner as a valid [`ResponsePhrases`] object.
-    #[error("Failed to parse response from reasoner at {addr:?}\n\nRaw response:\n{BLOCK_SEPARATOR}\n{raw}\n{BLOCK_SEPARATOR}\n\n")]
+    #[error(
+        "Failed to parse response from reasoner at {addr:?}\n\n{raw}\n",
+         raw = BlockFormatter::new("Raw response:", raw)
+    )]
     ResponseParse { addr: String, raw: String, source: serde_json::Error },
     /// Failed to serialize the state to eFLINT.
     #[error("Failed to serialize given state to eFLINT")]

@@ -21,6 +21,7 @@ error-trace.workspace = true
 
 spec = { path = "../../spec", package = "specifications" }
 
+share = { path = "../../share" }
 
 [features]
 default = []

@@ -348,6 +348,7 @@ dependencies = [
  "reqwest",
  "serde",
  "serde_json",
+ "share",
  "specifications",
  "thiserror",
  "tracing",
