@@ -14,37 +14,15 @@
 
 use std::borrow::Cow;
 use std::collections::HashSet;
-use std::fmt::{Display, Formatter, Result as FResult};
-use std::io::Write;
 use std::path::{Path, PathBuf};
 
-use sha2::{Digest as _, Sha256};
+use sha2::{Digest, Sha256};
+use share::formatters::PathListFormatter;
 use thiserror::Error;
 use tokio::fs::File;
-use tokio::io::AsyncReadExt as _;
+use tokio::io::{AsyncRead, AsyncReadExt as _};
 use tracing::{debug, instrument};
 
-
-/***** ERRORS *****/
-/// Formats a list but like, prettily.
-struct PrettyPathListFormatter<'l>(&'l [PathBuf]);
-impl Display for PrettyPathListFormatter<'_> {
-    #[inline]
-    fn fmt(&self, f: &mut Formatter<'_>) -> FResult {
-        if self.0.is_empty() {
-            return write!(f, "<none>");
-        }
-        for (i, path) in self.0.iter().enumerate() {
-            if i > 0 && i < self.0.len() - 1 {
-                write!(f, ", ")?;
-            } else if i > 0 {
-                write!(f, " or ")?;
-            }
-            write!(f, "{:?}", path.display())?;
-        }
-        Ok(())
-    }
-}
 
 /// Errors emitted by [`compute_policy_hash()`].
 #[derive(Debug, Error)]
@@ -55,7 +33,7 @@ pub enum Error {
     FileRead { path: PathBuf, source: std::io::Error },
     #[error("Failed to get current working directory")]
     GetCwd { source: std::io::Error },
-    #[error("Failed to find dependency {path} as {import_paths}", path = path.display(), import_paths = PrettyPathListFormatter(imppaths))]
+    #[error("Failed to find dependency {path} as {import_paths}", path = path.display(), import_paths = PathListFormatter::language_or(imppaths))]
     ImportNotFound { path: PathBuf, imppaths: Vec<PathBuf> },
 }
 
@@ -317,21 +295,98 @@ pub async fn compute_policy_hash(path: impl AsRef<Path>, include_dirs: &[&Path])
     for file in files {
         // Open the file
         debug!("Hashing eFLINT file {}", file.display());
-        let mut handle = File::open(&file).await.map_err(|source| Error::FileOpen { path: file.clone(), source })?;
-        let mut buf: [u8; 16384] = [0; 16384];
-        loop {
-            // Read a chunk
-            let buf_len: usize = handle.read(&mut buf).await.map_err(|source| Error::FileRead { path: file.clone(), source })?;
-            if buf_len == 0 {
-                break;
-            }
-
-            // Write it to the hasher
-            // SAFETY: It's a hasher, what's it gonna do, crash on me?
-            hasher.write_all(&buf[..buf_len]).unwrap();
-        }
+        let handle = File::open(&file).await.map_err(|source| Error::FileOpen { path: file.clone(), source })?;
+        hash_async_reader(&mut hasher, handle).await.map_err(|source| Error::FileRead { path: file.clone(), source })?;
     }
 
     // Done
     Ok(hasher.finalize().into())
+}
+
+async fn hash_async_reader(hasher: &mut impl Digest, mut reader: impl AsyncRead + Unpin) -> std::io::Result<()> {
+    let mut buf = [0_u8; 2 ^ 14];
+    loop {
+        // Read a chunk
+        let buf_len: usize = reader.read(&mut buf).await?;
+        if buf_len == 0 {
+            break;
+        }
+        // Write it to the hasher
+        hasher.update(&buf[..buf_len]);
+    }
+    Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use std::io::Cursor;
+
+    use super::*;
+
+
+    #[tokio::test]
+    async fn test_hash_empty_reader() {
+        let mut hasher = Sha256::new();
+        let reader = Cursor::new(Vec::<u8>::new());
+
+        let result = hash_async_reader(&mut hasher, reader).await;
+        assert!(result.is_ok());
+
+        let hash = hasher.finalize();
+        // SHA256 of empty input
+        let expected = hex::decode("e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855").unwrap();
+        assert_eq!(hash.as_slice(), expected.as_slice());
+    }
+
+    #[tokio::test]
+    async fn test_hash_small_data() {
+        let mut hasher = Sha256::new();
+        let data = b"hello world";
+        let reader = Cursor::new(data.to_vec());
+
+        let result = hash_async_reader(&mut hasher, reader).await;
+        assert!(result.is_ok());
+
+        let hash = hasher.finalize();
+        // SHA256 of "hello world"
+        let expected = hex::decode("b94d27b9934d3e08a52e52d7da7dabfac484efe37a5380ee9088f7ace2efcde9").unwrap();
+        assert_eq!(hash.as_slice(), expected.as_slice());
+    }
+
+    #[tokio::test]
+    async fn test_hash_large_data() {
+        let mut hasher = Sha256::new();
+        // Create data larger than buffer size (16384 bytes)
+        let data = vec![0x42u8; 20000];
+        let reader = Cursor::new(data.clone());
+
+        let result = hash_async_reader(&mut hasher, reader).await;
+        assert!(result.is_ok());
+
+        let hash = hasher.finalize();
+
+        // Compare with direct hashing
+        let mut expected_hasher = Sha256::new();
+        expected_hasher.update(&data);
+        // let expected = expected_hasher.finalize();
+
+        let expected = hex::decode("c4f984e0cf8a5d4a8f60c5d2d33848e4772045ba667a4e52851a7dd7eea6d6e2").unwrap();
+        assert_eq!(hash.as_slice(), expected.as_slice());
+    }
+
+    #[tokio::test]
+    async fn test_hash_exact_buffer_size() {
+        let mut hasher = Sha256::new();
+        // Create data exactly buffer size (16384 bytes)
+        let data = vec![0x37u8; 16384];
+        let reader = Cursor::new(data.clone());
+
+        let result = hash_async_reader(&mut hasher, reader).await;
+        assert!(result.is_ok());
+
+        let hash = hasher.finalize();
+
+        let expected = hex::decode("f3f59afe21c99e2471439dbdda0cf583f296ebe6995f8e3d3dac23a87d6afe78").unwrap();
+        assert_eq!(hash.as_slice(), expected.as_slice());
+    }
 }
