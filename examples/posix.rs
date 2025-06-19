@@ -25,6 +25,7 @@ use policy_reasoner::spec::ReasonerConnector as _;
 use policy_reasoner::spec::auditlogger::SessionedAuditLogger;
 use policy_reasoner::workflow::Workflow;
 use posix_reasoner::config::Config;
+use share::InputFile;
 use spec::reasonerconn::ReasonerResponse;
 use tokio::fs;
 use tokio::io::{self, AsyncReadExt as _};
@@ -42,19 +43,24 @@ use tracing::{Level, debug, error, info};
 ///
 /// # Errors
 /// This function errors if it failed to read stdin OR the file, or parse it as a valid Workflow.
-///
-/// Note that errorring is done by calling [`std::process::exit()`].
-async fn load_workflow(input: &str) -> miette::Result<Workflow> {
-    let workflow: String = if input == "-" {
-        let mut raw: Vec<u8> = Vec::new();
-        io::stdin().read_buf(&mut raw).await.into_diagnostic().context("Failed to read from stdin")?;
-        String::from_utf8(raw).into_diagnostic().context("Stdin is not valid UTF-8")?
-    } else {
-        fs::read_to_string(&input).await.into_diagnostic().with_context(|| format!("Failed to read the workflow file {input:?}"))?
+async fn load_workflow(input: &InputFile) -> miette::Result<Workflow> {
+    let workflow = match input {
+        InputFile::Stdin => {
+            debug!("Reading workflow from stdin");
+            let mut raw: Vec<u8> = Vec::new();
+            io::stdin().read_buf(&mut raw).await.into_diagnostic().context("Failed to read from stdin")?;
+            String::from_utf8(raw).into_diagnostic().context("Stdin is not valid UTF-8")?
+        },
+        InputFile::File(path) => {
+            debug!("Reading workflow from file");
+            fs::read_to_string(path)
+                .await
+                .into_diagnostic()
+                .with_context(|| format!("Failed to read the workflow from {input}", input = input.display()))?
+        },
     };
-    let workflow = serde_json::from_str(&workflow)
-        .into_diagnostic()
-        .with_context(|| format!("{} is not a valid workflow", if input == "-" { "Stdin".to_string() } else { format!("File {input:?}") }))?;
+
+    let workflow = serde_json::from_str(&workflow).into_diagnostic().with_context(|| format!("{input:?} is not a valid workflow"))?;
 
     Ok(workflow)
 }
@@ -107,7 +113,7 @@ pub struct Arguments {
 
     /// The file containing the workflow to check.
     #[clap(name = "WORKFLOW", default_value = "-", help = "The JSON workflow to evaluate. Use '-' to read from stdin.")]
-    workflow: String,
+    workflow: InputFile,
     /// The file containing the config for the reasoner.
     #[clap(short, long, help = "The JSON configuration file to read that configures the policy.")]
     config:   PathBuf,
