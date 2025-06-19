@@ -4,9 +4,8 @@ POSIX Reasoner
 A policy reasoner implementation based on POSIX file permissions.
 
 This documentation is aimed at developers that want to maintain or extend the POSIX reasoner. High level documentation
-for users of the POSIX reasoner can be found in the [Brane user
-guide](https://wiki.enablingpersonalizedinterventions.nl/user-guide/). An explanation of the POSIX policy file can also
-be found there.
+for users of the POSIX reasoner can be found in the [Brane user guide](https://braneframework.github.io/manual). An
+explanation of the POSIX policy file can also be found there.
 
 ## Goal
 
