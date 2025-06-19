@@ -13,7 +13,7 @@
 //
 
 use std::borrow::Cow;
-use std::collections::HashSet;
+use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
 
 use sha2::{Digest, Sha256};
@@ -80,7 +80,7 @@ enum State {
 
 /***** IMPLEMENTATION *****/
 /// Does the heavy-lifting of [`compute_policy_hash()`].
-async fn find_deps_of(mut handle: File, path: &Path, base_path: &Path, include_dirs: &[&Path], files: &mut HashSet<PathBuf>) -> Result<(), Error> {
+async fn find_deps_of(mut handle: File, path: &Path, base_path: &Path, include_dirs: &[&Path], files: &mut BTreeSet<PathBuf>) -> Result<(), Error> {
     debug!("Searching for dependencies of eFLINT file {path}", path = path.display());
 
     // Go through the file chunk-by-chunk
@@ -192,8 +192,7 @@ async fn find_deps_of(mut handle: File, path: &Path, base_path: &Path, include_d
                         found = true;
 
                         // If we haven't added it yet, add it
-                        if !files.contains(imppath.as_ref()) {
-                            files.insert(imppath.clone().into_owned());
+                        if files.insert(imppath.clone().into_owned()) {
                             Box::pin(find_deps_of(
                                 File::open(imppath).await.map_err(|source| Error::FileOpen { path: imppath.clone().into_owned(), source })?,
                                 imppath.as_ref(),
@@ -247,17 +246,17 @@ async fn find_deps_of(mut handle: File, path: &Path, base_path: &Path, include_d
 ///   recursed file are included.
 ///
 /// # Returns
-/// A [`HashSet`] of [`PathBuf`]s encoding the found files. This includes the given `path`.
+/// A [`BTreeSet`] of [`PathBuf`]s encoding the found files. This includes the given `path`.
 ///
 /// # Errors
 /// This function may error if we failed to open the given `path` as a file, or failed to find any
 /// of the (recursive) dependencies.
 #[instrument(skip_all, fields(file=%path.as_ref().display()))]
-pub async fn find_deps(path: impl AsRef<Path>, include_dirs: &[&Path]) -> Result<HashSet<PathBuf>, Error> {
+pub async fn find_deps(path: impl AsRef<Path>, include_dirs: &[&Path]) -> Result<BTreeSet<PathBuf>, Error> {
     let path: &Path = path.as_ref();
 
     // Delegate to the recursive function
-    let mut res: HashSet<PathBuf> = HashSet::with_capacity(16);
+    let mut res = BTreeSet::new();
     find_deps_of(File::open(path).await.map_err(|source| Error::FileOpen { path: path.into(), source })?, path, path, include_dirs, &mut res).await?;
 
     // Done
@@ -285,10 +284,6 @@ pub async fn find_deps(path: impl AsRef<Path>, include_dirs: &[&Path]) -> Result
 pub async fn compute_policy_hash(path: impl AsRef<Path>, include_dirs: &[&Path]) -> Result<[u8; 32], Error> {
     // Find the set of all files first
     let files = find_deps(path, include_dirs).await?;
-
-    // Order them
-    let mut files: Vec<PathBuf> = files.into_iter().collect();
-    files.sort();
 
     // Now hash all of the files
     let mut hasher = Sha256::new();
