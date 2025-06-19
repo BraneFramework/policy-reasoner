@@ -13,6 +13,7 @@ license.workspace = true
 paste = "1.0.0"
 serde = { version = "1.0.184", features = ["derive"] }
 
+share = { path = "../share" }
 
 [features]
 default = []

@@ -55,17 +55,7 @@ impl<R> ManyReason<R> {
 }
 impl<R: Display> Display for ManyReason<R> {
     #[inline]
-    fn fmt(&self, f: &mut Formatter<'_>) -> FResult {
-        for i in 0..self.0.len() {
-            if i > 0 && i < self.0.len() - 1 {
-                write!(f, ", ")?;
-            } else if i == self.0.len() {
-                write!(f, " and ")?;
-            }
-            write!(f, "{}", self.0[i])?;
-        }
-        Ok(())
-    }
+    fn fmt(&self, f: &mut Formatter<'_>) -> FResult { share::formatters::DisplayListFormatter::language_and(&self.0).fmt(f) }
 }
 impl<R> Deref for ManyReason<R> {
     type Target = Vec<R>;
