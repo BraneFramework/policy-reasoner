@@ -261,7 +261,7 @@ where
         handle
             .stdin
             .as_mut()
-            .unwrap_or_else(|| panic!("No stdin on subprocess even though it's piped!"))
+            .expect("No stdin on subprocess even though it's piped!")
             .write_all(spec.as_bytes())
             .await
             .map_err(|source| Error::CommandStdinWrite { source })?;
@@ -338,17 +338,17 @@ where
             .deltas
             .iter()
             .filter_map(|delta| match delta {
-                Delta::Query(query) if query.is_succes() => Some(Problem::QueryFailed),
+                Delta::Query(query) if query.is_success() => Some(Problem::QueryFailed),
                 Delta::Violation(viol) => Some(Problem::Violation(viol.clone())),
                 _ => None,
             })
             .collect();
-        let res: ReasonerResponse<_> = trace
+        let res: ReasonerResponse<R::Reason> = trace
             .deltas
             .into_iter()
             .next_back()
             .map(|delta| match delta {
-                Delta::Query(query) if query.is_succes() => ReasonerResponse::Success,
+                Delta::Query(query) if query.is_success() => ReasonerResponse::Success,
                 Delta::Query(_) => ReasonerResponse::Violated(self.handler.handle(problems)),
                 Delta::Violation(_) => ReasonerResponse::Violated(self.handler.handle(problems)),
                 delta => {
@@ -357,7 +357,7 @@ where
                 },
             })
             .unwrap_or(ReasonerResponse::Success);
-        debug!("Reasoner verdict: {res}");
+
         Ok(res)
     }
 }
