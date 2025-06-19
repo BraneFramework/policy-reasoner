@@ -19,6 +19,8 @@ use std::str::FromStr as _;
 use eflint_haskell_reasoner::trace::Trace;
 
 
+static BLOCK_SEPARATOR: &str = "--------------------------------------------------------------------------------";
+
 /***** Tests *****/
 #[test]
 fn test_all_trace_files() {
@@ -28,15 +30,18 @@ fn test_all_trace_files() {
         fs::read_dir(&traces_path).unwrap_or_else(|err| panic!("Failed to read traces directory {path}: {err}", path = traces_path.display()));
 
     for (i, entry) in entries.enumerate() {
-        let entry = entry.unwrap_or_else(|err| panic!("Failed to read entry {i} in traces directory {:?}: {err}", traces_path.display()));
+        let entry = entry.unwrap_or_else(|err| panic!("Failed to read entry {i} in traces directory {path}: {err}", path = traces_path.display()));
 
         // Load the file
         let trace: String =
-            fs::read_to_string(entry.path()).unwrap_or_else(|err| panic!("Failed to read trace file {:?}: {err}", entry.path().display()));
+            fs::read_to_string(entry.path()).unwrap_or_else(|err| panic!("Failed to read trace file {path}: {err}", path = entry.path().display()));
 
         // Attempt to parse it
         if let Err(err) = Trace::from_str(&trace) {
-            panic!("Failed to parse trace of trace file {:?}: {err}\n\n{}\n{}\n{}\n", entry.path().display(), "-".repeat(80), trace, "-".repeat(80));
+            panic!(
+                "Failed to parse trace of trace file {path}: {err}\n\n{BLOCK_SEPARATOR}\n{trace}\n{BLOCK_SEPARATOR}\n",
+                path = entry.path().display(),
+            );
         }
     }
 }

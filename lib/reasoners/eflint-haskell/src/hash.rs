@@ -49,13 +49,13 @@ impl Display for PrettyPathListFormatter<'_> {
 /// Errors emitted by [`compute_policy_hash()`].
 #[derive(Debug, Error)]
 pub enum Error {
-    #[error("Failed to open file {}", path.display())]
+    #[error("Failed to open file {path}", path = path.display())]
     FileOpen { path: PathBuf, source: std::io::Error },
-    #[error("Failed to read from file {}", path.display())]
+    #[error("Failed to read from file {path}", path = path.display())]
     FileRead { path: PathBuf, source: std::io::Error },
     #[error("Failed to get current working directory")]
     GetCwd { source: std::io::Error },
-    #[error("Failed to find dependency {path:?} as {}", PrettyPathListFormatter(imppaths))]
+    #[error("Failed to find dependency {path} as {import_paths}", path = path.display(), import_paths = PrettyPathListFormatter(imppaths))]
     ImportNotFound { path: PathBuf, imppaths: Vec<PathBuf> },
 }
 
@@ -103,7 +103,7 @@ enum State {
 /***** IMPLEMENTATION *****/
 /// Does the heavy-lifting of [`compute_policy_hash()`].
 async fn find_deps_of(mut handle: File, path: &Path, base_path: &Path, include_dirs: &[&Path], files: &mut HashSet<PathBuf>) -> Result<(), Error> {
-    debug!("Searching for dependencies of eFLINT file {:?}", path.display());
+    debug!("Searching for dependencies of eFLINT file {path}", path = path.display());
 
     // Go through the file chunk-by-chunk
     let mut state = State::Pound;

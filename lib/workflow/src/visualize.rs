@@ -71,9 +71,13 @@ fn print_elem(f: &mut Formatter, elem: &Elem, prefix: &dyn Display) -> FResult {
                 prefix,
                 write_iter!(
                     metadata.iter().map(|metadata| format!(
-                        "{:?}{}",
-                        metadata.tag,
-                        if let Some((assigner, signature)) = &metadata.signature { format!("{}:{}", assigner.id, signature) } else { String::new() }
+                        "{tag:?}{signature}",
+                        tag = metadata.tag,
+                        signature = if let Some((assigner, signature)) = &metadata.signature {
+                            format!("{}:{}", assigner.id, signature)
+                        } else {
+                            String::new()
+                        }
                     )),
                     ", "
                 )

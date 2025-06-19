@@ -103,7 +103,7 @@ async fn run(args: Arguments) -> miette::Result<()> {
         .consult("".into(), (), &logger)
         .await
         .into_diagnostic()
-        .with_context(|| format!("Failed to send message to reasoner {:?}", args.eflint_cmd))?;
+        .with_context(|| format!("Failed to send message to reasoner {cmd:?}", cmd = args.eflint_cmd))?;
 
     // OK, report
     match verdict {

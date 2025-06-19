@@ -105,8 +105,10 @@ async fn main() -> ExitCode {
 
 async fn run(args: Arguments) -> miette::Result<()> {
     // Create the logger
-    let logger: SessionedAuditLogger<FileLogger> =
-        SessionedAuditLogger::new("test", FileLogger::new(format!("{} - v{}", env!("CARGO_BIN_NAME"), env!("CARGO_PKG_VERSION")), "./test.log"));
+    let logger: SessionedAuditLogger<FileLogger> = SessionedAuditLogger::new(
+        "test",
+        FileLogger::new(format!("{bin_name} - v{version}", bin_name = env!("CARGO_BIN_NAME"), version = env!("CARGO_PKG_VERSION")), "./test.log"),
+    );
 
     // Decide which eflint to run
     let dsl: bool = !args.json;
@@ -119,7 +121,7 @@ async fn run(args: Arguments) -> miette::Result<()> {
         eflint_to_json::compile_async(&file, &mut json, args.eflint_path.as_deref())
             .await
             .into_diagnostic()
-            .with_context(|| format!("Failed to compile input file '{}' to JSON", args.file.display()))?;
+            .with_context(|| format!("Failed to compile input file '{path}' to JSON", path = args.file.display()))?;
 
         json
     } else {
@@ -131,7 +133,7 @@ async fn run(args: Arguments) -> miette::Result<()> {
                 raw
             },
             InputFile::File(path_buf) => {
-                fs::read(path_buf).into_diagnostic().with_context(|| format!("Failed to open & read file '{}'", path_buf.display()))?
+                fs::read(path_buf).into_diagnostic().with_context(|| format!("Failed to open & read file '{path}'", path = path_buf.display()))?
             },
         }
     };
@@ -140,7 +142,7 @@ async fn run(args: Arguments) -> miette::Result<()> {
         // Now parse the file contents as a request and done
         serde_json::from_slice(&raw)
             .into_diagnostic()
-            .with_context(|| format!("Failed to parse {} as an eFLINT JSON phrases request", args.file.display()))?;
+            .with_context(|| format!("Failed to parse {path} as an eFLINT JSON phrases request", path = args.file.display()))?;
 
     // Create the reasoner
     let conn =
@@ -153,7 +155,7 @@ async fn run(args: Arguments) -> miette::Result<()> {
         .consult(policy.phrases, (), &logger)
         .await
         .into_diagnostic()
-        .with_context(|| format!("Failed to send message to reasoner at {:?}", args.address))?;
+        .with_context(|| format!("Failed to send message to reasoner at {address}", address = args.address))?;
 
     // OK, report
     match verdict {
