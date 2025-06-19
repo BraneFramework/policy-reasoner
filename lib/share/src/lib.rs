@@ -1,3 +1,5 @@
+pub mod formatters;
+
 use std::borrow::Cow;
 use std::convert::Infallible;
 use std::path::{Path, PathBuf};
