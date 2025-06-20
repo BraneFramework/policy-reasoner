@@ -205,5 +205,5 @@ impl Workflow {
     /// # Returns
     /// A new [`WorkflowFormatter`] that can visualize the workflow when its [`Display`]-implementation is called.
     #[inline]
-    pub fn visualize(&self) -> WorkflowFormatter { WorkflowFormatter { wf: self } }
+    pub fn visualize(&self) -> WorkflowFormatter<'_> { WorkflowFormatter { wf: self } }
 }

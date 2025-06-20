@@ -92,13 +92,13 @@ pub struct EFlintHaskellReasonerContext {
 }
 impl ReasonerContext for EFlintHaskellReasonerContext {
     #[inline]
-    fn version(&self) -> Cow<str> { Cow::Borrowed(&self.version) }
+    fn version(&self) -> Cow<'_, str> { Cow::Borrowed(&self.version) }
 
     #[inline]
-    fn language(&self) -> Cow<str> { Cow::Borrowed(&self.language) }
+    fn language(&self) -> Cow<'_, str> { Cow::Borrowed(&self.language) }
 
     #[inline]
-    fn language_version(&self) -> Cow<str> { Cow::Borrowed(&self.language_version) }
+    fn language_version(&self) -> Cow<'_, str> { Cow::Borrowed(&self.language_version) }
 }
 
 /// Defines the full reasoner context for this reasoner.
@@ -117,13 +117,13 @@ pub struct EFlintHaskellReasonerContextFull {
 }
 impl ReasonerContext for EFlintHaskellReasonerContextFull {
     #[inline]
-    fn version(&self) -> Cow<str> { self.public.version() }
+    fn version(&self) -> Cow<'_, str> { self.public.version() }
 
     #[inline]
-    fn language(&self) -> Cow<str> { self.public.language() }
+    fn language(&self) -> Cow<'_, str> { self.public.language() }
 
     #[inline]
-    fn language_version(&self) -> Cow<str> { self.public.language_version() }
+    fn language_version(&self) -> Cow<'_, str> { self.public.language_version() }
 }
 
 
