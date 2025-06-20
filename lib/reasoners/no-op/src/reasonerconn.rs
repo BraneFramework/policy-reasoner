@@ -59,13 +59,13 @@ impl Default for NoOpReasonerContext {
 }
 impl ReasonerContext for NoOpReasonerContext {
     #[inline]
-    fn version(&self) -> Cow<str> { Cow::Borrowed(&self.version) }
+    fn version(&self) -> Cow<'_, str> { Cow::Borrowed(&self.version) }
 
     #[inline]
-    fn language(&self) -> Cow<str> { Cow::Borrowed(&self.language) }
+    fn language(&self) -> Cow<'_, str> { Cow::Borrowed(&self.language) }
 
     #[inline]
-    fn language_version(&self) -> Cow<str> { Cow::Borrowed(&self.language_version) }
+    fn language_version(&self) -> Cow<'_, str> { Cow::Borrowed(&self.language_version) }
 }
 
 

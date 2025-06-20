@@ -111,6 +111,6 @@ pub trait EFlintableExt: EFlintable {
     /// An [`EFlintableFormatter`] that will use [`EFlintable::eflint_fmt()`] in order to write
     /// serialized eFLINT to some source.
     #[inline]
-    fn eflint(&self) -> EFlintableFormatter<Self> { EFlintableFormatter { obj: self } }
+    fn eflint(&self) -> EFlintableFormatter<'_, Self> { EFlintableFormatter { obj: self } }
 }
 impl<T: EFlintable> EFlintableExt for T {}

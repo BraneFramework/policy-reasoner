@@ -32,13 +32,13 @@ pub trait ReasonerContext: Serialize {
     ///
     /// # Returns
     /// A string identifier denoting this reasoner's version.
-    fn version(&self) -> Cow<str>;
+    fn version(&self) -> Cow<'_, str>;
 
     /// Returns some identifier of the language that's being used as backend.
     ///
     /// # Returns
     /// A string identifier that tells users the language used.
-    fn language(&self) -> Cow<str>;
+    fn language(&self) -> Cow<'_, str>;
 
     /// Returns some identifier of the specific language version being used as backend.
     ///
@@ -48,7 +48,7 @@ pub trait ReasonerContext: Serialize {
     /// # Returns
     /// A string identifier that tells users which version of the backend
     /// [language](ReasonerContext::language()) is being used.
-    fn language_version(&self) -> Cow<str>;
+    fn language_version(&self) -> Cow<'_, str>;
 }
 
 
