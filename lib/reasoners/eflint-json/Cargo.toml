@@ -2,7 +2,7 @@
 name = "eflint-json-reasoner"
 description = "Implements eFLINT as a backend reasoner for the policy reasoner."
 edition = "2021"
-rust-version = "1.81.0"
+rust-version = "1.82.0"
 authors = [ "Bas Kloosterman", "Tim Müller" ]
 version = "0.2.0"
 repository.workspace = true
