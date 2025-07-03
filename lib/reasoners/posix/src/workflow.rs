@@ -31,8 +31,7 @@ pub static UNSPECIFIED_LOCATION: LazyLock<Entity> = LazyLock::new(|| Entity { id
 /***** HELPERS *****/
 /// Special trait that will throw a compile error if [`DatasetCollector`] does not have an
 /// [`Infallible`] error type.
-///
-/// This is important because of the unsafe block in [`WorkflowDatasets::from()`].
+// This is important because of the unsafe block in [`WorkflowDatasets::from()`].
 trait _InfallibleAssertion<'w>: Visitor<'w, Error = Infallible> {}
 // Note: this cannot be implemented anymore if the error is not Infallible
 // If that ever occurs, re-consider the `unwrap_unchecked()` in the from below
@@ -119,8 +118,7 @@ impl<'w> Visitor<'w> for DatasetCollector<'w> {
 
 
 /***** LIBRARY *****/
-/// The datasets accessed and/or modified in a workflow. These are grouped by file permission type. For creating this
-/// struct see: [`find_datasets_in_workflow`].
+/// The datasets accessed and/or modified in a workflow. These are grouped by file permission type
 #[derive(Clone, Debug)]
 pub struct WorkflowDatasets<'w> {
     pub read_sets:    Vec<(&'w Entity, &'w Dataset)>,

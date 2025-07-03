@@ -162,7 +162,7 @@ impl PosixFilePermission {
     /// For more about POSIX permission bits see:
     /// <https://en.wikipedia.org/wiki/File-system_permissions#Numeric_notation>.
     ///
-    /// Also see the related [`UserType::get_mode_bitmask`].
+    /// Also see the related [`PosixFileClass::get_mode_bitmask`].
     const fn to_mode_bit(self) -> u32 {
         match self {
             PosixFilePermission::Read => 4,

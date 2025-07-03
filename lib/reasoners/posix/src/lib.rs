@@ -10,6 +10,7 @@
 //
 //  Description:
 //
+//! [Workflow]: ::workflow::Workflow
 #![doc = include_str!("../README.md")]
 
 // Declare the modules

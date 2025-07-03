@@ -29,7 +29,7 @@ use crate::stmt::LogStatement;
 
 
 /***** HELPER MACROS *****/
-/// Wraps a [`write!`]-macro to return its error as a [`FileLoggerError`].
+/// Wraps a [`write!`]-macro to return its error as a [`Error`].
 macro_rules! write_file {
     ($path:expr, $handle:expr, $($t:tt)+) => {
         // Psych we actually don't wrap that macro, since we're doing async ofc
@@ -41,7 +41,7 @@ macro_rules! write_file {
     };
 }
 
-/// Wraps a [`writeln!`]-macro to return its error as a [`FileLoggerError`].
+/// Wraps a [`writeln!`]-macro to return its error as a [`Error`].
 macro_rules! writeln_file {
     ($path:expr, $handle:expr) => {
         // Psych we actually don't wrap that macro, since we're doing async ofc
