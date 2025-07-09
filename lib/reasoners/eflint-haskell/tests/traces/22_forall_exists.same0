@@ -1,0 +1,16 @@
+New type no_dubs
+New type some
+New type x
+New type zeta
++no_dubs("")
++zeta("")
+~zeta("")
++some("")
++x(2)
+~no_dubs("")
++x(3)
+~x(2)
++no_dubs("")
+~some("")
+~x(3)
++zeta("")

@@ -1,0 +1,29 @@
+[package]
+name = "no-op-reasoner"
+description = """
+A minimal policy reasoner implementation that can be used as a base for new policy reasoners.
+
+This no-operation reasoner is meant to be an example, and can be used as a base to build new reasoners on top of.
+Furthermore it can be used for testing. The reasoner approves all workflow validation requests by default (it does
+not perform any permission checks, and thus never rejects a request).
+"""
+edition = "2021"
+rust-version = "1.78.0"
+authors = [ "Daniel Voogsgerd", "Tim Müller" ]
+version = "0.2.0"
+repository.workspace = true
+license.workspace = true
+
+
+[dependencies]
+serde = "1.0.184"
+thiserror = "2.0.0"
+tracing = "0.1.37"
+
+error-trace.workspace = true
+
+spec = { path = "../../spec", package = "specifications" }
+
+
+[features]
+default = []

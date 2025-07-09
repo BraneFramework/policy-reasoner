@@ -1,121 +1,120 @@
-[package]
-name = "policy-reasoner"
-description = "Long-awaited implementation of the EPI Framework checkers, which reason about policies and contrain systems like [Brane](https://github.com/braneframework/brane)"
-rust-version = "1.82"
-edition = "2021"
-version.workspace = true
-repository.workspace = true
-authors.workspace = true
-license.workspace = true
-
-[workspace.package]
-version = "0.1.0"
-repository = "https://github.com/braneframework/policy-reasoner"
-authors = ["Bas Kloosterman", "Tim Müller"]
-license = "Apache-2.0"
-
-
-[dependencies]
-# Crates.io
-async-trait = "0.1.67"
-base64ct = { version = "1.6", features = ["std"] }
-chrono = "0.4.35"
-clap = { version = "4.5.6", features = ["derive", "env"] }
-diesel = { version = "2.2.3", features = ["sqlite", "chrono", "r2d2"] }
-dotenvy = "0.15.7"
-itertools = "0.14.0"
-jsonwebtoken = "9.2.0"
-log = "0.4.22"
-reqwest = { version = "0.12.0", features = ["json"] }
-serde = { version = "1.0.204", features = ["derive"] }
-serde_json = { version = "1.0.120", features = ["raw_value"] }
-serde_yaml = { version = "0.0.11", package = "serde_yml" }
-thiserror = "2.0.0"
-tokio = { version = "1.38.0", features = ["full"] }
-uuid = { version = "1.7.0", features = ["serde", "v4"], optional = true }
-warp = "0.3"
-
-# Path
-audit-logger = { path = "lib/audit-logger" }
-auth-resolver = { path = "lib/auth-resolver" }
-deliberation = { path = "./lib/deliberation" }
-nested-cli-parser = { path = "lib/nested-cli-parser" }
-policy = { path = "./lib/policy" }
-reasonerconn = { path = "./lib/reasonerconn" }
-srv = { path = "lib/srv" }
-state-resolver = { path = "lib/state-resolver" }
-workflow = { path = "./lib/workflow" }
-
-# Workspace dependencies
-enum-debug.workspace = true
-error-trace.workspace = true
-humanlog.workspace = true
-
-# GitLab
-eflint-json = { git = "https://gitlab.com/eflint/json-spec-rs.git", branch = "incorrect-is-invariant" }
-
-# Brane
-brane-cfg = { git = "https://github.com/braneframework/brane", optional = true }
-brane-shr = { git = "https://github.com/braneframework/brane" }
-specifications = { git = "https://github.com/braneframework/brane" }
-
-# Weird
-graphql_client = { version = "0.14.0", optional = true }
-
-
-[build-dependencies]
-base16ct = { version = "0.2", features = ["alloc"] }
-diesel = { version = "2.2.3", default-features = false, features = ["sqlite"] }
-diesel_migrations = "2.2.0"
-sha2 = "0.10.6"
-
-eflint-to-json = { path = "./lib/eflint-to-json" }
-
-# Workspace dependencies
-error-trace.workspace = true
-
-[features]
-brane-api-resolver = ["dep:graphql_client", "dep:brane-cfg", "dep:uuid"]
-leak-public-errors = []
-
-
-[lints.clippy]
-# I daren't listen to this, I'm pretty sure new Rust versions claim the opposite
-redundant_static_lifetimes = "allow"
-
-
 [workspace]
 resolver = "2"
 members = [
-    "lib/auth-resolver",
-    "lib/deliberation",
-    "lib/eflint-to-json",
-    "lib/policy",
-    "lib/reasonerconn",
-    "lib/srv",
-    "lib/state-resolver",
-    "lib/workflow",
-    "lib/audit-logger",
-    "lib/nested-cli-parser",
+    # Implementations
+    "lib/reasoners/eflint-haskell",
+    "lib/reasoners/eflint-json",
+    "lib/reasoners/no-op",
+    "lib/reasoners/posix",
+    "lib/loggers/file",
+    "lib/loggers/no-op",
+    "lib/resolvers/file",
 
-    "tools/checker-client",
-    "tools/key-manager",
-    "tools/policy-builder",
+    # Library
+    "lib/eflint-to-json",
+
+    # Specifications
+    "lib/spec",
+    "lib/workflow",
+    "lib/share",
 ]
+
+[workspace.package]
+repository = "https://github.com/BraneFramework/policy-reasoner"
+license = "Apache-2.0"
+
+
+[package]
+name = "policy-reasoner"
+version = "1.0.0"
+edition = "2021"
+rust-version = "1.78.0"
+authors = ["Tim Müller", "Bas Kloosterman", "Daniel Voogsgerd"]
+repository.workspace = true
+license.workspace = true
+description = "A library for using several different reasoning backends to determine if a particular workflow is allowed by policy or not."
+
+
+[[example]]
+name = "eflint-haskell"
+path = "./examples/eflint_haskell.rs"
+required-features = ["eflint-haskell-reasoner", "file-logger"]
+
+[[example]]
+name = "eflint-json"
+path = "./examples/eflint_json.rs"
+required-features = ["eflint-json-reasoner", "eflint-to-json", "file-logger"]
+
+[[example]]
+name = "posix"
+path = "./examples/posix.rs"
+required-features = ["posix-reasoner", "file-logger", "serde", "workflow"]
+
+[[example]]
+name = "no-op"
+path = "./examples/no_op.rs"
+required-features = ["no-op-reasoner", "file-logger"]
+
+
+[dependencies]
+eflint-haskell-reasoner = { path = "./lib/reasoners/eflint-haskell", optional = true }
+eflint-json-reasoner = { path = "./lib/reasoners/eflint-json", optional = true }
+no-op-reasoner = { path = "./lib/reasoners/no-op", optional = true }
+posix-reasoner = { path = "./lib/reasoners/posix", optional = true }
+file-logger    = { path = "./lib/loggers/file", optional = true }
+no-op-logger   = { path = "./lib/loggers/no-op", optional = true }
+file-resolver  = { path = "./lib/resolvers/file", optional = true }
+eflint-to-json = { path = "./lib/eflint-to-json", features = ["async-tokio"], optional = true }
+spec           = { path = "./lib/spec", package = "specifications" }
+workflow       = { path = "./lib/workflow", optional = true }
+
+share = { path = "lib/share" }
+
+miette = { version = "7.0.0", features = ["fancy"] }
+
+
+[dev-dependencies]
+clap = { version = "4.0.0", features = ["derive"] }
+console = "0.15.0"
+error-trace.workspace = true
+serde_json = "1.0.29"
+shlex = "1.0.0"
+tracing = "0.1.37"
+tracing-subscriber = { version = "0.3.0", features = ["env-filter"] }
+tokio = { version = "1.44.2", default-features = false, features = ["fs", "io-std", "macros", "rt"] }
+
+
+[features]
+default = []
+
+all = ["reasoners", "loggers", "resolvers", "auxillary"]
+
+reasoners = ["eflint-haskell-reasoner", "eflint-json-reasoner", "no-op-reasoner", "posix-reasoner"]
+# reasoners = ["eflint-json-reasoner", "no-op-reasoner"]
+eflint-haskell-reasoner = ["dep:eflint-haskell-reasoner"]
+eflint-json-reasoner = ["dep:eflint-json-reasoner"]
+no-op-reasoner = ["dep:no-op-reasoner"]
+posix-reasoner = ["dep:posix-reasoner"]
+
+loggers = ["file-logger", "no-op-logger"]
+file-logger = ["dep:file-logger"]
+no-op-logger = ["dep:no-op-logger"]
+
+resolvers = ["file-resolver"]
+file-resolver = ["dep:file-resolver"]
+
+auxillary = ["eflint-to-json", "workflow"]
+eflint-to-json = ["dep:eflint-to-json"]
+workflow = ["dep:workflow"]
+
+serde = ["workflow/serde"]
+
 
 [workspace.dependencies]
 # The infamous lut99 crate set
-enum-debug = { git = "https://github.com/Lut99/enum-debug", tag = "v1.1.0", features = [
-    "derive",
-] }
-error-trace = { git = "https://github.com/Lut99/error-trace-rs", tag = "v3.0.0" }
-humanlog = { git = "https://github.com/Lut99/humanlog-rs", tag = "v0.2.0" }
-names = { git = "https://github.com/Lut99/names-rs", tag = "v0.1.0", default-features = false, features = [
-    "rand",
-    "three-lowercase",
-    "three-usualcase",
-] }
-transform = { git = "https://github.com/Lut99/transform-rs", tag = "v0.2.0" }
+enum-debug = { git = "https://github.com/Lut99/enum-debug", tag = "v1.1.0", features = ["derive"] }
+error-trace = "3.1.0"
 
 # Eflint
+# NOTE: For now, we must skip the redirect. See <https://github.com/libgit2/libgit2/issues/7070>
 eflint-json = { git = "https://gitlab.com/eflint/json-spec-rs.git", branch = "incorrect-is-invariant" }

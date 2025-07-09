@@ -1,0 +1,86 @@
+New type accurate-for-purpose
+New type controller
+New type data
+New type processes
+New type processor
+New type purpose
+New type subject
+New type subject-of
+New type collect-personal-data
+New type consent
+New type give-consent
+New type access
+New type actual_dataset
+New type affiliated-with
+New type code
+New type coded
+New type coordinator
+New type country
+New type country_of
+New type dataset
+New type dcog
+New type dipg
+New type donor
+New type ecommittee
+New type eligible-access
+New type findings
+New type member
+New type person
+New type project
+New type proposal
+New type researcher
+New type thirdparty
++dcog("DCOG")
++dipg("DIPG")
++ecommittee("EC")
+New type approve-project
+New type approved
+New type duty-to-select-data
+New type duty-to-send-data
+New type duty-to-use-data-for-project
+New type letter-of-approval-sent
+New type letter-of-approval-signed
+New type make-data-available
+New type propose-project
+New type select-data
+New type selected
+New type send-data
+New type send-letter-of-approval
+New type sign-letter-of-approval
++processor("DCOG")
++purpose("DIPGResearch")
+New type asset
+New type read
+New type write
+New type owner-of
++controller("HospitalA")
++member("HospitalA")
++processor("HospitalA")
++researcher("HospitalA")
++actor("John")
++affiliated-with(person("John"),member("HospitalA"))
++donor("Alice")
++subject("Alice")
++give-consent(subject("Alice"),controller("HospitalA"),purpose("DIPGResearch"))
+executed transition: 
+give-consent(subject("Alice"),controller("HospitalA"),purpose("DIPGResearch")) (ENABLED)
+~give-consent(subject("Alice"),controller("HospitalA"),purpose("DIPGResearch"))
++consent(subject("Alice"),controller("HospitalA"),purpose("DIPGResearch"))
++donor("Bob")
++subject("Bob")
++give-consent(subject("Bob"),controller("HospitalA"),purpose("DIPGResearch"))
+executed transition: 
+give-consent(subject("Bob"),controller("HospitalA"),purpose("DIPGResearch")) (ENABLED)
+~give-consent(subject("Bob"),controller("HospitalA"),purpose("DIPGResearch"))
++consent(subject("Bob"),controller("HospitalA"),purpose("DIPGResearch"))
++asset("X1")
++data("X1")
++dataset("X1")
++accurate-for-purpose(data("X1"),purpose("DIPGResearch"))
++make-data-available(member("HospitalA"),dcog("DCOG"),dataset("X1"))
++access(actor("John"),asset("X1"))
++write(actor("John"),asset("X1"))
++coded(actual_dataset("X1"))
++subject-of(subject("Alice"),data("X1"))
++subject-of(subject("Bob"),data("X1"))
+query successful

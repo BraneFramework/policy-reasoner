@@ -1,0 +1,23 @@
+New type countx
+New type sumx
+New type x
++countx(0)
++sumx(0)
+~countx(0)
+~sumx(0)
++countx(1)
++sumx(1)
++x(1)
+~countx(1)
+~sumx(1)
++countx(2)
++x(3)
++sumx(4)
+~countx(2)
++x(0)
++countx(3)
+~countx(3)
+~x(3)
+~sumx(4)
++sumx(1)
++countx(2)

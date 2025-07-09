@@ -4,7 +4,7 @@
 //  Created:
 //    31 Oct 2023, 14:30:00
 //  Last edited:
-//    13 Dec 2023, 08:44:28
+//    21 Oct 2024, 13:33:05
 //  Auto updated?
 //    Yes
 //
@@ -15,7 +15,8 @@
 
 use std::fmt::{Display, Formatter, Result as FResult};
 
-use super::spec::{Elem, ElemBranch, ElemCommit, ElemLoop, ElemParallel, ElemTask, Workflow};
+use super::{Elem, ElemBranch, ElemCall, ElemLoop, ElemParallel, Workflow};
+
 
 /***** HELPER MACROS *****/
 /// Prints a given iterator somewhat nicely to a string.
@@ -37,6 +38,10 @@ macro_rules! write_iter {
     }};
 }
 
+
+
+
+
 /***** HELPER FUNCTIONS *****/
 /// Writes an [`Elem`] to the given formatter.
 ///
@@ -51,33 +56,28 @@ macro_rules! write_iter {
 fn print_elem(f: &mut Formatter, elem: &Elem, prefix: &dyn Display) -> FResult {
     // Print the element
     match elem {
-        Elem::Task(ElemTask { id, name, package, version, input, output, location, metadata, next }) => {
+        Elem::Call(ElemCall { id, task, input, output, at, metadata, next }) => {
             writeln!(f, "{prefix}task")?;
-            writeln!(f, "{prefix}  - id : {id}")?;
+            writeln!(f, "{prefix}  - id      : {id:?}")?;
+            writeln!(f, "{prefix}  - task    : {task:?}")?;
+            writeln!(f, "{prefix}  - input   : {}", write_iter!(input.iter().map(|data| format!("'{}'", data.id)), " or "))?;
+            writeln!(f, "{prefix}  - output  : {}", write_iter!(output.iter().map(|data| format!("'{}'", data.id)), " or "))?;
             writeln!(f, "{prefix}")?;
-            writeln!(f, "{prefix}  - name    : {name}")?;
-            writeln!(f, "{prefix}  - package : {package}")?;
-            writeln!(f, "{prefix}  - version : {version}")?;
+            writeln!(f, "{prefix}  - at      : {}", if let Some(at) = &at { at.id.as_str() } else { "<unplanned>" })?;
             writeln!(f, "{prefix}")?;
-            writeln!(f, "{prefix}  - input  : {}", write_iter!(input.iter().map(|data| format!("'{}'", data.name)), " or "))?;
             writeln!(
                 f,
-                "{}  - output : {}",
-                prefix,
-                if let Some(output) = &output { format!("'{}'", output.name.as_str()) } else { "<none>".into() }
-            )?;
-            writeln!(f, "{prefix}")?;
-            writeln!(f, "{prefix}  - location  : {}", if let Some(location) = &location { location.as_str() } else { "<unplanned>" })?;
-            writeln!(
-                f,
-                "{}  - metadata  : {}",
+                "{}  - metadata: {}",
                 prefix,
                 write_iter!(
                     metadata.iter().map(|metadata| format!(
-                        "#{}.{}{}",
-                        metadata.owner,
-                        metadata.tag,
-                        if let Some((assigner, signature)) = &metadata.signature { format!("#{assigner}:{signature}") } else { String::new() }
+                        "{tag:?}{signature}",
+                        tag = metadata.tag,
+                        signature = if let Some((assigner, signature)) = &metadata.signature {
+                            format!("{}:{}", assigner.id, signature)
+                        } else {
+                            String::new()
+                        }
                     )),
                     ", "
                 )
@@ -100,9 +100,8 @@ fn print_elem(f: &mut Formatter, elem: &Elem, prefix: &dyn Display) -> FResult {
             // Do next
             print_elem(f, next, prefix)
         },
-        Elem::Parallel(ElemParallel { branches, merge, next }) => {
+        Elem::Parallel(ElemParallel { branches, next }) => {
             writeln!(f, "{prefix}parallel")?;
-            writeln!(f, "{prefix}  - merge strategy : {merge:?}")?;
 
             // Write the branches
             for (i, branch) in branches.iter().enumerate() {
@@ -123,39 +122,19 @@ fn print_elem(f: &mut Formatter, elem: &Elem, prefix: &dyn Display) -> FResult {
             // Do next
             print_elem(f, next, prefix)
         },
-        Elem::Commit(ElemCommit { id, data_name, location, input, next }) => {
-            writeln!(f, "{prefix}commit <{} as '{}'>", write_iter!(input.iter().map(|data| format!("'{}'", data.name)), " or "), data_name)?;
-            writeln!(f, "{prefix}  - id   : {id}")?;
-            for i in input {
-                if let Some(from) = &i.from {
-                    writeln!(f, "{prefix}  - from : '{}' <- '{}'", i.name, from)?;
-                }
-            }
-            if let Some(location) = location {
-                writeln!(f, "{prefix}  - to   : {location}")?;
-            }
-
-            // Do next
-            print_elem(f, next, prefix)
-        },
 
         Elem::Next => {
-            writeln!(f, "{}next", prefix)
+            writeln!(f, "{prefix}next")
         },
-        Elem::Stop(returns) => {
-            writeln!(
-                f,
-                "{}stop{}",
-                prefix,
-                if !returns.is_empty() {
-                    format!(" <returns {}>", write_iter!(returns.iter().map(|data| format!("'{}'", data.name)), " or "))
-                } else {
-                    String::new()
-                }
-            )
+        Elem::Stop => {
+            writeln!(f, "{prefix}stop")
         },
     }
 }
+
+
+
+
 
 /***** HELPERS *****/
 /// Writes two display things successively.
@@ -176,6 +155,10 @@ impl Display for Indent {
     }
 }
 
+
+
+
+
 /***** FORMATTERS *****/
 /// Capable of printing the [`Workflow`] to some writer.
 #[derive(Debug)]
@@ -190,16 +173,17 @@ impl Display for WorkflowFormatter<'_> {
 
         // Print global metadata
         if !self.wf.metadata.is_empty() {
+            writeln!(f, "{}  - id      : {:?}", Indent(4), self.wf.id)?;
+            writeln!(f, "{}  - user    : {:?}", Indent(4), self.wf.user.as_ref().map(|ent| &ent.id))?;
             writeln!(
                 f,
-                "{}{}",
+                "{}  - metadata: {:?}",
                 Indent(4),
                 write_iter!(
                     self.wf.metadata.iter().map(|metadata| format!(
-                        "#{}.{}{}",
-                        metadata.owner,
+                        "{:?}{}",
                         metadata.tag,
-                        if let Some((assigner, signature)) = &metadata.signature { format!("#{assigner}:{signature}") } else { String::new() }
+                        if let Some((assigner, signature)) = &metadata.signature { format!("{}:{}", assigner.id, signature) } else { String::new() }
                     )),
                     ", "
                 )
@@ -221,5 +205,5 @@ impl Workflow {
     /// # Returns
     /// A new [`WorkflowFormatter`] that can visualize the workflow when its [`Display`]-implementation is called.
     #[inline]
-    pub fn visualize(&self) -> WorkflowFormatter { WorkflowFormatter { wf: self } }
+    pub fn visualize(&self) -> WorkflowFormatter<'_> { WorkflowFormatter { wf: self } }
 }

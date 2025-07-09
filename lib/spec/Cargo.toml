@@ -1,0 +1,19 @@
+[package]
+name = "specifications"
+description = "Defines various interfaces between various parts of the reasoner."
+edition = "2021"
+rust-version = "1.78.0"
+authors = [ "Bas Kloosterman", "Tim Müller" ]
+version = "0.2.0"
+repository.workspace = true
+license.workspace = true
+
+
+[dependencies]
+paste = "1.0.0"
+serde = { version = "1.0.184", features = ["derive"] }
+
+share = { path = "../share" }
+
+[features]
+default = []

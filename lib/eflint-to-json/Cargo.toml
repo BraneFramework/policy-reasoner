@@ -1,22 +1,28 @@
 [package]
 name = "eflint-to-json"
 description = "Defines a high-level wrapper around Olaf's [`eflint-to-json`](https://github.com/Olaf-Erkemeij/eflint-server) executable that compiles eFLINT to eFLINT JSON Specification."
-rust-version = "1.81"
+rust-version = "1.82.0"
 edition = "2021"
-version.workspace = true
+version = "0.2.0"
+authors = ["Tim Müller"]
 repository.workspace = true
-authors.workspace = true
 license.workspace = true
 
 
 [dependencies]
-async-recursion = "1.0"
-console = "0.15.5"
-futures-util = "0.3.30"
-hex = "0.4.3"
-hex-literal = "0.4"
+async-recursion = { version = "1.0.0", optional = true }
+console = "0.15.0"
+futures-util = { version = "0.3.30", optional = true }
+hex = "0.4.0"
+hex-literal = "0.4.0"
 indicatif = "0.17"
-log = "0.4.22"
-reqwest = { version = "0.12.0", features = ["blocking", "stream"] }
-sha2 = "0.10.6"
-tokio = { version = "1.38.0", default-features = false, features = ["fs", "process"]}
+reqwest = { version = "0.12.0", default-features = false, features = ["blocking", "stream"] }
+sha2 = "0.10.1"
+thiserror = "2.0.0"
+tokio = { version = "1.44.2", default-features = false, features = ["fs", "io-util", "process"], optional = true }
+tracing = { version = "0.1.37" }
+
+[features]
+default = []
+
+async-tokio = ["dep:async-recursion", "dep:futures-util", "dep:tokio"]

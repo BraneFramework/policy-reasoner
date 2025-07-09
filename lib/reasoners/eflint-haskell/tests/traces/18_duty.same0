@@ -1,0 +1,8 @@
+New type bad
+New type duty
++duty(int(2),string("x"))
++duty(int(2),string("y"))
++bad(duty(int(3),string("x")))
+violations:
+  violated duty!: duty(int(3),string("x"))
++duty(int(3),string("x"))

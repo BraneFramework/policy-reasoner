@@ -1,0 +1,17 @@
+New type go
+executed transition: 
+go(string("x")) (DISABLED)
+violations:
+  disabled action: go(string("x"))
+executed transition: 
+go(string("y")) (DISABLED)
+|
+`- go(string("x")) (DISABLED)
+violations:
+  disabled action: go(string("y"))
+executed transition: 
+go(string("z")) (DISABLED)
+|
+`- go(string("x")) (DISABLED)
+violations:
+  disabled action: go(string("z"))

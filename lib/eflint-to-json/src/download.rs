@@ -4,7 +4,7 @@
 //  Created:
 //    29 Nov 2023, 15:11:58
 //  Last edited:
-//    12 Jun 2024, 17:45:43
+//    11 Oct 2024, 16:08:06
 //  Auto updated?
 //    Yes
 //
@@ -13,95 +13,68 @@
 //
 
 use std::fmt::{Display, Formatter, Result as FResult};
+use std::fs;
 use std::io::Write as _;
 use std::path::{Path, PathBuf};
 use std::str::FromStr as _;
-use std::{error, fs};
 
 use console::Style;
+#[cfg(feature = "async-tokio")]
 use futures_util::StreamExt as _;
 use indicatif::{ProgressBar, ProgressStyle};
-use log::debug;
-use reqwest::{Client, Request, Response, StatusCode, Url, blocking};
+#[cfg(feature = "async-tokio")]
+use reqwest::{Client, Request, Response};
+use reqwest::{StatusCode, Url, blocking};
 use sha2::{Digest as _, Sha256};
+#[cfg(feature = "async-tokio")]
 use tokio::fs as tfs;
+#[cfg(feature = "async-tokio")]
 use tokio::io::AsyncWriteExt as _;
+use tracing::debug;
+
 
 /***** ERRORS *****/
 /// Wraps the contents of an error body.
-#[derive(Debug)]
+#[derive(Debug, thiserror::Error)]
+#[error("{0}")]
 pub struct ResponseBodyError(pub String);
-impl Display for ResponseBodyError {
-    fn fmt(&self, f: &mut Formatter<'_>) -> FResult { write!(f, "{}", self.0) }
-}
-impl error::Error for ResponseBodyError {}
 
-/// Defines errors occurring with [`download_file_async()`].
-#[derive(Debug)]
+
+
+/// Defines errors occurring with [`download_file()`].
+#[derive(Debug, thiserror::Error)]
 pub enum Error {
     /// Failed to create a file.
-    FileCreate { path: PathBuf, err: std::io::Error },
+    #[error("Failed to create output file '{}'", path.display())]
+    FileCreate { path: PathBuf, source: std::io::Error },
     /// Failed to write to the output file.
-    FileWrite { path: PathBuf, err: std::io::Error },
+    #[error("Failed to write to output file '{}'", path.display())]
+    FileWrite { path: PathBuf, source: std::io::Error },
     /// The checksum of a file was not what we expected.
+    #[error("Checksum of downloaded file '{}' is incorrect: expected '{got}', got '{expected}'", path.display())]
     FileChecksum { path: PathBuf, got: String, expected: String },
 
     /// Directory not found.
+    #[error("Directory '{}' not found", path.display())]
     DirNotFound { path: PathBuf },
 
     /// The given address did not have HTTPS enabled.
+    #[error("Security policy requires HTTPS is enabled, but '{address}' does not enable it (or we cannot parse the URL)")]
     NotHttps { address: String },
     /// Failed to send a request to the given address.
-    Request { address: String, err: reqwest::Error },
+    #[error("Failed to send GET-request to '{address}'")]
+    Request { address: String, source: reqwest::Error },
     /// The given server responded with a non-2xx status code.
-    RequestFailure { address: String, code: StatusCode, err: Option<ResponseBodyError> },
+    #[error("GET-request to '{address}' failed with status code {} ({})", code.as_u16(), code.canonical_reason().unwrap_or("???"))]
+    RequestFailure { address: String, code: StatusCode, source: Option<ResponseBodyError> },
     /// Failed to download the full file stream.
-    Download { address: String, err: reqwest::Error },
+    #[error("Failed to download file '{address}'")]
+    Download { address: String, source: reqwest::Error },
 }
-impl Display for Error {
-    fn fmt(&self, f: &mut Formatter<'_>) -> FResult {
-        use Error::*;
-        match self {
-            FileCreate { path, .. } => write!(f, "Failed to create output file '{}'", path.display()),
-            FileWrite { path, .. } => write!(f, "Failed to write to output file '{}'", path.display()),
-            FileChecksum { path, got, expected } => {
-                write!(f, "Checksum of downloaded file '{}' is incorrect: expected '{}', got '{}'", path.display(), got, expected)
-            },
 
-            DirNotFound { path } => write!(f, "Directory '{}' not found", path.display()),
 
-            NotHttps { address } => {
-                write!(f, "Security policy requires HTTPS is enabled, but '{address}' does not enable it (or we cannot parse the URL)")
-            },
-            Request { address, .. } => write!(f, "Failed to send GET-request to '{address}'"),
-            RequestFailure { address, code, .. } => {
-                write!(f, "GET-request to '{}' failed with status code {} ({})", address, code.as_u16(), code.canonical_reason().unwrap_or("???"))
-            },
-            Download { address, .. } => write!(f, "Failed to download file '{address}'"),
-        }
-    }
-}
-impl std::error::Error for Error {
-    fn source(&self) -> Option<&(dyn error::Error + 'static)> {
-        use Error::*;
-        match self {
-            FileCreate { err, .. } => Some(err),
-            FileWrite { err, .. } => Some(err),
-            FileChecksum { .. } => None,
 
-            DirNotFound { .. } => None,
 
-            NotHttps { .. } => None,
-            Request { err, .. } => Some(err),
-            RequestFailure { err, .. } => err.as_ref().map(|err| {
-                // Use a little bit of indirection to coerce into the trait object
-                let err: &dyn error::Error = err;
-                err
-            }),
-            Download { err, .. } => Some(err),
-        }
-    }
-}
 
 /***** AUXILLARY *****/
 /// Defines things to do to assert a downloaded file is secure and what we expect.
@@ -176,6 +149,10 @@ impl Display for DownloadSecurity<'_> {
     }
 }
 
+
+
+
+
 /***** LIBRARY *****/
 /// Downloads some file from the interwebs to the given location.
 ///
@@ -192,12 +169,17 @@ impl Display for DownloadSecurity<'_> {
 ///
 /// # Errors
 /// This function may error if we failed to download the file or write it (which may happen if the parent directory of `local` does not exist, among other things).
-pub fn download_file(source: impl AsRef<str>, target: impl AsRef<Path>, security: DownloadSecurity<'_>, verbose: Option<Style>) -> Result<(), Error> {
-    let source: &str = source.as_ref();
+pub fn download_file(
+    source_url: impl AsRef<str>,
+    target: impl AsRef<Path>,
+    security: DownloadSecurity<'_>,
+    verbose: Option<Style>,
+) -> Result<(), Error> {
+    let source_url: &str = source_url.as_ref();
     let target: &Path = target.as_ref();
-    debug!("Downloading '{}' to '{}' (Security: {})...", source, target.display(), security);
+    debug!("Downloading '{source_url}' to '{}' (Security: {security})...", target.display());
     if let Some(style) = &verbose {
-        println!("Downloading {}...", style.apply_to(source));
+        println!("Downloading {}...", style.apply_to(source_url));
     }
 
     // Assert the download directory exists
@@ -209,72 +191,37 @@ pub fn download_file(source: impl AsRef<str>, target: impl AsRef<Path>, security
     }
 
     // Open the target file for writing
-    let mut handle: fs::File = match fs::File::create(target) {
-        // Ok(handle) => {
-        //     // Prepare the permissions to set by reading the file's metadata
-        //     let mut permissions: Permissions = match handle.metadata() {
-        //         Ok(metadata) => metadata.permissions(),
-        //         Err(err)     => { return Err(Error::FileMetadataError{ what: "temporary binary", path: local.into(), err }); },
-        //     };
-        //     permissions.set_mode(permissions.mode() | 0o100);
-
-        //     // Set them
-        //     if let Err(err) = handle.set_permissions(permissions) { return Err(Error::FilePermissionsError{ what: "temporary binary", path: local.into(), err }); }
-
-        //     // Return the handle
-        //     handle
-        // },
-        Ok(handle) => handle,
-        Err(err) => {
-            return Err(Error::FileCreate { path: target.into(), err });
-        },
-    };
+    let mut handle = fs::File::create(target).map_err(|source| Error::FileCreate { path: target.into(), source })?;
 
     // Send a request
     let res: blocking::Response = if security.https {
-        debug!("Sending download request to '{}' (HTTPS enabled)...", source);
+        debug!("Sending download request to '{}' (HTTPS enabled)...", source_url);
 
         // Assert the address starts with HTTPS first
-        if Url::parse(source).ok().map(|u| u.scheme() != "https").unwrap_or(true) {
-            return Err(Error::NotHttps { address: source.into() });
+        if Url::parse(source_url).ok().map(|u| u.scheme() != "https").unwrap_or(true) {
+            return Err(Error::NotHttps { address: source_url.into() });
         }
 
         // Send the request with a user-agent header (to make GitHub happy)
         let client: blocking::Client = blocking::Client::new();
-        let req: blocking::Request = match client.get(source).header("User-Agent", "reqwest").build() {
-            Ok(req) => req,
-            Err(err) => {
-                return Err(Error::Request { address: source.into(), err });
-            },
-        };
-        match client.execute(req) {
-            Ok(req) => req,
-            Err(err) => {
-                return Err(Error::Request { address: source.into(), err });
-            },
-        }
+        let req: blocking::Request =
+            client.get(source_url).header("User-Agent", "reqwest").build().map_err(|source| Error::Request { address: source_url.into(), source })?;
+
+        client.execute(req).map_err(|source| Error::Request { address: source_url.into(), source })?
     } else {
-        debug!("Sending download request to '{}'...", source);
+        debug!("Sending download request to '{}'...", source_url);
 
         // Send the request with a user-agent header (to make GitHub happy)
         let client: blocking::Client = blocking::Client::new();
-        let req: blocking::Request = match client.get(source).header("User-Agent", "reqwest").build() {
-            Ok(req) => req,
-            Err(err) => {
-                return Err(Error::Request { address: source.into(), err });
-            },
-        };
-        match client.execute(req) {
-            Ok(req) => req,
-            Err(err) => {
-                return Err(Error::Request { address: source.into(), err });
-            },
-        }
+        let req: blocking::Request =
+            client.get(source_url).header("User-Agent", "reqwest").build().map_err(|source| Error::Request { address: source_url.into(), source })?;
+
+        client.execute(req).map_err(|source| Error::Request { address: source_url.into(), source })?
     };
 
     // Assert it succeeded
     if !res.status().is_success() {
-        return Err(Error::RequestFailure { address: source.into(), code: res.status(), err: res.text().ok().map(ResponseBodyError) });
+        return Err(Error::RequestFailure { address: source_url.into(), code: res.status(), source: res.text().ok().map(ResponseBodyError) });
     }
 
     // Create the progress bar based on whether if there is a length
@@ -296,15 +243,11 @@ pub fn download_file(source: impl AsRef<str>, target: impl AsRef<Path>, security
     let mut hasher: Option<Sha256> = if security.checksum.is_some() { Some(Sha256::new()) } else { None };
 
     // Download the response to the opened output file
-    let body = match res.bytes() {
-        Ok(body) => body,
-        Err(err) => return Err(Error::Download { address: source.into(), err }),
-    };
+    let body = res.bytes().map_err(|source| Error::Download { address: source_url.into(), source })?;
+
     for next in body.chunks(16384) {
         // Write it to the file
-        if let Err(err) = handle.write(next) {
-            return Err(Error::FileWrite { path: target.into(), err });
-        }
+        handle.write(next).map_err(|source| Error::FileWrite { path: target.into(), source })?;
 
         // If desired, update the hash
         if let Some(hasher) = &mut hasher {
@@ -361,17 +304,18 @@ pub fn download_file(source: impl AsRef<str>, target: impl AsRef<Path>, security
 ///
 /// # Errors
 /// This function may error if we failed to download the file or write it (which may happen if the parent directory of `local` does not exist, among other things).
+#[cfg(feature = "async-tokio")]
 pub async fn download_file_async(
-    source: impl AsRef<str>,
+    source_url: impl AsRef<str>,
     target: impl AsRef<Path>,
     security: DownloadSecurity<'_>,
     verbose: Option<Style>,
 ) -> Result<(), Error> {
-    let source: &str = source.as_ref();
+    let source_url: &str = source_url.as_ref();
     let target: &Path = target.as_ref();
-    debug!("Downloading '{}' to '{}' (Security: {})...", source, target.display(), security);
+    debug!("Downloading '{source_url}' to '{target}' (Security: {security})...", target = target.display());
     if let Some(style) = &verbose {
-        println!("Downloading {}...", style.apply_to(source));
+        println!("Downloading {}...", style.apply_to(source_url));
     }
 
     // Assert the download directory exists
@@ -383,72 +327,39 @@ pub async fn download_file_async(
     }
 
     // Open the target file for writing
-    let mut handle: tfs::File = match tfs::File::create(target).await {
-        // Ok(handle) => {
-        //     // Prepare the permissions to set by reading the file's metadata
-        //     let mut permissions: Permissions = match handle.metadata() {
-        //         Ok(metadata) => metadata.permissions(),
-        //         Err(err)     => { return Err(Error::FileMetadataError{ what: "temporary binary", path: local.into(), err }); },
-        //     };
-        //     permissions.set_mode(permissions.mode() | 0o100);
-
-        //     // Set them
-        //     if let Err(err) = handle.set_permissions(permissions) { return Err(Error::FilePermissionsError{ what: "temporary binary", path: local.into(), err }); }
-
-        //     // Return the handle
-        //     handle
-        // },
-        Ok(handle) => handle,
-        Err(err) => {
-            return Err(Error::FileCreate { path: target.into(), err });
-        },
-    };
+    let mut handle: tfs::File = tfs::File::create(target).await.map_err(|source| Error::FileCreate { path: target.into(), source })?;
 
     // Send a request
     let res: Response = if security.https {
-        debug!("Sending download request to '{}' (HTTPS enabled)...", source);
+        debug!("Sending download request to '{source_url}' (HTTPS enabled)...");
 
         // Assert the address starts with HTTPS first
-        if Url::parse(source).ok().map(|u| u.scheme() != "https").unwrap_or(true) {
-            return Err(Error::NotHttps { address: source.into() });
+        if Url::parse(source_url).ok().map(|u| u.scheme() != "https").unwrap_or(true) {
+            return Err(Error::NotHttps { address: source_url.into() });
         }
 
         // Send the request with a user-agent header (to make GitHub happy)
         let client: Client = Client::new();
-        let req: Request = match client.get(source).header("User-Agent", "reqwest").build() {
-            Ok(req) => req,
-            Err(err) => {
-                return Err(Error::Request { address: source.into(), err });
-            },
-        };
-        match client.execute(req).await {
-            Ok(req) => req,
-            Err(err) => {
-                return Err(Error::Request { address: source.into(), err });
-            },
-        }
+        let req: Request =
+            client.get(source_url).header("User-Agent", "reqwest").build().map_err(|source| Error::Request { address: source_url.into(), source })?;
+        client.execute(req).await.map_err(|source| Error::Request { address: source_url.into(), source })?
     } else {
-        debug!("Sending download request to '{}'...", source);
+        debug!("Sending download request to '{source_url}'...");
 
         // Send the request with a user-agent header (to make GitHub happy)
         let client: Client = Client::new();
-        let req: Request = match client.get(source).header("User-Agent", "reqwest").build() {
-            Ok(req) => req,
-            Err(err) => {
-                return Err(Error::Request { address: source.into(), err });
-            },
-        };
-        match client.execute(req).await {
-            Ok(req) => req,
-            Err(err) => {
-                return Err(Error::Request { address: source.into(), err });
-            },
-        }
+        let req: Request =
+            client.get(source_url).header("User-Agent", "reqwest").build().map_err(|source| Error::Request { address: source_url.into(), source })?;
+        client.execute(req).await.map_err(|source| Error::Request { address: source_url.into(), source })?
     };
 
     // Assert it succeeded
     if !res.status().is_success() {
-        return Err(Error::RequestFailure { address: source.into(), code: res.status(), err: res.text().await.ok().map(ResponseBodyError) });
+        return Err(Error::RequestFailure {
+            address: source_url.into(),
+            code:    res.status(),
+            source:  res.text().await.ok().map(ResponseBodyError),
+        });
     }
 
     // Create the progress bar based on whether if there is a length
@@ -473,17 +384,10 @@ pub async fn download_file_async(
     let mut stream = res.bytes_stream();
     while let Some(next) = stream.next().await {
         // Unwrap the result
-        let next = match next {
-            Ok(next) => next,
-            Err(err) => {
-                return Err(Error::Download { address: source.into(), err });
-            },
-        };
+        let next = next.map_err(|source| Error::Download { address: source_url.into(), source })?;
 
         // Write it to the file
-        if let Err(err) = handle.write(&next).await {
-            return Err(Error::FileWrite { path: target.into(), err });
-        }
+        handle.write(&next).await.map_err(|source| Error::FileWrite { path: target.into(), source })?;
 
         // If desired, update the hash
         if let Some(hasher) = &mut hasher {

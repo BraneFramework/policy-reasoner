@@ -1,0 +1,9 @@
+New type bar
+New type foo
+executed transition: 
+foo(string("")) (DISABLED)
+violations:
+  disabled action: foo(string(""))
++string("Foo")
++bar(string("Foo"))
++foo(string("Foo"))

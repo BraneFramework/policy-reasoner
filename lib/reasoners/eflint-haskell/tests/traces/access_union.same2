@@ -1,0 +1,85 @@
+New type accurate-for-purpose
+New type controller
+New type data
+New type processes
+New type processor
+New type purpose
+New type subject
+New type subject-of
+New type collect-personal-data
+New type consent
+New type give-consent
+New type access
+New type actual_dataset
+New type affiliated-with
+New type code
+New type coded
+New type coordinator
+New type country
+New type country_of
+New type dataset
+New type dcog
+New type dipg
+New type donor
+New type ecommittee
+New type eligible-access
+New type findings
+New type member
+New type person
+New type project
+New type proposal
+New type researcher
+New type thirdparty
++dcog("DCOG")
++dipg("DIPG")
++ecommittee("EC")
+New type approve-project
+New type approved
+New type duty-to-select-data
+New type duty-to-send-data
+New type duty-to-use-data-for-project
+New type letter-of-approval-sent
+New type letter-of-approval-signed
+New type make-data-available
+New type propose-project
+New type select-data
+New type selected
+New type send-data
+New type send-letter-of-approval
+New type sign-letter-of-approval
++processor("DCOG")
++purpose("DIPGResearch")
+New type asset
+New type read
+New type write
+New type owner-of
++controller("HospitalB")
++member("HospitalB")
++processor("HospitalB")
++researcher("HospitalB")
++actor("Eve")
++affiliated-with(person("Eve"),member("HospitalB"))
++project("P1")
++purpose("P1")
++propose-project(researcher("HospitalB"),ecommittee("EC"),project("P1"))
+executed transition: 
+propose-project(researcher("HospitalB"),ecommittee("EC"),project("P1")) (ENABLED)
++approve-project(ecommittee("EC"),member("HospitalB"),project("P1"))
++proposal(member("HospitalB"),purpose("P1"),project("P1"))
+executed transition: 
+approve-project(ecommittee("EC"),member("HospitalB"),project("P1")) (ENABLED)
++send-letter-of-approval(dipg("DIPG"),member("HospitalB"),project("P1"))
++approved(project("P1"),member("HospitalB"))
+executed transition: 
+send-letter-of-approval(dipg("DIPG"),member("HospitalB"),project("P1")) (ENABLED)
++sign-letter-of-approval(researcher("HospitalB"),ecommittee("EC"),project("P1"))
++letter-of-approval-sent(project("P1"),member("HospitalB"))
+executed transition: 
+sign-letter-of-approval(researcher("HospitalB"),ecommittee("EC"),project("P1")) (ENABLED)
++duty-to-select-data(ecommittee("EC"),member("HospitalB"),project("P1"))
++duty-to-send-data(ecommittee("EC"),member("HospitalB"),project("P1"))
++letter-of-approval-signed(project("P1"),member("HospitalB"))
++asset("X1")
++data("X1")
++dataset("X1")
+query failed

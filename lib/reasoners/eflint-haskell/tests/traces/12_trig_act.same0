@@ -1,0 +1,10 @@
+New type go
+New type person
+executed transition: 
+go(person("Amy")) (DISABLED)
+violations:
+  disabled action: go(person("Amy"))
+executed transition: 
+go(person("Bob")) (DISABLED)
+violations:
+  disabled action: go(person("Bob"))

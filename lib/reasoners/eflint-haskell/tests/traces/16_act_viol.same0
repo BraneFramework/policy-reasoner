@@ -1,0 +1,17 @@
+New type x
+executed transition: 
+x(int(0)) (DISABLED)
+violations:
+  disabled action: x(int(0))
++x(int(0))
+executed transition: 
+x(int(0)) (ENABLED)
++x(int(2))
+executed transition: 
+x(int(2)) (ENABLED)
+-x(int(2))
+executed transition: 
+x(int(2)) (DISABLED)
+violations:
+  disabled action: x(int(2))
++x(int(2))

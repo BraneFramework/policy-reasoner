@@ -1,0 +1,9 @@
+New type x
+New type count
++count(0)
+~count(0)
++count(1)
++x(1)
+~count(1)
++count(2)
++x(2)

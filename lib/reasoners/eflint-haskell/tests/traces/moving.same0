@@ -1,0 +1,31 @@
+New type at
+New type move
+New type person
+New type place
++person(string("Dan"))
++person(string("Amy"))
++person(string("Bob"))
++place(string("UvA"))
++place(string("VU"))
++at(person(string("Amy")),place(string("UvA")))
++move(person(string("Amy")),place(string("UvA")),place(string("UvA")))
++move(person(string("Amy")),place(string("UvA")),place(string("VU")))
++at(person(string("Bob")),place(string("VU")))
++move(person(string("Bob")),place(string("VU")),place(string("UvA")))
++move(person(string("Bob")),place(string("VU")),place(string("VU")))
+executed transition: 
+move(person(string("Amy")),place(string("UvA")),place(string("VU"))) (ENABLED)
+~move(person(string("Amy")),place(string("UvA")),place(string("UvA")))
+~move(person(string("Amy")),place(string("UvA")),place(string("VU")))
+-at(person(string("Amy")),place(string("UvA")))
++at(person(string("Amy")),place(string("VU")))
++move(person(string("Amy")),place(string("VU")),place(string("UvA")))
++move(person(string("Amy")),place(string("VU")),place(string("VU")))
+executed transition: 
+move(person(string("Bob")),place(string("VU")),place(string("UvA"))) (ENABLED)
+~move(person(string("Bob")),place(string("VU")),place(string("UvA")))
+~move(person(string("Bob")),place(string("VU")),place(string("VU")))
+-at(person(string("Bob")),place(string("VU")))
++at(person(string("Bob")),place(string("UvA")))
++move(person(string("Bob")),place(string("UvA")),place(string("UvA")))
++move(person(string("Bob")),place(string("UvA")),place(string("VU")))

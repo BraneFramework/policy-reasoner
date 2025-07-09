@@ -1,0 +1,30 @@
+[package]
+name = "eflint-haskell-reasoner"
+description = "Wraps the infamous Haskell interpreter to supply an eFLINT DSL backend."
+edition = "2021"
+rust-version = "1.79.0"
+authors = [ "Tim Müller" ]
+version = "0.1.0"
+repository.workspace = true
+license.workspace = true
+
+
+[dependencies]
+serde = { version = "1.0.184", features = ["derive"] }
+sha2 = "0.10.1"
+thiserror = "2.0.0"
+tokio = { version = "1.44.2", default-features = false, features = ["fs", "io-util", "process"] }
+tracing = "0.1.37"
+
+error-trace.workspace = true
+
+spec = { path = "../../spec", package = "specifications" }
+
+share = { path = "../../share" }
+
+[dev-dependencies]
+hex = "0.4.0"
+tokio = { version = "1.44.2", default-features = false, features = ["fs", "io-util", "process", "macros"] }
+
+[features]
+default = []
