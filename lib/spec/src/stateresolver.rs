@@ -102,7 +102,11 @@ pub trait StateResolver {
     ///
     /// # Errors
     /// This function may error if it failed to do its resolution.
-    fn resolve<'a, L>(&'a self, state: Self::State, logger: &'a SessionedAuditLogger<L>) -> impl Future<Output = Result<Self::Resolved, Self::Error>>
+    fn resolve<'a, L>(
+        &'a self,
+        state: Self::State,
+        logger: &'a SessionedAuditLogger<L>,
+    ) -> impl Send + Future<Output = Result<Self::Resolved, Self::Error>>
     where
         L: Sync + AuditLogger;
 }
